@@ -25,3 +25,14 @@ Thumbs.db
 .DS_Store
 .idea/
 .vscode/
+# ---- Public repository safety ----
+# Release/build output
+*.exe
+# Atomic local state / diagnostics
+Logs/
+# Local credentials / environment
+.env
+.env.*
+secrets.json
+credentials.json
+# IDE / OS

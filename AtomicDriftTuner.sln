@@ -1,0 +1,18 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AtomicDriftTuner", "src\AtomicDriftTuner\AtomicDriftTuner.csproj", "{DA6A0F7E-7451-4E71-BA5E-73AE9C0EB90A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DA6A0F7E-7451-4E71-BA5E-73AE9C0EB90A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA6A0F7E-7451-4E71-BA5E-73AE9C0EB90A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA6A0F7E-7451-4E71-BA5E-73AE9C0EB90A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA6A0F7E-7451-4E71-BA5E-73AE9C0EB90A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

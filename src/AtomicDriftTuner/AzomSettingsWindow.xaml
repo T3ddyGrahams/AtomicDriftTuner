@@ -1,0 +1,135 @@
+<Window x:Class="AtomicDriftTuner.AzomSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Full AZOM Base Settings • Atomic Drift Tuner v0.7.3 BETA 2"
+        Width="1120" Height="860" MinWidth="940" MinHeight="680"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
+    <Window.Resources>
+        <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}"><Setter Property="Margin" Value="0,3,0,8"/><Setter Property="Padding" Value="7"/></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}"><Setter Property="Margin" Value="0,3,8,3"/><Setter Property="MinWidth" Value="170"/></Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource AtomicCheckBoxStyle}"><Setter Property="Margin" Value="0,6,0,6"/></Style>
+        <Style TargetType="Button"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,5,8,5"/><Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Style>
+        <Style TargetType="DataGrid" BasedOn="{StaticResource AtomicDataGridStyle}"><Setter Property="GridLinesVisibility" Value="Horizontal"/></Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="FULL AZOM BASE SETTINGS" FontSize="25" FontWeight="Bold"/>
+            <TextBlock x:Name="SetupText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,8" TextWrapping="Wrap"/>
+            <TextBlock Text="TUNED = generated per hardware/car/drift target. PREFERENCE = preserved unless you explicitly include it in a live apply." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <TabControl Grid.Row="1" Margin="0,14,0,12">
+            <TabItem Header="Live AZOM"><Grid Margin="14">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="SIMHUB + AZOM LIVE BRIDGE" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Text="Every Live Apply is serialized and verified against AZOM readback. Atomic uses the exact AZOM Base-setting commit path first, then public SimHub action/CLI fallbacks only if needed." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,4"/>
+                        <TextBlock Text="WRITE SAFETY: explicit Apply only • one Apply/Revert batch at a time • duplicate live targets are suppressed • direct commits are spaced at least 120 ms apart • any future write-on-slider path must use Atomic's 500 ms last-value-wins debounce." Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                        <TextBlock Text="SimHubWPF.exe"/><TextBox x:Name="SimHubPathBox"/>
+                        <WrapPanel>
+                            <Button Content="Auto Detect SimHub" Click="AutoDetectSimHub_Click"/>
+                            <Button Content="Browse..." Click="BrowseSimHub_Click"/>
+                            <Button Content="READ LIVE AZOM" Click="ReadLiveAzom_Click" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="LiveStatusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                    <WrapPanel>
+                        <CheckBox x:Name="IncludePreferencesBox" Content="Include preference toggles/settings" VerticalAlignment="Center" Margin="0,7,16,7"/>
+                        <Button Content="Refresh Comparison" Click="RefreshComparison_Click"/>
+                        <Button Content="APPLY SELECTED" Click="ApplyLiveAzom_Click" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold"/>
+                        <Button Content="REVERT LAST APPLY" Click="RevertLiveAzom_Click"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <Button Content="Select All Differences" Click="SelectAllDifferences_Click"/>
+                        <Button Content="Clear Selection" Click="ClearApplySelection_Click"/>
+                        <ComboBox x:Name="SectionSelectionBox"/>
+                        <Button Content="Select Section" Click="SelectSection_Click"/>
+                        <TextBlock x:Name="SelectionStatusText" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" Margin="8,0,0,0"/>
+                    </WrapPanel>
+                </StackPanel>
+                <DataGrid Grid.Row="2" x:Name="LiveComparisonGrid" AutoGenerateColumns="False" AlternationCount="2" HeadersVisibility="Column" CanUserAddRows="False" CellEditEnding="LiveComparisonGrid_CellEditEnding">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Apply?" Width="65">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              IsEnabled="{Binding CanApply}"
+                                              IsChecked="{Binding IsSelectedForApply, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              Click="ApplyRowCheckBox_Click"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Group" Binding="{Binding Group, Mode=OneWay}" IsReadOnly="True" Width="125"/>
+                        <DataGridTextColumn Header="Setting" Binding="{Binding DisplayName, Mode=OneWay}" IsReadOnly="True" Width="190"/>
+                        <DataGridTextColumn Header="Live" Binding="{Binding CurrentDisplay, Mode=OneWay}" IsReadOnly="True" Width="95"/>
+                        <DataGridTextColumn Header="Atomic Target" Binding="{Binding TargetDisplay, Mode=OneWay}" IsReadOnly="True" Width="105"/>
+                        <DataGridCheckBoxColumn Header="Different" Binding="{Binding IsDifferent, Mode=OneWay}" IsReadOnly="True" Width="75"/>
+                        <DataGridCheckBoxColumn Header="Writable" Binding="{Binding CanApply, Mode=OneWay}" IsReadOnly="True" Width="70"/>
+                        <DataGridTextColumn Header="Fallback Actions" Binding="{Binding EstimatedActions, Mode=OneWay}" IsReadOnly="True" Width="105"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding Note, Mode=OneWay}" IsReadOnly="True" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Grid.Row="3" Text="Safety: Atomic saves a pre-apply live snapshot for Revert, writes only changed supported settings, suppresses duplicate live targets, spaces direct commits, and leaves undocumented AZOM controls alone." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            </Grid></TabItem>
+            <TabItem Header="Last Batch"><Grid Margin="14">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <TextBlock x:Name="BatchSummaryText" Text="No live apply/revert batch has run in this session yet." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                <DataGrid Grid.Row="1" x:Name="BatchAuditGrid" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Group" Binding="{Binding Group, Mode=OneWay}" Width="115"/>
+                        <DataGridTextColumn Header="Setting" Binding="{Binding Setting, Mode=OneWay}" Width="190"/>
+                        <DataGridTextColumn Header="Before" Binding="{Binding Before, Mode=OneWay}" Width="90"/>
+                        <DataGridTextColumn Header="Target" Binding="{Binding Target, Mode=OneWay}" Width="90"/>
+                        <DataGridTextColumn Header="After" Binding="{Binding After, Mode=OneWay}" Width="90"/>
+                        <DataGridCheckBoxColumn Header="Verified" Binding="{Binding Verified, Mode=OneWay}" IsReadOnly="True" Width="75"/>
+                        <DataGridTextColumn Header="Transport" Binding="{Binding Transport, Mode=OneWay}" Width="150"/>
+                        <DataGridTextColumn Header="Note" Binding="{Binding Note, Mode=OneWay}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid></TabItem>
+            <TabItem Header="Core + Effects"><ScrollViewer><StackPanel Margin="14">
+                <TextBlock Text="CORE SETTINGS  •  TUNED" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="CoreText" FontFamily="Consolas" Margin="0,8,0,18"/>
+                <TextBlock Text="WHEELBASE EFFECTS  •  TUNED / FIXED" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="WheelbaseText" FontFamily="Consolas" Margin="0,8,0,18"/>
+                <TextBlock Text="GAME EFFECTS  •  FIXED STARTING BASELINE" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="GameEffectsText" FontFamily="Consolas" Margin="0,8,0,18"/>
+                <TextBlock Text="PROTECTION  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="ProtectionText" FontFamily="Consolas" Margin="0,8,0,18"/>
+                <TextBlock Text="HIGH SPEED DAMPING  •  TUNED" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="HighSpeedText" FontFamily="Consolas" Margin="0,8,0,18"/>
+                <TextBlock Text="SOFT LIMIT  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold"/><TextBlock x:Name="SoftLimitText" FontFamily="Consolas" Margin="0,8,0,18"/>
+            </StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="Equalizer + Curve"><ScrollViewer><StackPanel Margin="14">
+                <TextBlock Text="FFB EQUALIZER  •  TUNED" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Text="Atomic only auto-writes the six-band EQ when AZOM reports six-band/legacy firmware. 10-band EQ is read but currently left untouched for frequency safety." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,8" TextWrapping="Wrap"/>
+                <TextBlock x:Name="EqualizerText" FontFamily="Consolas" Margin="0,4,0,18"/>
+                <TextBlock Text="FFB OUTPUT CURVE  •  FIXED LINEAR DRIFT BASELINE" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="CurveText" FontFamily="Consolas" Margin="0,8,0,10"/>
+                <TextBlock Text="Available AZOM curve modes: Linear, S Curve, Exponential, Parabolic. Atomic currently recommends Linear for predictable drift response." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+            </StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="Preferences"><ScrollViewer><StackPanel Margin="14" Width="520" HorizontalAlignment="Left">
+                <TextBlock Text="GEARSHIFT VIBRATION" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Text="Shift Intensity (0–5)"/><TextBox x:Name="ShiftIntensityBox"/>
+                <CheckBox x:Name="VibrateNeutralBox" Content="Vibrate on Neutral"/>
+                <TextBlock Text="Shift Debounce (0–1000 ms)"/><TextBox x:Name="ShiftDebounceBox"/>
+                <Separator Margin="0,10"/>
+                <TextBlock Text="PROTECTION / SOFT LIMIT" FontSize="18" FontWeight="Bold"/>
+                <CheckBox x:Name="HandsOffBox" Content="Hands-Off Protection"/>
+                <CheckBox x:Name="RetainGameFfbBox" Content="Retain Game FFB at Soft Limit"/>
+                <Separator Margin="0,10"/>
+                <TextBlock Text="MISCELLANEOUS" FontSize="18" FontWeight="Bold"/>
+                <CheckBox x:Name="FfbReversalBox" Content="Force Feedback Reversal"/>
+                <CheckBox x:Name="StandbyModeBox" Content="Standby Mode"/>
+                <TextBlock Text="Standby After (AZOM dropdown value; not exposed for live control)"/><TextBox x:Name="StandbyAfterBox"/>
+                <CheckBox x:Name="BaseStatusLedBox" Content="Base Status LED"/>
+                <CheckBox x:Name="BluetoothBox" Content="Bluetooth"/>
+                <TextBlock Text="Atomic does not change these per car. Live Apply ignores them unless you check Include preference toggles/settings." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            </StackPanel></ScrollViewer></TabItem>
+            <TabItem Header="All Settings"><ScrollViewer><TextBlock x:Name="AllSettingsText" Margin="14" FontFamily="Consolas" TextWrapping="Wrap"/></ScrollViewer></TabItem>
+        </TabControl>
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <Button Content="Save Preference Controls" Click="SavePreferences_Click" FontWeight="Bold"/>
+            <Button Content="Close" Click="Close_Click"/>
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" Margin="8,0,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>

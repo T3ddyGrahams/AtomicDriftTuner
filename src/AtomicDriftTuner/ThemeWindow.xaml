@@ -1,0 +1,236 @@
+<Window x:Class="AtomicDriftTuner.ThemeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:AtomicDriftTuner.Controls"
+        Title="Appearance • Atomic Drift Tuner v0.7.3 BETA 2"
+        Width="1280" Height="900" MinWidth="1080" MinHeight="720"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
+    <Window.Resources>
+        <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}">
+            <Setter Property="Margin" Value="0,3,0,8"/>
+            <Setter Property="Padding" Value="7"/>
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}">
+            <Setter Property="Margin" Value="0,3,0,8"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,5,8,5"/>
+            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="APPEARANCE + READABILITY" FontSize="25" FontWeight="Bold"/>
+            <TextBlock Text="Input fields, tables, tabs, checkboxes and dropdowns are controlled here. This window is modeless: leave it open beside other Atomic tool windows and changes preview across the app without changing tuning/AZOM/car-setup state."
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,12"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="390"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="PRESET" FontWeight="Bold"/>
+                    <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_SelectionChanged"/>
+
+                    <TextBlock Text="GENERAL COLORS" FontWeight="Bold" Margin="0,8,0,4"/>
+                    <TextBlock Text="Background"/><TextBox x:Name="BackgroundBox" Tag="BackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Sidebar / Surface"/><TextBox x:Name="SurfaceBox" Tag="SurfaceBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Panel"/><TextBox x:Name="PanelBox" Tag="PanelBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Alternate Panel"/><TextBox x:Name="PanelAltBox" Tag="PanelAltBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Border"/><TextBox x:Name="BorderBox" Tag="BorderBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Primary Text"/><TextBox x:Name="PrimaryTextBox" Tag="PrimaryTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Secondary Text"/><TextBox x:Name="SecondaryTextBox" Tag="SecondaryTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Muted Text"/><TextBox x:Name="MutedTextBox" Tag="MutedTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Accent"/><TextBox x:Name="AccentBox" Tag="AccentBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Accent Text"/><TextBox x:Name="AccentTextBox" Tag="AccentTextBox" GotFocus="ColorBox_GotFocus"/>
+
+                    <TextBlock Text="INPUT / FIELD COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="Field Background"/><TextBox x:Name="InputBox" Tag="InputBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Field Text"/><TextBox x:Name="InputTextBox" Tag="InputTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Field Border"/><TextBox x:Name="InputBorderBox" Tag="InputBorderBox" GotFocus="ColorBox_GotFocus"/>
+
+                    <TextBlock Text="TABLE / GRID COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="Row Background"/><TextBox x:Name="GridBackgroundBox" Tag="GridBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Alternate Row"/><TextBox x:Name="GridAlternateBox" Tag="GridAlternateBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Cell Text"/><TextBox x:Name="GridTextBox" Tag="GridTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Header Background"/><TextBox x:Name="GridHeaderBackgroundBox" Tag="GridHeaderBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Header Text"/><TextBox x:Name="GridHeaderTextBox" Tag="GridHeaderTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Selected Row Background"/><TextBox x:Name="GridSelectedBackgroundBox" Tag="GridSelectedBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Selected Row Text"/><TextBox x:Name="GridSelectedTextBox" Tag="GridSelectedTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Grid Lines"/><TextBox x:Name="GridLineBox" Tag="GridLineBox" GotFocus="ColorBox_GotFocus"/>
+
+                    <TextBlock Text="TAB / SECTION NAVIGATION COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="Tab Background"/><TextBox x:Name="TabBackgroundBox" Tag="TabBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Tab Text"/><TextBox x:Name="TabTextBox" Tag="TabTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Active Tab Background"/><TextBox x:Name="TabSelectedBackgroundBox" Tag="TabSelectedBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Active Tab Text"/><TextBox x:Name="TabSelectedTextBox" Tag="TabSelectedTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Tab Border"/><TextBox x:Name="TabBorderBox" Tag="TabBorderBox" GotFocus="ColorBox_GotFocus"/>
+
+                    <TextBlock Text="CHECKBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="Label / Text"/><TextBox x:Name="CheckBoxTextBox" Tag="CheckBoxTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Box Background"/><TextBox x:Name="CheckBoxBackgroundBox" Tag="CheckBoxBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Box Border"/><TextBox x:Name="CheckBoxBorderBox" Tag="CheckBoxBorderBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Check Mark"/><TextBox x:Name="CheckBoxCheckMarkBox" Tag="CheckBoxCheckMarkBox" GotFocus="ColorBox_GotFocus"/>
+
+                    <TextBlock Text="DROPDOWN / COMBOBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="Closed Background"/><TextBox x:Name="ComboBackgroundBox" Tag="ComboBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Closed Text"/><TextBox x:Name="ComboTextBox" Tag="ComboTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Popup Background"/><TextBox x:Name="ComboDropBackgroundBox" Tag="ComboDropBackgroundBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Popup Text"/><TextBox x:Name="ComboDropTextBox" Tag="ComboDropTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Selected / Hover Highlight"/><TextBox x:Name="ComboHighlightBox" Tag="ComboHighlightBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Highlight Text"/><TextBox x:Name="ComboHighlightTextBox" Tag="ComboHighlightTextBox" GotFocus="ColorBox_GotFocus"/>
+                    <TextBlock Text="Dropdown Border"/><TextBox x:Name="ComboBorderBox" Tag="ComboBorderBox" GotFocus="ColorBox_GotFocus"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="14">
+                <StackPanel>
+                    <TextBlock Text="COLOR WHEEL" FontSize="19" FontWeight="Bold"/>
+                    <TextBlock Text="Editing:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0"/>
+                    <ComboBox x:Name="ColorTargetBox" SelectionChanged="ColorTargetBox_SelectionChanged"/>
+                    <controls:ColorWheelPicker x:Name="ColorWheel" ColorChanged="ColorWheel_ColorChanged" HorizontalAlignment="Center"/>
+                    <TextBlock Text="READABILITY CHECK" FontWeight="Bold" Margin="4,12,4,0"/>
+                    <TextBlock x:Name="ContrastText"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextWrapping="Wrap"
+                               Margin="4,5,4,0"/>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="LIVE PREVIEW" FontSize="19" FontWeight="Bold"/>
+                    <TextBlock Text="The wheel previews immediately. Save Theme persists the colors throughout Atomic."
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,14"/>
+
+                    <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Input field readability" FontWeight="Bold"/>
+                            <TextBlock Text="Example value field" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,5,0,2"/>
+                            <TextBox Text="Maximum Wheel Speed = 142%"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource PanelAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="12"
+                            Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Full AZOM-style table preview" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <DataGrid x:Name="PreviewGrid"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      Height="185"
+                                      SelectedIndex="1">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="95"/>
+                                    <DataGridTextColumn Header="Setting" Binding="{Binding Setting}" Width="*"/>
+                                    <DataGridTextColumn Header="Live" Binding="{Binding Live}" Width="70"/>
+                                    <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource PanelAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="14"
+                            Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Checkbox readability" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <CheckBox Content="Include preference toggles/settings" IsChecked="True"/>
+                            <CheckBox Content="Hands-Off Protection" IsChecked="False"/>
+                            <CheckBox Content="Retain Game FFB at Soft Limit" IsChecked="{x:Null}" IsThreeState="True"/>
+                            <TextBlock Text="Checkbox label text, box background, border and check mark are all independent theme colors."
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource PanelAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="12"
+                            Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="Tab readability" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TabControl Height="130">
+                                <TabItem Header="Live AZOM">
+                                    <TextBlock Text="Selected-tab content remains on the normal surface." Margin="12" TextWrapping="Wrap"/>
+                                </TabItem>
+                                <TabItem Header="Last Batch">
+                                    <TextBlock Text="Unselected and selected headers use separate colors." Margin="12" TextWrapping="Wrap"/>
+                                </TabItem>
+                                <TabItem Header="Core + Effects">
+                                    <TextBlock Text="All section tabs use the same global theme resources." Margin="12" TextWrapping="Wrap"/>
+                                </TabItem>
+                            </TabControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource PanelAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Dropdown readability" FontWeight="Bold"/>
+                            <TextBlock Text="Open this menu to preview popup, hover and selection colors."
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Margin="0,4,0,8"
+                                       TextWrapping="Wrap"/>
+                            <ComboBox x:Name="PreviewComboBox" SelectedIndex="0">
+                                <ComboBoxItem Content="SWARM — S13"/>
+                                <ComboBoxItem Content="VDC — S15"/>
+                                <ComboBoxItem Content="Gravy Garage — E36"/>
+                                <ComboBoxItem Content="ADL — Competition Car"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <WrapPanel Grid.Row="2" Margin="0,14,0,0">
+            <Button Content="Apply Preview" Click="ApplyPreview_Click"/>
+            <Button Content="Save Theme"
+                    Click="SaveTheme_Click"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="{DynamicResource AccentTextBrush}"
+                    FontWeight="Bold"/>
+            <Button Content="Reset Atomic Cyan" Click="ResetTheme_Click"/>
+            <Button Content="Close" Click="Close_Click"/>
+            <TextBlock x:Name="StatusText"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       Margin="8,0,0,0"/>
+        </WrapPanel>
+    </Grid>
+</Window>

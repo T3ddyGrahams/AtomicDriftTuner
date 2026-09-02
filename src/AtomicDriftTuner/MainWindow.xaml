@@ -1,0 +1,232 @@
+<Window x:Class="AtomicDriftTuner.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Atomic Drift Tuner v0.7.3 BETA 2"
+        Width="1420" Height="980" MinWidth="1120" MinHeight="780"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
+    <Window.Resources>
+        <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}">
+            <Setter Property="Margin" Value="0,4,0,10" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}">
+            <Setter Property="Margin" Value="0,4,0,10" />
+            <Setter Property="Padding" Value="7" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,4,8,4" />
+            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="LabelText">
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+        </Style>
+        <Style TargetType="Border" x:Key="PanelCard">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="455" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="20">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="ATOMIC DRIFT TUNER" FontSize="27" FontWeight="Bold" />
+                    <TextBlock Text="v0.7.3 • telemetry-assisted tuning + behavior blending + live AZOM" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,20" />
+
+                    <TextBlock Text="ASSETTO CORSA INSTALL" FontWeight="Bold" />
+                    <TextBlock Text="Game root (folder containing content\cars)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="AcRootBox" />
+                    <WrapPanel>
+                        <Button Content="Auto Detect" Click="AutoDetectAc_Click" />
+                        <Button Content="Browse..." Click="BrowseAc_Click" />
+                        <Button Content="Scan Installed Cars" Click="ScanCars_Click" FontWeight="Bold" />
+                    </WrapPanel>
+                    <TextBlock x:Name="ScanStatusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,8" />
+
+                    <Separator Margin="0,8,0,14" />
+                    <TextBlock Text="WHEELBASE" FontWeight="Bold" />
+                    <ComboBox x:Name="HardwareBox" SelectionChanged="HardwareBox_SelectionChanged" />
+                    <TextBlock Text="Peak Torque (Nm)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="PeakTorqueBox" />
+
+                    <Separator Margin="0,8,0,14" />
+                    <TextBlock Text="STEERING WHEEL / RIM" FontWeight="Bold" />
+                    <ComboBox x:Name="WheelBox" SelectionChanged="WheelBox_SelectionChanged" />
+                    <TextBlock Text="Wheel Diameter (mm)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="WheelDiameterBox" />
+                    <TextBlock Text="Wheel Inertia Factor (editable)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="WheelInertiaBox" />
+
+                    <Separator Margin="0,8,0,14" />
+                    <TextBlock Text="DRIFT PACK" FontWeight="Bold" />
+                    <ComboBox x:Name="PackBox" SelectionChanged="PackBox_SelectionChanged" />
+                    <TextBlock x:Name="PackInfoText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                    <TextBlock Text="CAR" FontWeight="Bold" />
+                    <ComboBox x:Name="CarBox" SelectionChanged="CarBox_SelectionChanged" />
+                    <TextBlock x:Name="CarSourceText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,-4,0,8" />
+                    <TextBlock Text="Mass (kg)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="CarMassBox" />
+                    <TextBlock Text="Power (hp)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="CarPowerBox" />
+                    <TextBlock Text="Caster (deg)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="CasterBox" />
+                    <TextBlock Text="Steering Lock per side (deg)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="LockBox" />
+                    <TextBlock Text="Front Tire Width (mm)" Style="{StaticResource LabelText}" />
+                    <TextBox x:Name="FrontTireBox" />
+                    <TextBlock Text="Grip" Style="{StaticResource LabelText}" />
+                    <ComboBox x:Name="GripBox" />
+                    <Button Content="Mark Edited Car Data as Verified" Click="VerifyCarData_Click" />
+
+                    <Separator Margin="0,8,0,14" />
+                    <TextBlock Text="DRIFT TARGET" FontWeight="Bold" />
+                    <ComboBox x:Name="IntentBox" />
+
+                    <Button Content="GENERATE TUNE" Click="Generate_Click"
+                            Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold"
+                            Height="45" Margin="0,10,0,6" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Save Profile" Click="Save_Click" />
+                        <Button Content="Load Profile" Click="Load_Click" />
+                    </StackPanel>
+                    <Button Content="OPEN FULL AZOM SETTINGS" Click="OpenAzomSettings_Click" FontWeight="Bold" Margin="0,6,0,4" />
+                    <Button Content="OPEN AC CAR SETUP TUNER" Click="OpenCarSetup_Click" FontWeight="Bold" Margin="0,6,0,4" />
+                    <Button Content="OPEN TELEMETRY RECORDER" Click="OpenTelemetry_Click" FontWeight="Bold" Margin="0,2,0,4" />
+                    <Button Content="OPEN TUNING ASSISTANT" Click="OpenTuningAssistant_Click"
+                            Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}"
+                            FontWeight="Bold" Margin="0,4,0,6" />
+                    <Button Content="CUSTOMIZE APPEARANCE" Click="OpenAppearance_Click" FontWeight="Bold" Margin="0,2,0,4" />
+                    <Button Content="SETUP &amp; PATHS" Click="OpenSetup_Click" FontWeight="Bold" Margin="0,2,0,4" />
+                    <Button Content="SYSTEM DIAGNOSTICS" Click="OpenDiagnostics_Click" FontWeight="Bold" Margin="0,2,0,4" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="22">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="GENERATED TUNE" FontSize="23" FontWeight="Bold" />
+                    <TextBlock x:Name="SummaryText" Text="Scan AC or choose built-in settings, then generate a tune."
+                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,18" TextWrapping="Wrap" />
+
+                    <Grid Margin="0,0,0,18">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource PanelCard}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="AZOM / MOZA" FontSize="18" FontWeight="Bold" />
+                                <TextBlock x:Name="AzomText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="14" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource PanelCard}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="ASSETTO CORSA" FontSize="18" FontWeight="Bold" />
+                                <TextBlock x:Name="AcText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="14" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource PanelCard}">
+                            <StackPanel>
+                                <TextBlock Text="CAR DATA CONFIDENCE" FontSize="18" FontWeight="Bold" />
+                                <TextBlock x:Name="ConfidenceScoreText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,8" />
+                                <TextBlock x:Name="ConfidenceText" FontFamily="Consolas" FontSize="14" />
+                                <TextBlock Text="HIGH = read directly or user-verified. MEDIUM = inferred from known pack. LOW = fallback/default."
+                                           Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource PanelCard}">
+                            <StackPanel>
+                                <TextBlock Text="BEHAVIOR ESTIMATE" FontSize="18" FontWeight="Bold" />
+                                <TextBlock x:Name="BehaviorText" Margin="0,8,0,0" FontFamily="Consolas" FontSize="14" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Style="{StaticResource PanelCard}">
+                        <StackPanel>
+                            <TextBlock Text="ON-TRACK CALIBRATION" FontSize="18" FontWeight="Bold" />
+                            <TextBlock x:Name="CalibrationStatusText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+                            <TextBlock Text="Self-steer speed" FontWeight="Bold" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Too slow" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" x:Name="SelfSteerSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
+                                <TextBlock Grid.Column="2" Text="Too fast" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
+                            <TextBlock Text="FFB strength" FontWeight="Bold" Margin="0,8,0,0" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Too weak" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" x:Name="StrengthSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
+                                <TextBlock Grid.Column="2" Text="Too strong" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
+                            <TextBlock Text="Steering weight" FontWeight="Bold" Margin="0,8,0,0" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Too light" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" x:Name="WeightSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
+                                <TextBlock Grid.Column="2" Text="Too heavy" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
+                            <TextBlock Text="Detail / texture" FontWeight="Bold" Margin="0,8,0,0" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Too smooth" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" x:Name="DetailSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
+                                <TextBlock Grid.Column="2" Text="Too noisy" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
+                            <TextBlock Text="Oscillation" FontWeight="Bold" Margin="0,8,0,0" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/><ColumnDefinition Width="95"/></Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="None" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" x:Name="OscillationSlider" Minimum="0" Maximum="4" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
+                                <TextBlock Grid.Column="2" Text="Severe" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
+                            <WrapPanel Margin="0,12,0,0">
+                                <Button Content="Apply Feedback + Regenerate" Click="ApplyCalibration_Click" FontWeight="Bold" />
+                                <Button Content="Reset Saved Calibration" Click="ResetCalibration_Click" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="NOTES" FontSize="18" FontWeight="Bold" />
+                    <TextBlock x:Name="NotesText" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,8,0,0" />
+
+                    <Border Background="{DynamicResource PanelAltBrush}" CornerRadius="8" Padding="12" Margin="0,18,0,0">
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   Text="v0.7.3 BETA 2 adds a telemetry-assisted Tuning Assistant that compares saved sessions with per-car Desired Behavior, preserves on-target areas, proposes bounded AZOM/AC FFB calibration deltas, and hands temporary guidance into the AC Car Setup Tuner." />
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

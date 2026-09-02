@@ -1,0 +1,27 @@
+# Visual Studio / .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.pdb
+
+# Build/distribution output
+artifacts/
+publish/
+release/
+*.msi
+
+# Local Atomic/test data
+*.log
+AtomicSupport_*.zip
+TelemetrySessions/
+settings.json
+calibrations.json
+car-behavior-targets.json
+
+# OS/editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

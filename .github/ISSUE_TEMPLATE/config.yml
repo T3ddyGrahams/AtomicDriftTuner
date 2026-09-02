@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Atomic Drift Tuner README
+    url: https://github.com/T3ddyGrahams/AtomicDriftTuner#readme
+    about: Read setup, safety, build, and beta-testing information before filing an issue.

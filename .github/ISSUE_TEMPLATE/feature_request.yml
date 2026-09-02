@@ -1,0 +1,87 @@
+name: Feature request
+description: Suggest a new feature or improvement for Atomic Drift Tuner.
+title: "[FEATURE] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        Please describe the problem/use case first. That makes it easier to decide whether the best solution belongs in the UI, tuning engine, telemetry system, AC setup layer, or SimHub/AZOM bridge.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      options:
+        - Tuning engine
+        - Wheelbase / wheel support
+        - AZOM / SimHub integration
+        - Assetto Corsa car scanner
+        - AC Car Setup Tuner
+        - Desired Behavior
+        - Telemetry Recorder / analysis
+        - Tuning Assistant
+        - Appearance / accessibility
+        - Diagnostics / support tools
+        - Profiles / import / export
+        - Installer / distribution
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      placeholder: Describe the current limitation or workflow problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like Atomic to do?
+      placeholder: Describe the proposed behavior or UI.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example workflow
+      description: Show how you imagine using the feature.
+      placeholder: |
+        1. I select...
+        2. Atomic detects...
+        3. Atomic shows...
+        4. I review/apply...
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Relevant hardware / car / pack
+      description: Optional. Include these if the idea only makes sense for a particular setup.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to your testing/use?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Major missing feature
+        - Blocks me from using/testing Atomic
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked existing issues for a similar request.
+          required: true
+        - label: This request does not require redistributing proprietary third-party binaries.
+          required: true

@@ -1,0 +1,171 @@
+name: Bug report
+description: Report a reproducible problem with Atomic Drift Tuner.
+title: "[BUG] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping test Atomic Drift Tuner.
+
+        Please include enough detail for the issue to be reproduced. Do not post passwords, tokens, private paths, proprietary third-party files, or personal telemetry you do not want public.
+
+  - type: input
+    id: atomic_version
+    attributes:
+      label: Atomic Drift Tuner version
+      description: "Example: v0.7.3-beta.2"
+      placeholder: v0.7.3-beta.2
+    validations:
+      required: true
+
+  - type: input
+    id: bridge_version
+    attributes:
+      label: Atomic SimHub Bridge version
+      description: Found in System Diagnostics. Enter N/A if the issue does not involve SimHub/AZOM.
+      placeholder: v0.7.2 or N/A
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area of the application
+      options:
+        - Main tuning / generated tune
+        - Full AZOM Settings
+        - Live AZOM readback / Apply / Revert
+        - AC Car Scanner
+        - AC Car Setup Tuner
+        - Desired Behavior / behavior blending
+        - Telemetry Recorder
+        - Tuning Assistant
+        - Appearance / UI readability
+        - Setup & Paths
+        - System Diagnostics / support package
+        - Installer / portable package
+        - SimHub Bridge
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Cosmetic / readability only
+        - Minor - workaround exists
+        - Major - feature cannot be used
+        - Crash / freeze
+        - Safety concern involving wheelbase behavior
+    validations:
+      required: true
+
+  - type: input
+    id: wheelbase
+    attributes:
+      label: Wheelbase
+      description: Enter N/A if not relevant.
+      placeholder: MOZA R9
+    validations:
+      required: true
+
+  - type: input
+    id: wheel
+    attributes:
+      label: Steering wheel
+      description: Enter N/A if not relevant.
+      placeholder: MOZA CS V2P
+    validations:
+      required: true
+
+  - type: input
+    id: drift_pack
+    attributes:
+      label: Drift pack
+      description: Enter N/A if not relevant.
+      placeholder: Team SWARM V3.2
+    validations:
+      required: true
+
+  - type: input
+    id: car
+    attributes:
+      label: Car
+      description: Exact car/folder name when possible. Enter N/A if not relevant.
+      placeholder: Example car name
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: simhub
+    attributes:
+      label: SimHub / AZOM versions
+      description: Enter N/A if the issue does not involve them.
+      placeholder: SimHub x.x.x / AZOM x.x.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: Describe the expected result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      placeholder: Include exact messages, incorrect values, visual problems, or behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Please make the steps as exact as possible.
+      placeholder: |
+        1. Open Atomic...
+        2. Select...
+        3. Click...
+        4. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / logs / support ZIP
+      description: |
+        If relevant, attach the privacy-redacted support ZIP from System Diagnostics by dragging it into this field.
+        Do not attach proprietary SimHub/AZOM/MOZA DLLs.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, video, whether the issue is consistent/intermittent, and anything else that may help.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Tester checklist
+      options:
+        - label: I reproduced this on the version listed above.
+          required: true
+        - label: I checked that I am not reporting a password, token, secret, or private file.
+          required: true
+        - label: If this involves a live AZOM write, I verified the requested and live/readback values where possible.
+          required: false

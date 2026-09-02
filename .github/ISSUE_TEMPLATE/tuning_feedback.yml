@@ -1,0 +1,150 @@
+name: Tuning / recommendation feedback
+description: Report whether Atomic's generated tune, AC setup, Desired Behavior, or telemetry recommendation helped or hurt.
+title: "[TUNING] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for quality-of-recommendation feedback, even when nothing technically crashed.
+
+        This is especially useful for comparing what Atomic intended to change with what the car/wheel actually did.
+
+        Direct-drive wheelbases can produce substantial force. If a recommendation creates unsafe or unexpected behavior, stop testing and report it.
+
+  - type: input
+    id: atomic_version
+    attributes:
+      label: Atomic version
+      placeholder: v0.7.3-beta.2
+    validations:
+      required: true
+
+  - type: input
+    id: wheelbase
+    attributes:
+      label: Wheelbase
+      placeholder: MOZA R12
+    validations:
+      required: true
+
+  - type: input
+    id: wheel
+    attributes:
+      label: Steering wheel
+      placeholder: MOZA CS Pro
+    validations:
+      required: true
+
+  - type: input
+    id: pack
+    attributes:
+      label: Drift pack
+      placeholder: VDC Public 5.0
+    validations:
+      required: true
+
+  - type: input
+    id: car
+    attributes:
+      label: Car
+      placeholder: Exact car name / folder
+    validations:
+      required: true
+
+  - type: dropdown
+    id: intent
+    attributes:
+      label: Session intent
+      options:
+        - Training
+        - Realistic
+        - Fast Self-Steer
+        - Tandem
+        - Competition
+        - Other / custom
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which Atomic recommendation are you evaluating?
+      options:
+        - Generated AZOM / wheelbase tune
+        - Assetto Corsa FFB recommendation
+        - AC Car Setup Tuner
+        - Desired Behavior
+        - Telemetry calibration recommendation
+        - Tuning Assistant temporary AC setup guidance
+        - Before / After comparison
+        - Multiple areas
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired
+    attributes:
+      label: Desired car / wheel behavior
+      description: Describe what you asked Atomic to achieve.
+      placeholder: Faster self-steer, stable high angle, planted rear, quick transitions...
+    validations:
+      required: true
+
+  - type: textarea
+    id: atomic_change
+    attributes:
+      label: What did Atomic recommend or change?
+      description: Include Current -> Recommended values or a screenshot when useful.
+      placeholder: |
+        Wheel speed: 135 -> 142
+        Wheel damper: 8 -> 7
+        Rear rebound: 7 -> 8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: result
+    attributes:
+      label: Overall result
+      options:
+        - Much better
+        - Better
+        - Slightly better
+        - About the same
+        - Slightly worse
+        - Worse
+        - Much worse / unsafe
+    validations:
+      required: true
+
+  - type: textarea
+    id: feel
+    attributes:
+      label: What changed in the actual feel/behavior?
+      description: Be specific about self-steer, transition, front bite, rear grip, angle stability, oscillation, throttle rotation, initiation, FFB detail, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: telemetry
+    attributes:
+      label: Telemetry / before-after evidence
+      description: Optional. Paste Before / After metrics or attach screenshots/support information.
+
+  - type: textarea
+    id: manual_adjustments
+    attributes:
+      label: What manual change made it better?
+      description: If you corrected Atomic's recommendation yourself, tell us exactly what you changed.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety / validity checks
+      options:
+        - label: I tested the same wheelbase, wheel, pack, and car listed above.
+          required: true
+        - label: I reviewed wheelbase values before applying them.
+          required: true
+        - label: If I marked this unsafe, I stopped testing the problematic settings.
+          required: false

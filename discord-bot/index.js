@@ -51,7 +51,7 @@ const commands = [
 
 async function getLatestRelease() {
   const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+    `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=10`,
     {
       headers: {
         Accept: "application/vnd.github+json",
@@ -64,7 +64,15 @@ async function getLatestRelease() {
     throw new Error(`GitHub API returned ${response.status}`);
   }
 
-  return response.json();
+  const releases = await response.json();
+
+  const release = releases.find((item) => !item.draft);
+
+  if (!release) {
+    throw new Error("No published GitHub releases found.");
+  }
+
+  return release;
 }
 
 async function registerCommands() {

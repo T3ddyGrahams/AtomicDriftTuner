@@ -10,7 +10,7 @@ namespace AtomicDriftTuner;
 public partial class TelemetryWindow : Window
 {
     private readonly TuneInput _input;
-    private readonly AssettoCorsaTelemetryReader _reader = new();
+    private readonly TelemetryHubService _telemetry;
     private readonly TelemetryAnalyzer _analyzer = new();
     private readonly TelemetrySessionStore _sessionStore = new();
     private readonly CalibrationStore _calibrationStore = new();
@@ -24,15 +24,16 @@ public partial class TelemetryWindow : Window
 
     public bool CalibrationChanged { get; private set; }
 
-    public TelemetryWindow(TuneInput input)
+    public TelemetryWindow(TuneInput input, TelemetryHubService telemetry)
     {
         InitializeComponent();
         _input = input;
+        _telemetry = telemetry;
         _session = NewSession();
         SetupText.Text = $"{input.Hardware.Model} • {input.Wheel.Model} • {input.DriftPack.Name} • {input.Car.DisplayName} • {input.Intent.Name}";
         StatusText.Text = "Start Assetto Corsa and enter a driving session, then connect.";
         _timer.Tick += Timer_Tick;
-        Closed += (_, _) => { _timer.Stop(); _reader.Dispose(); };
+        Closed += (_, _) => _timer.Stop();
     }
 
     private TelemetrySession NewSession() => new()
@@ -48,7 +49,7 @@ public partial class TelemetryWindow : Window
 
     private void Connect_Click(object sender, RoutedEventArgs e)
     {
-        if (_reader.TryConnect())
+        if (_telemetry.TryConnect())
         {
             RecordButton.IsEnabled = true;
             StatusText.Text = "Connected to Assetto Corsa shared memory. Live telemetry is active.";
@@ -61,7 +62,7 @@ public partial class TelemetryWindow : Window
 
     private void Record_Click(object sender, RoutedEventArgs e)
     {
-        if (!_reader.IsConnected && !_reader.TryConnect())
+        if (!_telemetry.IsConnected && !_telemetry.TryConnect())
         {
             MessageBox.Show("Connect to Assetto Corsa first.", "Telemetry");
             return;
@@ -71,7 +72,7 @@ public partial class TelemetryWindow : Window
         _session.StartedUtc = DateTime.UtcNow;
         _analysis = null;
         _lastPacketId = -1;
-        _reader.ResetDerivativeState();
+        _telemetry.ResetDerivativeState();
         _clock.Restart();
         _recording = true;
         RecordButton.IsEnabled = false;
@@ -102,7 +103,12 @@ public partial class TelemetryWindow : Window
     {
         try
         {
-            var x = _reader.Read(_clock.Elapsed.TotalSeconds);
+            var hub = _telemetry.GetSnapshot();
+            if (!hub.Connected || hub.Sample is null)
+                throw new InvalidOperationException(
+                    hub.Error ?? "Assetto Corsa telemetry is unavailable.");
+
+            var x = hub.Sample;
             LiveText.Text =
                 $"Speed               {x.SpeedKmh,7:0.0} km/h\n" +
                 $"Body slip angle     {x.SlipAngleDeg,7:0.0}°\n" +
@@ -131,7 +137,6 @@ public partial class TelemetryWindow : Window
             RecordButton.IsEnabled = false;
             StopButton.IsEnabled = false;
             StatusText.Text = "Telemetry disconnected: " + ex.Message;
-            _reader.Dispose();
         }
     }
 

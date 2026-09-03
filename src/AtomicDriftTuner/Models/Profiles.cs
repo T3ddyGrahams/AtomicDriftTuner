@@ -166,6 +166,8 @@ public sealed class AppSettings
     public string? AssettoCorsaRoot { get; set; }
     public string? AssettoCorsaDocumentsRoot { get; set; }
     public string? SimHubRoot { get; set; }
+    public bool AutoScanInstalledCars { get; set; } = true;
+    public bool AutoSelectActiveCar { get; set; } = true;
     public AzomUserPreferences AzomPreferences { get; set; } = new();
     public ThemeSettings Theme { get; set; } = new();
     public AzomLiveConnectionSettings AzomLive { get; set; } = new();

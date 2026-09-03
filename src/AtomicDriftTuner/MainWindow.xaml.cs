@@ -2,6 +2,7 @@ using System.IO;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using AtomicDriftTuner.Data;
 using AtomicDriftTuner.Engine;
@@ -22,13 +23,21 @@ public partial class MainWindow : Window
     private readonly CalibrationStore _calibrationStore = new();
     private readonly ProfileStore _store = new();
     private readonly AssettoCorsaScanner _scanner = new();
+    private readonly AssettoCorsaSessionIdentityReader _sessionIdentityReader = new();
+    private readonly DispatcherTimer _activeCarTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly AppSettingsStore _appSettingsStore = new();
+    private readonly TelemetryHubService _telemetryHub = new();
+    private readonly RemoteServerService _remoteServer;
 
     private List<CarProfile> _installedCars = [];
     private List<CarProfile> _visibleCars = [];
     private TuneResult? _lastResult;
     private CalibrationProfile? _currentCalibration;
     private AzomUserPreferences _azomPreferences = new();
+    private string? _lastActiveCarModel;
+    private string? _lastActiveTrack;
+    private string? _lastRescanForActiveCar;
+    private bool _scanInProgress;
 
     private AzomSettingsWindow? _azomSettingsWindow;
     private CarSetupWindow? _carSetupWindow;
@@ -37,9 +46,11 @@ public partial class MainWindow : Window
     private TuningAssistantWindow? _tuningAssistantWindow;
     private DiagnosticsWindow? _diagnosticsWindow;
     private SetupWizardWindow? _setupWizardWindow;
+    private RemoteControlWindow? _remoteControlWindow;
 
     public MainWindow()
     {
+        _remoteServer = new RemoteServerService(_telemetryHub);
         InitializeComponent();
 
         HardwareBox.ItemsSource = _hardware;
@@ -59,12 +70,51 @@ public partial class MainWindow : Window
 
         var settings = _appSettingsStore.Load();
         _azomPreferences = settings.AzomPreferences ?? new AzomUserPreferences();
+        AutoScanCarsBox.IsChecked = settings.AutoScanInstalledCars;
+        AutoSelectActiveCarBox.IsChecked = settings.AutoSelectActiveCar;
+
         if (!string.IsNullOrWhiteSpace(settings.AssettoCorsaRoot))
             AcRootBox.Text = settings.AssettoCorsaRoot;
         else
             TryAutoDetect(showMessage: false);
 
+        _activeCarTimer.Tick += ActiveCarTimer_Tick;
         Loaded += MainWindow_Loaded;
+
+        _remoteServer.StateChanged += (_, _) =>
+            Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    RemoteStatusText.Text = _remoteServer.IsRunning
+                        ? $"Remote: ON • port {_remoteServer.Port} • writes {(_remoteServer.RemoteWritesEnabled ? "ON" : "OFF")}"
+                        : "Remote: OFF";
+                }));
+
+        _remoteServer.AzomChanged += (_, e) =>
+        {
+            Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    RemoteStatusText.Text = e.Verified
+                        ? $"Remote verified {e.PropertyName} = {e.Value}"
+                        : $"Remote change failed verification: {e.PropertyName}";
+
+                    if (_azomSettingsWindow is not null)
+                        _ = _azomSettingsWindow.RefreshLiveFromRemoteAsync();
+                }));
+        };
+
+        _remoteServer.SetIntentHandler = SetIntentFromRemoteAsync;
+        _remoteServer.GenerateTuneHandler = GenerateTuneFromRemoteAsync;
+
+        Closed += async (_, _) =>
+        {
+            _activeCarTimer.Stop();
+            await _remoteServer.DisposeAsync();
+            _telemetryHub.Dispose();
+        };
+
+        UpdateRemoteContextSafely();
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -74,6 +124,14 @@ public partial class MainWindow : Window
         var settings = _appSettingsStore.Load();
         if (!settings.FirstRunCompleted)
             OpenSetupWizard(firstRun: true);
+
+        // Startup detection runs after the first-run path wizard so it can use
+        // the final configured AC root. Manual controls remain available.
+        if (AutoScanCarsBox.IsChecked == true)
+            TryScanInstalledCars(showErrors: false, automatic: true, selectActiveAfterScan: false);
+
+        _activeCarTimer.Start();
+        TryApplyActiveCarSelection(force: true, allowRescan: true);
     }
 
     private void OpenSetupWizard(bool firstRun)
@@ -104,8 +162,9 @@ public partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(settings.AssettoCorsaRoot))
                 AcRootBox.Text = settings.AssettoCorsaRoot;
 
-            ScanStatusText.Text =
-                "Machine configuration updated. Scan installed cars when ready.";
+            ScanStatusText.Text = "Machine configuration updated.";
+            if (AutoScanCarsBox.IsChecked == true)
+                TryScanInstalledCars(showErrors: false, automatic: true, selectActiveAfterScan: true);
         }
 
         if (firstRun)
@@ -216,6 +275,10 @@ public partial class MainWindow : Window
             var parts = new List<string> { $"Installed folder: {c.SourceFolderName}" };
             if (!string.IsNullOrWhiteSpace(c.Author)) parts.Add($"Author: {c.Author}");
             if (!string.IsNullOrWhiteSpace(c.DataSourceSummary)) parts.Add($"Read: {c.DataSourceSummary}");
+            var detectedPack = _packs.FirstOrDefault(x => x.Id == c.PackId);
+            parts.Add(c.PackId == "custom-pack"
+                ? "Pack inference: no known signature; Custom / Other"
+                : $"Pack inference: {detectedPack?.Name ?? c.PackId}");
             CarSourceText.Text = string.Join(" • ", parts);
         }
         else
@@ -308,9 +371,13 @@ public partial class MainWindow : Window
         Grip = c.Grip
     };
 
-    private void AutoDetectAc_Click(object sender, RoutedEventArgs e) => TryAutoDetect(showMessage: true);
+    private void AutoDetectAc_Click(object sender, RoutedEventArgs e)
+    {
+        if (TryAutoDetect(showMessage: true))
+            TryScanInstalledCars(showErrors: true, automatic: true, selectActiveAfterScan: true);
+    }
 
-    private void TryAutoDetect(bool showMessage)
+    private bool TryAutoDetect(bool showMessage)
     {
         var found = _scanner.TryFindInstall();
         if (!string.IsNullOrWhiteSpace(found))
@@ -318,11 +385,17 @@ public partial class MainWindow : Window
             AcRootBox.Text = found;
             ScanStatusText.Text = $"Detected Assetto Corsa: {found}";
             SaveAcRoot(found);
+            return true;
         }
-        else if (showMessage)
+
+        if (showMessage)
         {
-            MessageBox.Show("Assetto Corsa was not found in the usual Steam locations. Use Browse to select the game folder.", "Assetto Corsa Detection");
+            MessageBox.Show(
+                "Assetto Corsa was not found in the usual Steam locations. Use Browse to select the game folder.",
+                "Assetto Corsa Detection");
         }
+
+        return false;
     }
 
     private void BrowseAc_Click(object sender, RoutedEventArgs e)
@@ -339,14 +412,35 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             AcRootBox.Text = dialog.FolderName;
-            ScanStatusText.Text = "Folder selected. Click Scan Installed Cars.";
+            SaveAcRoot(dialog.FolderName);
+            ScanStatusText.Text = "Assetto Corsa folder selected.";
+
+            if (AutoScanCarsBox.IsChecked == true)
+                TryScanInstalledCars(showErrors: true, automatic: true, selectActiveAfterScan: true);
         }
     }
 
-    private void ScanCars_Click(object sender, RoutedEventArgs e)
+    private void ScanCars_Click(object sender, RoutedEventArgs e) =>
+        TryScanInstalledCars(showErrors: true, automatic: false, selectActiveAfterScan: true);
+
+    private bool TryScanInstalledCars(
+        bool showErrors,
+        bool automatic,
+        bool selectActiveAfterScan)
     {
+        if (_scanInProgress)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(AcRootBox.Text))
+        {
+            if (!TryAutoDetect(showMessage: showErrors))
+                return false;
+        }
+
+        _scanInProgress = true;
         try
         {
+            string? preferredCarId = (CarBox.SelectedItem as CarProfile)?.Id;
             var result = _scanner.Scan(AcRootBox.Text);
             AcRootBox.Text = result.RootPath;
             _installedCars = result.Cars;
@@ -354,16 +448,158 @@ public partial class MainWindow : Window
 
             var known = _installedCars.Count(x => x.PackId != "custom-pack");
             var unknown = _installedCars.Count - known;
-            ScanStatusText.Text = $"Scanned {_installedCars.Count} installed cars. {known} matched a known drift pack; {unknown} are under Custom / Other Pack.";
+            string prefix = automatic ? "Auto-scanned" : "Scanned";
+            ScanStatusText.Text =
+                $"{prefix} {_installedCars.Count} installed cars. " +
+                $"{known} matched a known drift pack; {unknown} are under Custom / Other Pack.";
+
             if (result.Warnings.Count > 0)
                 ScanStatusText.Text += $" {result.Warnings.Count} folder(s) had metadata warnings.";
 
-            RefreshCarsForPack();
+            RefreshCarsForPack(preferredCarId);
+
+            if (selectActiveAfterScan)
+                TryApplyActiveCarSelection(force: true, allowRescan: false);
+
+            return true;
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Assetto Corsa Scan", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ScanStatusText.Text = "Assetto Corsa scan failed: " + ex.Message;
+            if (showErrors)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Assetto Corsa Scan",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+
+            return false;
         }
+        finally
+        {
+            _scanInProgress = false;
+        }
+    }
+
+    private void AutoDetectionSetting_Click(object sender, RoutedEventArgs e)
+    {
+        var app = _appSettingsStore.Load();
+        app.AutoScanInstalledCars = AutoScanCarsBox.IsChecked == true;
+        app.AutoSelectActiveCar = AutoSelectActiveCarBox.IsChecked == true;
+        app.AzomPreferences = _azomPreferences;
+        _appSettingsStore.Save(app);
+
+        if (AutoScanCarsBox.IsChecked == true && _installedCars.Count == 0)
+            TryScanInstalledCars(showErrors: false, automatic: true, selectActiveAfterScan: false);
+
+        if (AutoSelectActiveCarBox.IsChecked == true)
+            TryApplyActiveCarSelection(force: true, allowRescan: true);
+        else
+            ActiveCarStatusText.Text = "Active-car auto selection is OFF. Manual car/pack selection remains available.";
+    }
+
+    private void ActiveCarTimer_Tick(object? sender, EventArgs e) =>
+        TryApplyActiveCarSelection(force: false, allowRescan: true);
+
+    private void TryApplyActiveCarSelection(bool force, bool allowRescan)
+    {
+        var session = _sessionIdentityReader.TryRead();
+        if (session is null)
+        {
+            if (_lastActiveCarModel is not null || force)
+                ActiveCarStatusText.Text = "Active AC car: waiting for an on-track session.";
+
+            _lastActiveCarModel = null;
+            _lastActiveTrack = null;
+            _lastRescanForActiveCar = null;
+            return;
+        }
+
+        string model = session.CarModel.Trim();
+        string track = session.Track.Trim();
+        bool changed =
+            !string.Equals(model, _lastActiveCarModel, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(track, _lastActiveTrack, StringComparison.OrdinalIgnoreCase);
+
+        if (!force && !changed)
+            return;
+
+        _lastActiveCarModel = model;
+        _lastActiveTrack = track;
+
+        string trackText = string.IsNullOrWhiteSpace(track) ? "unknown track" : track;
+
+        if (AutoSelectActiveCarBox.IsChecked != true)
+        {
+            ActiveCarStatusText.Text =
+                $"Active AC: {model} • {trackText} • auto selection OFF.";
+            return;
+        }
+
+        var car = FindInstalledCar(model);
+
+        if (car is null && allowRescan &&
+            !string.Equals(_lastRescanForActiveCar, model, StringComparison.OrdinalIgnoreCase))
+        {
+            _lastRescanForActiveCar = model;
+            TryScanInstalledCars(showErrors: false, automatic: true, selectActiveAfterScan: false);
+            car = FindInstalledCar(model);
+        }
+
+        if (car is null)
+        {
+            ActiveCarStatusText.Text =
+                $"Active AC: {model} • {trackText} • car folder was not found in Atomic's installed-car scan.";
+            return;
+        }
+
+        var pack = _packs.FirstOrDefault(x => x.Id == car.PackId) ??
+                   _packs.First(x => x.Id == "custom-pack");
+
+        if (PackBox.SelectedItem is not DriftPackProfile selectedPack || selectedPack.Id != pack.Id)
+            PackBox.SelectedItem = pack;
+
+        // Pack selection refreshes the car list. Refresh once more with the
+        // exact active car id so the active session wins over the first item.
+        RefreshCarsForPack(car.Id);
+
+        int carIndex = _visibleCars.FindIndex(x => x.Id == car.Id);
+        if (carIndex >= 0 && CarBox.SelectedIndex != carIndex)
+            CarBox.SelectedIndex = carIndex;
+
+        string packText = car.PackId == "custom-pack"
+            ? "Custom / Other Pack (no known signature matched)"
+            : pack.Name;
+
+        ActiveCarStatusText.Text =
+            $"Active AC: {car.DisplayName} [{model}] • {packText} • {trackText} • auto-selected.";
+
+        // SelectionChanged normally updates the phone context. Calling this
+        // explicitly also covers the case where the same items were already selected.
+        UpdateRemoteContextSafely();
+    }
+
+    private CarProfile? FindInstalledCar(string carModel)
+    {
+        static string Normalize(string value) =>
+            new string(value.Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray());
+
+        var exact = _installedCars.FirstOrDefault(x =>
+            string.Equals(x.SourceFolderName, carModel, StringComparison.OrdinalIgnoreCase));
+        if (exact is not null)
+            return exact;
+
+        string normalized = Normalize(carModel);
+        if (string.IsNullOrWhiteSpace(normalized))
+            return null;
+
+        return _installedCars.FirstOrDefault(x =>
+            !string.IsNullOrWhiteSpace(x.SourceFolderName) &&
+            Normalize(x.SourceFolderName!) == normalized);
     }
 
     private void VerifyCarData_Click(object sender, RoutedEventArgs e)
@@ -513,6 +749,7 @@ public partial class MainWindow : Window
         if (input.Car.IsInstalled)
             notes.Insert(0, $"Installed AC car: {input.Car.SourceFolderName}. Scanner source: {input.Car.DataSourceSummary}.");
         NotesText.Text = "• " + string.Join("\n• ", notes);
+        _remoteServer.UpdateTuneContext(input, result);
     }
 
     private void RenderConfidence(CarDataConfidence c)
@@ -692,7 +929,7 @@ public partial class MainWindow : Window
 
             var input = BuildInput();
             var window =
-                new TelemetryWindow(input)
+                new TelemetryWindow(input, _telemetryHub)
                 {
                     Owner = this
                 };
@@ -783,6 +1020,25 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    private void OpenRemote_Click(object sender, RoutedEventArgs e)
+    {
+        if (_remoteControlWindow is not null)
+        {
+            RestoreAndActivate(_remoteControlWindow);
+            return;
+        }
+
+        var window =
+            new RemoteControlWindow(_remoteServer)
+            {
+                Owner = this
+            };
+
+        _remoteControlWindow = window;
+        window.Closed += (_, _) => _remoteControlWindow = null;
+        window.Show();
     }
 
     private void OpenSetup_Click(object sender, RoutedEventArgs e) =>
@@ -931,8 +1187,130 @@ public partial class MainWindow : Window
         CarBox.SelectedIndex = index;
     }
 
-    private void HardwareBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => PopulateHardware();
-    private void WheelBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => PopulateWheel();
-    private void PackBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshCarsForPack();
-    private void CarBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => PopulateCar();
+    private async Task<RemoteActionResponse> SetIntentFromRemoteAsync(
+        string intentName,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var operation = Dispatcher.InvokeAsync(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var intent = _intents.FirstOrDefault(
+                        x => string.Equals(x.Name, intentName, StringComparison.OrdinalIgnoreCase));
+
+                    if (intent is null)
+                    {
+                        return new RemoteActionResponse
+                        {
+                            Ok = false,
+                            Message = "That drift target is not available in this Atomic build."
+                        };
+                    }
+
+                    IntentBox.SelectedItem = intent;
+                    UpdateRemoteContextSafely();
+
+                    return new RemoteActionResponse
+                    {
+                        Ok = true,
+                        Message = $"Windows Atomic drift target changed to {intent.Name}."
+                    };
+                });
+
+            return await operation.Task;
+        }
+        catch (Exception ex)
+        {
+            return new RemoteActionResponse
+            {
+                Ok = false,
+                Message = ex.Message
+            };
+        }
+    }
+
+    private async Task<RemoteActionResponse> GenerateTuneFromRemoteAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var operation = Dispatcher.InvokeAsync(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var input = BuildInput();
+                    _currentCalibration = _calibrationStore.Get(_calibrationEngine.BuildKey(input));
+                    _lastResult = _engine.Generate(input, _currentCalibration, _azomPreferences);
+                    Render(input, _lastResult);
+
+                    return new RemoteActionResponse
+                    {
+                        Ok = true,
+                        Message =
+                            $"Generated tune for {input.Car.DisplayName} • {input.Intent.Name}. " +
+                            "Nothing was applied to AZOM automatically."
+                    };
+                });
+
+            return await operation.Task;
+        }
+        catch (Exception ex)
+        {
+            return new RemoteActionResponse
+            {
+                Ok = false,
+                Message = ex.Message
+            };
+        }
+    }
+
+    private void UpdateRemoteContextSafely()
+    {
+        try
+        {
+            if (HardwareBox.SelectedItem is null ||
+                WheelBox.SelectedItem is null ||
+                PackBox.SelectedItem is null ||
+                CarBox.SelectedItem is null ||
+                IntentBox.SelectedItem is null)
+                return;
+
+            _remoteServer.UpdateTuneContext(BuildInput(), null);
+        }
+        catch
+        {
+            // Selection changes can fire while editable fields are being populated.
+        }
+    }
+
+    private void HardwareBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        PopulateHardware();
+        UpdateRemoteContextSafely();
+    }
+
+    private void WheelBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        PopulateWheel();
+        UpdateRemoteContextSafely();
+    }
+
+    private void PackBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RefreshCarsForPack();
+        UpdateRemoteContextSafely();
+    }
+
+    private void CarBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        PopulateCar();
+        UpdateRemoteContextSafely();
+    }
+
+    private void IntentBox_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateRemoteContextSafely();
 }

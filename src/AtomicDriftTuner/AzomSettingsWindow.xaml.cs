@@ -409,6 +409,21 @@ public partial class AzomSettingsWindow : Window
         _settingsStore.Save(app);
     }
 
+    public async Task RefreshLiveFromRemoteAsync()
+    {
+        try
+        {
+            await ReadAndCompareAsync();
+            LiveStatusText.Text = "Live AZOM refreshed after a remote change.";
+        }
+        catch (Exception ex)
+        {
+            // A remote refresh should never interrupt the user's desktop flow
+            // with a modal dialog. Keep the error visible in the Live panel.
+            LiveStatusText.Text = "Remote refresh unavailable: " + ex.Message;
+        }
+    }
+
     private void ShowLiveError(Exception ex)
     {
         LiveStatusText.Text = "Live AZOM unavailable: " + ex.Message;

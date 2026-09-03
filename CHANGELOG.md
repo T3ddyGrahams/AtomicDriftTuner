@@ -1,6 +1,61 @@
 # Atomic Drift Tuner — Changelog
 
-Detailed development notes from the beta branches.
+## v0.8.0-beta.1 — Atomic Remote + Automatic AC Context
+
+This is the first public v0.8 beta, promoted from the fully tested remote
+development branch.
+
+### Atomic Remote
+
+- Added a same-LAN mobile/browser companion hosted by the Windows Atomic app.
+- Added six-digit pairing and a random browser bearer token.
+- Remote credentials rotate when the server starts or a new pairing code is requested.
+- Remote server accepts only loopback/private-network clients.
+- Remote AZOM writes reset to OFF every server start and require an explicit Windows-side opt-in.
+- Added a mobile Dashboard / Tune / Behavior / AZOM tab layout.
+- Added live AC speed, slip angle, steering angle, FFB output and drift detection.
+- Added one shared process-wide AC telemetry stream for both Windows and Remote clients.
+- Added current hardware, wheel, pack, car and Drift Target context on the phone.
+- Added remote Drift Target selection that updates the authoritative Windows UI.
+- Added remote **Generate Tune** requests; tune generation still runs entirely in Windows Atomic.
+- Added mobile review of generated AZOM/MOZA and Assetto Corsa FFB recommendations.
+- Added mobile self-steer, stability and detail scores, estimated peak wheel torque and tune notes.
+- Added per-car Desired Behavior editing and existing behavior presets from the phone.
+- Desired Behavior saves through the existing car-behavior profile store and does not directly write the wheelbase.
+- Added live AZOM readback for a conservative allow-list of known numeric settings.
+- Remote AZOM Apply continues to use the existing guarded/verified `AzomLiveController` path.
+- Added **Revert Last Remote Change** for the current Atomic run.
+
+### Automatic active car + drift-pack detection
+
+- Automatically scans installed Assetto Corsa cars when enabled.
+- Rescans after AC path changes / successful path auto-detection.
+- Reads the active AC car model and track from the read-only `Local\acpmf_static` shared-memory page.
+- Matches the active car to the installed AC car folder.
+- Uses exact folder identity first and a normalized exact fallback; no risky fuzzy substring matching.
+- Automatically selects the matched installed car when enabled.
+- Uses Atomic's existing pack inference for VDC, Gravy Garage, Team SWARM, ADL,
+  WDT/WDTS, Deathwish Garage, or Custom / Other.
+- Falls back to Custom / Other when evidence is insufficient.
+- Windows and Atomic Remote context update together.
+- Automatic scanning and automatic active-car/pack selection can each be disabled.
+
+### Existing systems retained
+
+- Existing hardware-aware tuning engine and car/setup logic remain intact.
+- Existing telemetry analysis and Tuning Assistant remain intact.
+- Existing AZOM single-flight, duplicate suppression, spacing, exact commit,
+  live readback and stop-on-first-unverified safeguards remain intact.
+- Existing AC setup export remains non-destructive.
+- Required Atomic SimHub Bridge remains **v0.7.2**.
+
+### Remote safety note
+
+Atomic Remote is intended for private same-LAN use in this beta. Do not
+port-forward the Atomic Remote HTTP port or expose it directly to the public
+Internet.
+
+---
 
 # Atomic Drift Tuner v0.7.3-beta.1 — Checkbox Readability + Live Theme Editing
 

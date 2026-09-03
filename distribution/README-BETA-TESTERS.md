@@ -1,7 +1,20 @@
-# Atomic Drift Tuner v0.7.3 Beta Tester Guide
+# Atomic Drift Tuner v0.8.0-beta.1 — Tester Guide
 
-This beta is intended to run without Visual Studio or a .NET SDK when distributed
+This public beta is intended to run without Visual Studio or a .NET SDK when distributed
 through the self-contained portable package or installer.
+
+## Atomic Remote — iPhone / browser companion
+
+This package includes the `v0.8.0-beta.1` local-network companion.
+Open **REMOTE / IPHONE TEST** in the Windows app, start the local server, then
+open the displayed private-LAN address from Safari on an iPhone on the same
+network. Pair with the six-digit code shown on Windows.
+
+Remote AZOM writes are OFF by default on every server start and require an
+explicit Windows-side opt-in. Keep them OFF until read-only telemetry and AZOM
+readback have been verified. The required Atomic SimHub Bridge remains v0.7.2.
+Do not expose the Atomic Remote port directly to the public Internet.
+
 
 ## First launch
 

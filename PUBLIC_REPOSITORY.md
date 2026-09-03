@@ -1,22 +1,22 @@
 # Public repository contents
 
-This repository intentionally contains the source code, build scripts,
-documentation, GitHub issue forms, and installer/build definitions required to
-inspect, build, test, and contribute to Atomic Drift Tuner.
+This repository contains the source code, build scripts, documentation, issue
+forms and installer/build definitions required to inspect, build, test and
+contribute to Atomic Drift Tuner.
 
 It intentionally does **not** contain:
 
 - compiled EXE/DLL/MSI files,
 - Visual Studio `bin`, `obj`, `.vs`, user or debug-symbol files,
-- release artifacts,
+- generated release artifacts,
 - local Atomic settings or calibrations,
 - telemetry recordings,
 - logs or crash dumps,
 - exported support packages,
-- developer machine paths,
-- credentials, tokens, or secrets,
-- proprietary SimHub, AZOM, MOZA, Assetto Corsa, or drift-pack binaries,
-- internal open-source/release-preparation checklists.
+- developer-machine paths,
+- credentials, tokens or secrets,
+- proprietary SimHub, AZOM, MOZA, Assetto Corsa or drift-pack binaries,
+- internal release-preparation notes.
 
 Compiled tester builds belong on the matching **GitHub Release**, not in the
 source repository.

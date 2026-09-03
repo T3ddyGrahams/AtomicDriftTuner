@@ -2,9 +2,9 @@
 
 **Atomic Drift Tuner** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, **MOZA + AZOM/SimHub live settings**, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets.
 
-> **Current beta:** `v0.7.3-beta.2`  
+> **Current public beta:** `v0.8.0-beta.1`  
 > **Required Atomic SimHub Bridge for live AZOM writes:** `v0.7.2`  
-> **Status:** Beta / active development
+> **Status:** Public beta / active development
 
 Atomic is designed to answer a practical drifting question:
 
@@ -13,6 +13,42 @@ Atomic is designed to answer a practical drifting question:
 It is not just a preset list. Atomic combines hardware characteristics, car/pack data, driver intent, saved calibration, AC setup information, and recorded telemetry to generate and refine recommendations.
 
 ---
+
+## Atomic Remote — iPhone / browser companion
+
+`v0.8.0-beta.1` includes **Atomic Remote**, a local-network companion UI served
+directly by the Windows Atomic application. An iPhone or other modern browser on
+the same private LAN can pair with Atomic and use a mobile dashboard without a
+separate App Store install.
+
+Current remote capabilities include:
+
+- live Assetto Corsa speed, slip angle, steering angle, FFB output and drift detection;
+- automatic display of the active AC car and inferred drift pack;
+- current wheelbase, wheel, car, pack and Drift Target context;
+- change the Windows **Drift Target / session intent**;
+- request **Generate Tune** on the authoritative Windows app;
+- review generated AZOM/MOZA and Assetto Corsa FFB recommendations;
+- view self-steer, stability and detail scores plus estimated peak wheel torque;
+- edit and save per-car **Desired Behavior** targets and presets;
+- read selected live AZOM values;
+- optionally request a limited allow-list of numeric AZOM changes;
+- revert the last remote AZOM change from the current Atomic run.
+
+The phone never talks directly to SimHub, AZOM, MOZA software or the wheelbase.
+Windows Atomic remains authoritative.
+
+Remote AZOM writes are **OFF by default every time the remote server starts**.
+They require a separate Windows-side opt-in and still pass through Atomic's
+existing range validation, single-flight write gate, duplicate/rate protection,
+exact AZOM commit path and live readback verification.
+
+Atomic Remote is currently intended for **same-LAN/private-network use only**.
+Do not port-forward its HTTP port or expose it directly to the public Internet.
+
+See [`docs/REMOTE_IPHONE_TEST.md`](docs/REMOTE_IPHONE_TEST.md) for the architecture,
+pairing/security model and testing notes. The required Atomic SimHub Bridge
+remains **v0.7.2**.
 
 ## What Atomic can do
 
@@ -113,6 +149,30 @@ Atomic tracks confidence for values such as:
 If a car only has packed `data.acd`, Atomic **does not unpack it automatically**.
 
 The user can review/edit detected values and mark corrected values as verified.
+
+---
+
+## Automatic active car + drift-pack detection
+
+Atomic can automatically scan the configured Assetto Corsa installation and
+track the currently loaded on-track car through AC's read-only shared-memory
+identity page.
+
+When enabled, Atomic:
+
+- scans installed cars at startup and after AC path changes;
+- matches the active AC car to the exact installed `content\cars\<folder>`;
+- prefers exact folder identity and a normalized exact fallback rather than risky fuzzy matching;
+- automatically selects the detected installed car;
+- applies the existing pack-inference rules for VDC, Gravy Garage, Team SWARM,
+  ADL, WDT/WDTS, Deathwish Garage, or **Custom / Other**;
+- updates the Windows selection and Atomic Remote context together.
+
+If pack evidence is insufficient, Atomic falls back to **Custom / Other**
+instead of guessing.
+
+Both automatic scanning and automatic active-car/pack selection can be disabled
+from the Windows UI.
 
 ---
 
@@ -708,16 +768,9 @@ The public repository should not include third-party proprietary binaries unless
 
 # License
 
-**A license has not been selected in this beta source tree yet.**
+Atomic Drift Tuner is released under the **MIT License**.
 
-Before calling the GitHub repository open source or accepting outside contributions, add a `LICENSE` file with the license you want to use.
-
-Common choices include:
-
-- **MIT** — permissive reuse with minimal restrictions.
-- **GPL-3.0** — copyleft; distributed derivative works must remain under compatible open-source terms.
-
-Choose deliberately before the public release.
+See [`LICENSE`](LICENSE).
 
 ---
 
@@ -728,3 +781,10 @@ See [`CHANGELOG.md`](CHANGELOG.md) for detailed beta revision notes.
 ---
 
 If you are testing Atomic Drift Tuner, thank you for helping validate it across more hardware, cars, and drift styles. The most useful feedback is specific, reproducible, and includes what you expected the car/wheel to do versus what actually happened.
+
+
+## Automatic active-car detection (remote test 5)
+
+When enabled, Atomic scans the configured Assetto Corsa `content\cars` folder automatically and reads AC's read-only static shared-memory page while a session is active. The session car model is matched to the exact installed car folder, then Atomic selects the already-inferred drift pack and installed car profile.
+
+Auto detection does not modify Assetto Corsa. If no known pack signature is found in the car folder / `ui_car.json` metadata, Atomic keeps the car under **Custom / Other Pack** instead of guessing. Manual pack and car selection remain available.

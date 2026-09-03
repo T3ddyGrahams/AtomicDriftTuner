@@ -25,14 +25,11 @@ Thumbs.db
 .DS_Store
 .idea/
 .vscode/
-# ---- Public repository safety ----
-# Release/build output
+# Compiled binaries should be distributed through GitHub Releases, not source
 *.exe
-# Atomic local state / diagnostics
-Logs/
-# Local credentials / environment
+*.dll
+# Local environment / secrets
 .env
 .env.*
 secrets.json
 credentials.json
-# IDE / OS

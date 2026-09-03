@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "packs": [
+    {
+      "id": "atomic_example_pack",
+      "name": "Atomic Example Pack",
+      "author": "Example",
+      "category": "Drift",
+      "status": "testing",
+      "cars": [
+        "example_drift_car"
+      ],
+      "aliases": [
+        "example pack"
+      ],
+      "notes": "Example pack used to verify Atomic Bot pack lookup."
+    }
+  ]
+}

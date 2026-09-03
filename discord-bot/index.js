@@ -1,5 +1,8 @@
 require("dotenv").config();
 
+const fs = require("fs");
+const path = require("path");
+
 const {
   Client,
   GatewayIntentBits,
@@ -21,7 +24,7 @@ const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const GITHUB_REPO = process.env.GITHUB_REPO;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-const BOT_VERSION = "0.2.0";
+const BOT_VERSION = "0.3.0";
 
 const requiredVariables = [
   TOKEN,
@@ -38,6 +41,26 @@ if (requiredVariables.some((value) => !value)) {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
+
+function loadJson(relativePath) {
+  const fullPath = path.join(__dirname, relativePath);
+
+  try {
+    return JSON.parse(fs.readFileSync(fullPath, "utf8"));
+  } catch (error) {
+    console.error(`Failed to load ${relativePath}:`, error);
+    return null;
+  }
+}
+
+const carDatabase = loadJson("data/cars.json");
+const packDatabase = loadJson("data/packs.json");
+
+const cars = carDatabase?.cars || [];
+const packs = packDatabase?.packs || [];
+
+console.log(`Loaded ${cars.length} cars.`);
+console.log(`Loaded ${packs.length} packs.`);
 
 const commands = [
   new SlashCommandBuilder()
@@ -84,8 +107,120 @@ const commands = [
       subcommand
         .setName("feature")
         .setDescription("Submit an Atomic Drift Tuner feature request")
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("car")
+        .setDescription("Look up a car in the Atomic database")
+        .addStringOption((option) =>
+          option
+            .setName("name")
+            .setDescription("Car name or AC folder ID")
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("pack")
+        .setDescription("Look up a car pack in the Atomic database")
+        .addStringOption((option) =>
+          option
+            .setName("name")
+            .setDescription("Pack name")
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("cars")
+        .setDescription("Show Atomic car database statistics")
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("packs")
+        .setDescription("Show Atomic pack database statistics")
     ),
 ].map((command) => command.toJSON());
+
+function normalize(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function findCar(query) {
+  const search = normalize(query);
+
+  return cars.find((car) => {
+    const values = [
+      car.id,
+      car.name,
+      car.manufacturer,
+      ...(car.aliases || []),
+    ].map(normalize);
+
+    return values.some((value) => value === search);
+  });
+}
+
+function findPack(query) {
+  const search = normalize(query);
+
+  return packs.find((pack) => {
+    const values = [
+      pack.id,
+      pack.name,
+      pack.author,
+      ...(pack.aliases || []),
+    ].map(normalize);
+
+    return values.some((value) => value === search);
+  });
+}
+
+function searchCars(query) {
+  const search = normalize(query);
+
+  return cars
+    .filter((car) => {
+      const values = [
+        car.id,
+        car.name,
+        car.manufacturer,
+        ...(car.aliases || []),
+      ]
+        .map(normalize)
+        .join(" ");
+
+      return values.includes(search);
+    })
+    .slice(0, 25);
+}
+
+function searchPacks(query) {
+  const search = normalize(query);
+
+  return packs
+    .filter((pack) => {
+      const values = [
+        pack.id,
+        pack.name,
+        pack.author,
+        ...(pack.aliases || []),
+      ]
+        .map(normalize)
+        .join(" ");
+
+      return values.includes(search);
+    })
+    .slice(0, 25);
+}
 
 async function getLatestRelease() {
   const response = await fetch(
@@ -170,16 +305,20 @@ async function registerCommands() {
 
 function formatUptime(seconds) {
   const days = Math.floor(seconds / 86400);
-
-  const hours = Math.floor(
-    (seconds % 86400) / 3600
-  );
-
-  const minutes = Math.floor(
-    (seconds % 3600) / 60
-  );
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
 
   return `${days}d ${hours}h ${minutes}m`;
+}
+
+function statusLabel(status) {
+  const value = normalize(status);
+
+  if (value === "supported") return "🟢 Supported";
+  if (value === "testing") return "🟡 Testing";
+  if (value === "unsupported") return "🔴 Unsupported";
+
+  return status || "Unknown";
 }
 
 function buildBugModal() {
@@ -209,9 +348,7 @@ function buildBugModal() {
     .setCustomId("bug_steps")
     .setLabel("How can we reproduce it?")
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder(
-      "List the steps that cause the problem."
-    )
+    .setPlaceholder("List the steps that cause the problem.")
     .setRequired(false)
     .setMaxLength(1500);
 
@@ -250,9 +387,7 @@ function buildFeatureModal() {
     .setCustomId("feature_description")
     .setLabel("What should Atomic do?")
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder(
-      "Describe the feature you'd like to see."
-    )
+    .setPlaceholder("Describe the feature you'd like to see.")
     .setRequired(true)
     .setMaxLength(1500);
 
@@ -276,26 +411,72 @@ function buildFeatureModal() {
 }
 
 client.once(Events.ClientReady, (readyClient) => {
-  console.log(
-    `Atomic Bot online as ${readyClient.user.tag}`
-  );
+  console.log(`Atomic Bot online as ${readyClient.user.tag}`);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    if (interaction.isChatInputCommand()) {
-      if (interaction.commandName !== "atomic") {
+    if (interaction.isAutocomplete()) {
+      if (interaction.commandName !== "atomic") return;
+
+      const subcommand = interaction.options.getSubcommand();
+      const focused = interaction.options.getFocused();
+
+      if (subcommand === "car") {
+        const results = searchCars(focused);
+
+        await interaction.respond(
+          results.map((car) => ({
+            name: `${car.name} — ${car.id}`.slice(0, 100),
+            value: car.id,
+          }))
+        );
+
         return;
       }
 
-      const subcommand =
-        interaction.options.getSubcommand();
+      if (subcommand === "pack") {
+        const results = searchPacks(focused);
+
+        await interaction.respond(
+          results.map((pack) => ({
+            name: pack.name.slice(0, 100),
+            value: pack.id,
+          }))
+        );
+
+        return;
+      }
+
+      return;
+    }
+
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName !== "atomic") return;
+
+      const subcommand = interaction.options.getSubcommand();
 
       if (subcommand === "help") {
         const embed = new EmbedBuilder()
           .setTitle("⚛️ Atomic Drift Tuner")
           .setDescription(`Atomic Bot v${BOT_VERSION}`)
           .addFields(
+            {
+              name: "/atomic car",
+              value: "Look up a known Assetto Corsa car.",
+            },
+            {
+              name: "/atomic pack",
+              value: "Look up a known car pack.",
+            },
+            {
+              name: "/atomic cars",
+              value: "Show car database statistics.",
+            },
+            {
+              name: "/atomic packs",
+              value: "Show pack database statistics.",
+            },
             {
               name: "/atomic latest",
               value: "Show the newest published release.",
@@ -319,10 +500,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             {
               name: "/atomic feature",
               value: "Submit a feature request.",
-            },
-            {
-              name: "/atomic help",
-              value: "Show this command list.",
             }
           )
           .setFooter({
@@ -336,36 +513,208 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
-      if (subcommand === "bug") {
-        await interaction.showModal(
-          buildBugModal()
-        );
+      if (subcommand === "car") {
+        const query = interaction.options.getString("name", true);
+        const car = findCar(query);
 
+        if (!car) {
+          await interaction.reply({
+            content:
+              "I couldn't find that car in the Atomic database yet.",
+            flags: MessageFlags.Ephemeral,
+          });
+
+          return;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle(`🚗 ${car.name}`)
+          .setDescription(car.notes || "No notes available.")
+          .addFields(
+            {
+              name: "AC Folder ID",
+              value: `\`${car.id}\``,
+              inline: false,
+            },
+            {
+              name: "Manufacturer",
+              value: car.manufacturer || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Category",
+              value: car.category || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Status",
+              value: statusLabel(car.status),
+              inline: true,
+            },
+            {
+              name: "Pack",
+              value: car.pack || "Standalone / Unknown",
+              inline: false,
+            }
+          )
+          .setFooter({
+            text: `Atomic Car Database • Schema v${
+              carDatabase?.schemaVersion || 1
+            }`,
+          });
+
+        await interaction.reply({
+          embeds: [embed],
+        });
+
+        return;
+      }
+
+      if (subcommand === "pack") {
+        const query = interaction.options.getString("name", true);
+        const pack = findPack(query);
+
+        if (!pack) {
+          await interaction.reply({
+            content:
+              "I couldn't find that pack in the Atomic database yet.",
+            flags: MessageFlags.Ephemeral,
+          });
+
+          return;
+        }
+
+        const linkedCars = (pack.cars || [])
+          .map((id) => cars.find((car) => car.id === id))
+          .filter(Boolean);
+
+        const carList =
+          linkedCars.length > 0
+            ? linkedCars.map((car) => `• ${car.name}`).join("\n")
+            : "No linked cars yet.";
+
+        const embed = new EmbedBuilder()
+          .setTitle(`📦 ${pack.name}`)
+          .setDescription(pack.notes || "No notes available.")
+          .addFields(
+            {
+              name: "Author",
+              value: pack.author || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Category",
+              value: pack.category || "Unknown",
+              inline: true,
+            },
+            {
+              name: "Status",
+              value: statusLabel(pack.status),
+              inline: true,
+            },
+            {
+              name: "Cars",
+              value: carList.slice(0, 1024),
+              inline: false,
+            }
+          )
+          .setFooter({
+            text: `Atomic Pack Database • Schema v${
+              packDatabase?.schemaVersion || 1
+            }`,
+          });
+
+        await interaction.reply({
+          embeds: [embed],
+        });
+
+        return;
+      }
+
+      if (subcommand === "cars") {
+        const supported = cars.filter(
+          (car) => normalize(car.status) === "supported"
+        ).length;
+
+        const testing = cars.filter(
+          (car) => normalize(car.status) === "testing"
+        ).length;
+
+        const unsupported = cars.filter(
+          (car) => normalize(car.status) === "unsupported"
+        ).length;
+
+        const embed = new EmbedBuilder()
+          .setTitle("🚗 Atomic Car Database")
+          .addFields(
+            {
+              name: "Total Cars",
+              value: String(cars.length),
+              inline: true,
+            },
+            {
+              name: "Supported",
+              value: String(supported),
+              inline: true,
+            },
+            {
+              name: "Testing",
+              value: String(testing),
+              inline: true,
+            },
+            {
+              name: "Unsupported",
+              value: String(unsupported),
+              inline: true,
+            }
+          )
+          .setFooter({
+            text: "Atomic Drift Tuner",
+          });
+
+        await interaction.reply({
+          embeds: [embed],
+        });
+
+        return;
+      }
+
+      if (subcommand === "packs") {
+        const embed = new EmbedBuilder()
+          .setTitle("📦 Atomic Pack Database")
+          .addFields({
+            name: "Known Packs",
+            value: String(packs.length),
+            inline: true,
+          })
+          .setFooter({
+            text: "Atomic Drift Tuner",
+          });
+
+        await interaction.reply({
+          embeds: [embed],
+        });
+
+        return;
+      }
+
+      if (subcommand === "bug") {
+        await interaction.showModal(buildBugModal());
         return;
       }
 
       if (subcommand === "feature") {
-        await interaction.showModal(
-          buildFeatureModal()
-        );
-
+        await interaction.showModal(buildFeatureModal());
         return;
       }
 
       if (subcommand === "status") {
-        const uptime = formatUptime(
-          process.uptime()
-        );
-
-        const latency = Math.round(
-          client.ws.ping
-        );
+        const uptime = formatUptime(process.uptime());
+        const latency = Math.round(client.ws.ping);
 
         const embed = new EmbedBuilder()
           .setTitle("⚛️ Atomic Bot Status")
-          .setDescription(
-            "Atomic Drift Tuner services are online."
-          )
+          .setDescription("Atomic Drift Tuner services are online.")
           .addFields(
             {
               name: "Bot Version",
@@ -388,9 +737,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
               inline: true,
             },
             {
+              name: "Cars",
+              value: String(cars.length),
+              inline: true,
+            },
+            {
+              name: "Packs",
+              value: String(packs.length),
+              inline: true,
+            },
+            {
               name: "Repository",
               value: GITHUB_REPO,
-              inline: true,
+              inline: false,
             }
           )
           .setFooter({
@@ -406,17 +765,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       await interaction.deferReply();
 
-      const release =
-        await getLatestRelease();
+      const release = await getLatestRelease();
 
       if (subcommand === "latest") {
         const embed = new EmbedBuilder()
-          .setTitle(
-            `⚛️ ${
-              release.name ||
-              release.tag_name
-            }`
-          )
+          .setTitle(`⚛️ ${release.name || release.tag_name}`)
           .setURL(release.html_url)
           .setDescription(
             release.prerelease
@@ -457,9 +810,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (subcommand === "download") {
         const embed = new EmbedBuilder()
-          .setTitle(
-            "⬇️ Download Atomic Drift Tuner"
-          )
+          .setTitle("⬇️ Download Atomic Drift Tuner")
           .setURL(release.html_url)
           .setDescription(
             `Newest published release: **${release.tag_name}**\n\nOpen the GitHub release page to download the official files.`
@@ -474,8 +825,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (subcommand === "changelog") {
         let body =
-          release.body ||
-          "No release notes were provided.";
+          release.body || "No release notes were provided.";
 
         if (body.length > 3500) {
           body =
@@ -484,12 +834,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         const embed = new EmbedBuilder()
-          .setTitle(
-            `📋 ${
-              release.name ||
-              release.tag_name
-            }`
-          )
+          .setTitle(`📋 ${release.name || release.tag_name}`)
           .setURL(release.html_url)
           .setDescription(body)
           .setFooter({
@@ -506,32 +851,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (
       interaction.isModalSubmit() &&
-      interaction.customId ===
-        "atomic_bug_modal"
+      interaction.customId === "atomic_bug_modal"
     ) {
       await interaction.deferReply({
         flags: MessageFlags.Ephemeral,
       });
 
       const title =
-        interaction.fields.getTextInputValue(
-          "bug_title"
-        );
+        interaction.fields.getTextInputValue("bug_title");
 
       const description =
-        interaction.fields.getTextInputValue(
-          "bug_description"
-        );
+        interaction.fields.getTextInputValue("bug_description");
 
       const steps =
-        interaction.fields.getTextInputValue(
-          "bug_steps"
-        ) || "Not provided.";
+        interaction.fields.getTextInputValue("bug_steps") ||
+        "Not provided.";
 
       const version =
-        interaction.fields.getTextInputValue(
-          "bug_version"
-        ) || "Not provided.";
+        interaction.fields.getTextInputValue("bug_version") ||
+        "Not provided.";
 
       const issueBody = [
         "## Bug Report",
@@ -556,16 +894,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         `Submitted automatically by Atomic Bot v${BOT_VERSION}.`,
       ].join("\n");
 
-      const issue =
-        await createGitHubIssue(
-          `[Bug] ${title}`,
-          issueBody
-        );
+      const issue = await createGitHubIssue(
+        `[Bug] ${title}`,
+        issueBody
+      );
 
       const embed = new EmbedBuilder()
-        .setTitle(
-          "🐛 Bug Report Submitted"
-        )
+        .setTitle("🐛 Bug Report Submitted")
         .setDescription(
           "Your report has been added to the Atomic Drift Tuner GitHub issue tracker."
         )
@@ -587,17 +922,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (
       interaction.isModalSubmit() &&
-      interaction.customId ===
-        "atomic_feature_modal"
+      interaction.customId === "atomic_feature_modal"
     ) {
       await interaction.deferReply({
         flags: MessageFlags.Ephemeral,
       });
 
       const title =
-        interaction.fields.getTextInputValue(
-          "feature_title"
-        );
+        interaction.fields.getTextInputValue("feature_title");
 
       const description =
         interaction.fields.getTextInputValue(
@@ -605,9 +937,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         );
 
       const benefit =
-        interaction.fields.getTextInputValue(
-          "feature_benefit"
-        ) || "Not provided.";
+        interaction.fields.getTextInputValue("feature_benefit") ||
+        "Not provided.";
 
       const issueBody = [
         "## Feature Request",
@@ -628,16 +959,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         `Submitted automatically by Atomic Bot v${BOT_VERSION}.`,
       ].join("\n");
 
-      const issue =
-        await createGitHubIssue(
-          `[Feature] ${title}`,
-          issueBody
-        );
+      const issue = await createGitHubIssue(
+        `[Feature] ${title}`,
+        issueBody
+      );
 
       const embed = new EmbedBuilder()
-        .setTitle(
-          "💡 Feature Request Submitted"
-        )
+        .setTitle("💡 Feature Request Submitted")
         .setDescription(
           "Your idea has been added to the Atomic Drift Tuner GitHub issue tracker."
         )
@@ -662,10 +990,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const message =
       "Atomic couldn't complete that request right now.";
 
-    if (
-      interaction.deferred ||
-      interaction.replied
-    ) {
+    if (interaction.deferred || interaction.replied) {
       await interaction.editReply({
         content: message,
         embeds: [],

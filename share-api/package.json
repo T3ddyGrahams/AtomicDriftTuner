@@ -1,0 +1,15 @@
+{
+  "name": "atomic-share-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atomic Drift Tuner short Share Code registry",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js",
+    "selftest": "node selftest.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

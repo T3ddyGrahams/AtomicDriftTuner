@@ -1,0 +1,25 @@
+[Unit]
+Description=Atomic Drift Tuner Share Code API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=atomicbot
+Group=atomicbot
+WorkingDirectory=/opt/atomic-repo/share-api
+Environment=NODE_ENV=production
+Environment=ATOMIC_SHARE_HOST=127.0.0.1
+Environment=ATOMIC_SHARE_PORT=8787
+Environment=ATOMIC_SHARE_DATA=/var/lib/atomic-share-api/shares.json
+ExecStart=/usr/bin/node /opt/atomic-repo/share-api/index.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/atomic-share-api
+
+[Install]
+WantedBy=multi-user.target

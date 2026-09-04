@@ -18,13 +18,18 @@ const {
   MessageFlags,
 } = require("discord.js");
 
+const { startGitHubNotifier } = require("./github-notifier");
+
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const GITHUB_REPO = process.env.GITHUB_REPO;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const RELEASES_CHANNEL_ID = process.env.DISCORD_RELEASES_CHANNEL_ID;
+const GITHUB_UPDATES_CHANNEL_ID = process.env.DISCORD_GITHUB_UPDATES_CHANNEL_ID;
+const GITHUB_POLL_SECONDS = process.env.GITHUB_POLL_SECONDS;
 
-const BOT_VERSION = "0.3.0";
+const BOT_VERSION = "0.4.0";
 
 const requiredVariables = [
   TOKEN,
@@ -412,6 +417,18 @@ function buildFeatureModal() {
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Atomic Bot online as ${readyClient.user.tag}`);
+});
+
+client.once(Events.ClientReady, (readyClient) => {
+  startGitHubNotifier({
+    client: readyClient,
+    guildId: GUILD_ID,
+    repo: GITHUB_REPO,
+    token: GITHUB_TOKEN,
+    releasesChannelId: RELEASES_CHANNEL_ID,
+    updatesChannelId: GITHUB_UPDATES_CHANNEL_ID,
+    pollSeconds: GITHUB_POLL_SECONDS,
+  });
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

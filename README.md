@@ -2,12 +2,10 @@
 
 **Atomic Drift Tuner** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, **MOZA + AZOM/SimHub live settings**, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets.
 
-> **Current public beta:** `v0.8.0-beta.1`  
+> **Current public beta:** `v0.8.1-beta.1`  
 > **Required Atomic SimHub Bridge for live AZOM writes:** `v0.7.2`  
 > **Status:** Public beta / active development
 
-> **Current development test:** `v0.8.1-updates-test.2` — manual GitHub update checking/downloads; Share Codes Phase 1 (`AT1-...`) retained.  
-> This test is not a replacement public release yet. Validate it separately before merging/publishing.
 
 
 Atomic is designed to answer a practical drifting question:

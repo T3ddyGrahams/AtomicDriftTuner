@@ -1,6 +1,6 @@
 # Atomic Drift Tuner — Changelog
 
-## v0.8.1-updates-test.2 — Updates Window
+## v0.8.1-beta.1 — Share Codes + In-App Updates
 
 - Fix build error in `UpdateService.cs` by importing `System.Net.Http` for `HttpClient` / `HttpCompletionOption`.
 
@@ -20,15 +20,15 @@
 ---
 
 
-## v0.8.1-share-test.1 — Atomic Share Codes Phase 1
+### Atomic Share Codes Phase 1
 
-Development test built on the known-good v0.8.0-beta.1 Windows app.
+Built on the known-good v0.8.0-beta.1 Windows app.
 
 ### Portable AT1 share codes
 
 - Added a versioned `atomic-share/v1` payload and `AT1-...` portable share-code format.
 - Share codes are compressed, URL-safe and self-contained; no server is required for this first phase.
-- Added **ATOMIC SHARE CODES (TEST)** to the main Windows app.
+- Added **ATOMIC SHARE CODES** to the main Windows app.
 - Create/copy a share code from the currently generated tune.
 - Copy a human-readable tune preview for Discord or support discussions.
 - Paste/decode/review another AT1 code before loading it.

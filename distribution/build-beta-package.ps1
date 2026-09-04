@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SimHubPath,
 
-    [string]$Version = "0.8.1-updates-test.2",
+    [string]$Version = "0.8.1-beta.1",
 
     [string]$InnoSetupPath = ""
 )

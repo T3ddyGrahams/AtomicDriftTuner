@@ -1,7 +1,7 @@
 <Window x:Class="AtomicDriftTuner.AzomSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Full AZOM Base Settings • Atomic Drift Tuner v0.8.1 UPDATES TEST 1"
+        Title="Full AZOM Base Settings • Atomic Drift Tuner v0.8.1 BETA 1"
         Width="1120" Height="860" MinWidth="940" MinHeight="680"
         Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>

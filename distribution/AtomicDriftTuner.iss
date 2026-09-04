@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.8.1-updates-test.2"
+  #define MyAppVersion "0.8.1-beta.1"
 #endif
 
 #ifndef RepoRoot
@@ -28,7 +28,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion=0.8.0.5
+VersionInfoVersion=0.8.1.1
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription=Atomic Drift Tuner beta installer
 

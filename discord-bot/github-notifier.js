@@ -244,6 +244,45 @@ async function buildUpdateEmbed(
 
   return null;
 }
+
+function buildCommitEmbed(commit, repo) {
+  const sha = commit.sha || "";
+  const message =
+    commit.commit?.message?.split("\n")[0] ||
+    "New commit pushed.";
+
+  const author =
+    commit.author?.login ||
+    commit.commit?.author?.name ||
+    "GitHub";
+
+  return new EmbedBuilder()
+    .setTitle(
+      `🔧 New commit: ${sha.slice(0, 7)}`
+    )
+    .setURL(
+      commit.html_url ||
+        `https://github.com/${repo}/commit/${sha}`
+    )
+    .setDescription(
+      trimText(message, 1000)
+    )
+    .addFields({
+      name: "By",
+      value: author,
+      inline: true,
+    })
+    .setFooter({
+      text: "Atomic Drift Tuner • GitHub Update",
+    })
+    .setTimestamp(
+      new Date(
+        commit.commit?.author?.date ||
+          Date.now()
+      )
+    );
+}
+
 function startGitHubNotifier({
   client,
   guildId,
@@ -264,6 +303,7 @@ function startGitHubNotifier({
 
   let firstRun = true;
   let lastEventId = null;
+  let lastCommitSha = null;
   let busy = false;
 
   const seenReleases = new Set();
@@ -276,7 +316,7 @@ function startGitHubNotifier({
     busy = true;
 
     try {
-      const [releases, events] =
+      const [releases, events, commits] =
         await Promise.all([
           githubRequest(
             repo,
@@ -286,6 +326,11 @@ function startGitHubNotifier({
           githubRequest(
             repo,
             "/events?per_page=100",
+            token
+          ),
+          githubRequest(
+            repo,
+            "/commits?per_page=20",
             token
           ),
         ]);
@@ -310,6 +355,9 @@ function startGitHubNotifier({
 
         lastEventId =
           events[0]?.id || null;
+
+        lastCommitSha =
+          commits[0]?.sha || null;
 
         firstRun = false;
 
@@ -360,6 +408,51 @@ function startGitHubNotifier({
         }
       }
       /*
+       * NEW COMMITS
+       */
+      const commitIndex =
+        lastCommitSha
+          ? commits.findIndex(
+              (commit) =>
+                commit.sha === lastCommitSha
+            )
+          : 0;
+
+      const newCommits = (
+        commitIndex < 0
+          ? commits
+          : commits.slice(
+              0,
+              commitIndex
+            )
+      ).reverse();
+
+      if (newCommits.length > 0) {
+        const updatesChannel =
+          await getDiscordChannel(
+            client,
+            guildId,
+            updatesChannelId,
+            "github-updates"
+          );
+
+        for (const commit of newCommits) {
+          await updatesChannel.send({
+            embeds: [
+              buildCommitEmbed(
+                commit,
+                repo
+              ),
+            ],
+          });
+        }
+      }
+
+      lastCommitSha =
+        commits[0]?.sha ||
+        lastCommitSha;
+
+      /*
        * NEW GITHUB ACTIVITY
        */
       const previousIndex =
@@ -387,7 +480,8 @@ function startGitHubNotifier({
          * in #releases.
          */
         if (
-          event.type === "ReleaseEvent"
+          event.type === "ReleaseEvent" ||
+          event.type === "PushEvent"
         ) {
           continue;
         }

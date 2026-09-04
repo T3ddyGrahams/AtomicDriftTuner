@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.8.0-beta.1"
+  #define MyAppVersion "0.8.1-updates-test.2"
 #endif
 
 #ifndef RepoRoot

@@ -1,5 +1,69 @@
 # Atomic Drift Tuner — Changelog
 
+## v0.8.1-updates-test.2 — Updates Window
+
+- Fix build error in `UpdateService.cs` by importing `System.Net.Http` for `HttpClient` / `HttpCompletionOption`.
+
+- Added a modeless **Updates** window to the Windows app.
+- Manual check against the official `T3ddyGrahams/AtomicDriftTuner` GitHub Releases API.
+- Optional inclusion of beta/pre-release releases.
+- Shows latest matching release tag/title/date/notes.
+- Detects the packaged `-setup.exe` and `-portable.zip` release assets.
+- Downloads only after the user chooses a save location.
+- Requires the update asset to originate from the official HTTPS GitHub release path.
+- Uses a temporary `.part` file and computes local SHA-256 after download.
+- Does not auto-run, auto-install, self-replace, or modify SimHub/bridge files.
+- Share Codes Phase 1 remains included; Share Codes Phase 2/server short codes are intentionally paused.
+- Existing tuning engine, AC telemetry, active-car detection, Atomic Remote, AZOM live controller/write guards, and bridge remain unchanged.
+- Required bridge remains v0.7.2.
+
+---
+
+
+## v0.8.1-share-test.1 — Atomic Share Codes Phase 1
+
+Development test built on the known-good v0.8.0-beta.1 Windows app.
+
+### Portable AT1 share codes
+
+- Added a versioned `atomic-share/v1` payload and `AT1-...` portable share-code format.
+- Share codes are compressed, URL-safe and self-contained; no server is required for this first phase.
+- Added **ATOMIC SHARE CODES (TEST)** to the main Windows app.
+- Create/copy a share code from the currently generated tune.
+- Copy a human-readable tune preview for Discord or support discussions.
+- Paste/decode/review another AT1 code before loading it.
+- Import loads the shared hardware/wheel/pack/car/Drift Target context and then **regenerates locally** through Atomic's normal tuning engine.
+- The shared recommendation snapshot is review-only and is never written directly to AZOM.
+- Optional import of the seven bounded Desired Behavior targets is OFF by default.
+- Imported codes are range/schema validated and decompression output is size-limited.
+
+### Privacy boundary
+
+AT1 payloads intentionally exclude:
+- full machine-specific AC paths;
+- telemetry recordings;
+- calibration history;
+- app settings;
+- Discord/remote tokens or credentials;
+- preference-style AZOM settings such as Bluetooth/LED/standby/protection preferences.
+
+The AC car folder **name** may be included so another Atomic installation can match the same locally installed car without exposing a full user/machine path.
+
+### Preserved systems
+
+- v0.8.0-beta.1 active-car + drift-pack auto-detection remains unchanged.
+- Atomic Remote remains unchanged.
+- Telemetry/Tuning Assistant remain unchanged.
+- Existing AZOM guarded write pipeline remains unchanged.
+- Required SimHub bridge remains **v0.7.2**; no bridge rebuild/reinstall is required.
+
+### Next phase
+
+After the portable payload format is validated on Windows, the next step is a small server-side Atomic Share API that stores the same validated payload and returns short IDs such as `AT-7K4D2P`. The Discord bot can then resolve `/tune AT-7K4D2P` through that API.
+
+---
+
+
 ## v0.8.0-beta.1 — Atomic Remote + Automatic AC Context
 
 This is the first public v0.8 beta, promoted from the fully tested remote

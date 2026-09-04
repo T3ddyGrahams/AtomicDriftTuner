@@ -6,6 +6,10 @@
 > **Required Atomic SimHub Bridge for live AZOM writes:** `v0.7.2`  
 > **Status:** Public beta / active development
 
+> **Current development test:** `v0.8.1-updates-test.2` — manual GitHub update checking/downloads; Share Codes Phase 1 (`AT1-...`) retained.  
+> This test is not a replacement public release yet. Validate it separately before merging/publishing.
+
+
 Atomic is designed to answer a practical drifting question:
 
 > **Given this wheelbase, this steering wheel, this car, this drift pack, and the way I want the car to behave — what should I change?**

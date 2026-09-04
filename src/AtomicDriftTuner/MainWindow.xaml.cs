@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     private readonly CalibrationEngine _calibrationEngine = new();
     private readonly CalibrationStore _calibrationStore = new();
     private readonly ProfileStore _store = new();
+    private readonly ShareCodeService _shareCodeService = new();
+    private readonly CarBehaviorProfileStore _behaviorStore = new();
     private readonly AssettoCorsaScanner _scanner = new();
     private readonly AssettoCorsaSessionIdentityReader _sessionIdentityReader = new();
     private readonly DispatcherTimer _activeCarTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -47,6 +49,8 @@ public partial class MainWindow : Window
     private DiagnosticsWindow? _diagnosticsWindow;
     private SetupWizardWindow? _setupWizardWindow;
     private RemoteControlWindow? _remoteControlWindow;
+    private ShareCodeWindow? _shareCodeWindow;
+    private UpdatesWindow? _updatesWindow;
 
     public MainWindow()
     {
@@ -1063,6 +1067,25 @@ public partial class MainWindow : Window
         window.Show();
     }
 
+    private void OpenUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updatesWindow is not null)
+        {
+            RestoreAndActivate(_updatesWindow);
+            return;
+        }
+
+        var window =
+            new UpdatesWindow
+            {
+                Owner = this
+            };
+
+        _updatesWindow = window;
+        window.Closed += (_, _) => _updatesWindow = null;
+        window.Show();
+    }
+
     private static void RestoreAndActivate(Window window)
     {
         if (window.WindowState == WindowState.Minimized)
@@ -1073,6 +1096,117 @@ public partial class MainWindow : Window
         window.Topmost = true;
         window.Topmost = false;
         window.Focus();
+    }
+
+    private void OpenShareCodes_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_shareCodeWindow is not null)
+            {
+                RestoreAndActivate(_shareCodeWindow);
+                return;
+            }
+
+            // Re-generate from the currently visible inputs before creating
+            // the payload so a stale result can never be paired with changed
+            // hardware/car/intent fields.
+            var input = BuildInput();
+            _currentCalibration =
+                _calibrationStore.Get(_calibrationEngine.BuildKey(input));
+            _lastResult =
+                _engine.Generate(input, _currentCalibration, _azomPreferences);
+            Render(input, _lastResult);
+
+            var behavior = _behaviorStore.Load(input);
+            var payload = _shareCodeService.Create(input, _lastResult, behavior);
+
+            var window = new ShareCodeWindow(payload, ImportSharePayload)
+            {
+                Owner = this
+            };
+
+            _shareCodeWindow = window;
+            window.Closed += (_, _) => _shareCodeWindow = null;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Atomic Share Codes", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ImportSharePayload(AtomicSharePayload payload, bool saveBehavior)
+    {
+        var shared = _shareCodeService.ToTuneInput(payload);
+
+        SelectOrAddHardware(shared.Hardware);
+        SelectOrAddWheel(shared.Wheel);
+        SelectOrAddPack(shared.DriftPack);
+
+        // If this exact AC folder is installed locally under the same inferred
+        // pack, use the local installed-car identity/path. The editable values
+        // below are still populated from the share payload so the regenerated
+        // tune starts from the shared context.
+        CarProfile carToSelect = shared.Car;
+        if (!string.IsNullOrWhiteSpace(shared.Car.SourceFolderName))
+        {
+            var installed = _installedCars.FirstOrDefault(
+                x => string.Equals(
+                         x.SourceFolderName,
+                         shared.Car.SourceFolderName,
+                         StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(
+                         x.PackId,
+                         shared.DriftPack.Id,
+                         StringComparison.OrdinalIgnoreCase));
+
+            if (installed is not null)
+                carToSelect = installed;
+        }
+
+        RefreshCarsForPack(carToSelect.Id);
+        SelectOrAddCar(carToSelect);
+
+        int intentIndex = _intents.FindIndex(x => x.Kind == shared.Intent.Kind);
+        if (intentIndex < 0)
+            throw new InvalidDataException("The shared Drift Target is not supported by this Atomic build.");
+
+        IntentBox.SelectedIndex = intentIndex;
+
+        PeakTorqueBox.Text =
+            shared.Hardware.PeakTorqueNm.ToString("0.##", CultureInfo.InvariantCulture);
+        WheelDiameterBox.Text =
+            shared.Wheel.DiameterMm.ToString("0.##", CultureInfo.InvariantCulture);
+        WheelInertiaBox.Text =
+            shared.Wheel.InertiaFactor.ToString("0.00", CultureInfo.InvariantCulture);
+        CarMassBox.Text =
+            shared.Car.MassKg.ToString("0.##", CultureInfo.InvariantCulture);
+        CarPowerBox.Text =
+            shared.Car.PowerHp.ToString("0.##", CultureInfo.InvariantCulture);
+        CasterBox.Text =
+            shared.Car.CasterDeg.ToString("0.##", CultureInfo.InvariantCulture);
+        LockBox.Text =
+            shared.Car.SteeringLockPerSideDeg.ToString("0.##", CultureInfo.InvariantCulture);
+        FrontTireBox.Text =
+            shared.Car.FrontTireWidthMm.ToString("0.##", CultureInfo.InvariantCulture);
+        GripBox.SelectedItem = shared.Car.Grip;
+
+        var localInput = BuildInput();
+
+        if (saveBehavior)
+            _behaviorStore.Save(localInput, payload.Behavior.ToTarget());
+
+        // Import is intentionally non-authoritative for hardware values:
+        // Atomic always regenerates through the local engine, local calibration,
+        // and local AZOM preferences. The shared recommendation stays a preview.
+        _currentCalibration =
+            _calibrationStore.Get(_calibrationEngine.BuildKey(localInput));
+        _lastResult =
+            _engine.Generate(localInput, _currentCalibration, _azomPreferences);
+
+        Render(localInput, _lastResult);
+        SummaryText.Text += " • imported AT1 share context (regenerated locally)";
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)

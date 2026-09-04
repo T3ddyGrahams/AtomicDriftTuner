@@ -19,6 +19,11 @@ const {
 } = require("discord.js");
 
 const { startGitHubNotifier } = require("./github-notifier");
+const { createShareApiClient } = require("./share-api-client");
+const {
+  buildShareCreatedEmbed,
+  buildTuneEmbed,
+} = require("./share-code-display");
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
@@ -28,8 +33,11 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const RELEASES_CHANNEL_ID = process.env.DISCORD_RELEASES_CHANNEL_ID;
 const GITHUB_UPDATES_CHANNEL_ID = process.env.DISCORD_GITHUB_UPDATES_CHANNEL_ID;
 const GITHUB_POLL_SECONDS = process.env.GITHUB_POLL_SECONDS;
+const SHARE_API_URL =
+  process.env.ATOMIC_SHARE_API_URL || "http://127.0.0.1:8787";
+const shareApi = createShareApiClient(SHARE_API_URL);
 
-const BOT_VERSION = "0.4.0";
+const BOT_VERSION = "0.5.0";
 
 const requiredVariables = [
   TOKEN,
@@ -112,6 +120,34 @@ const commands = [
       subcommand
         .setName("feature")
         .setDescription("Submit an Atomic Drift Tuner feature request")
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("share")
+        .setDescription("Turn an AT1 portable Share Code into a short AT-XXXXXX code")
+        .addStringOption((option) =>
+          option
+            .setName("payload")
+            .setDescription("Portable AT1 Share Code from Atomic Drift Tuner")
+            .setRequired(true)
+            .setMinLength(10)
+            .setMaxLength(2000)
+        )
+    )
+
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("tune")
+        .setDescription("View an Atomic tune from a short Share Code")
+        .addStringOption((option) =>
+          option
+            .setName("code")
+            .setDescription("Atomic short Share Code, for example AT-7K4D2P")
+            .setRequired(true)
+            .setMinLength(6)
+            .setMaxLength(20)
+        )
     )
 
     .addSubcommand((subcommand) =>
@@ -517,6 +553,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
             {
               name: "/atomic feature",
               value: "Submit a feature request.",
+            },
+            {
+              name: "/atomic share",
+              value: "Convert an AT1 portable tune into a short AT-XXXXXX Share Code.",
+            },
+            {
+              name: "/atomic tune",
+              value: "View a shared Atomic tune by its short Share Code.",
             }
           )
           .setFooter({
@@ -525,6 +569,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.reply({
           embeds: [embed],
+        });
+
+        return;
+      }
+
+      if (subcommand === "share") {
+        const payload = interaction.options.getString("payload", true);
+
+        await interaction.deferReply({
+          flags: MessageFlags.Ephemeral,
+        });
+
+        const result = await shareApi.publish(payload);
+
+        await interaction.editReply({
+          content: `Short code: **${result.code}**`,
+          embeds: [buildShareCreatedEmbed(result)],
+        });
+
+        return;
+      }
+
+      if (subcommand === "tune") {
+        const code = interaction.options.getString("code", true);
+
+        await interaction.deferReply();
+
+        const record = await shareApi.get(code);
+
+        await interaction.editReply({
+          embeds: [buildTuneEmbed(record)],
         });
 
         return;

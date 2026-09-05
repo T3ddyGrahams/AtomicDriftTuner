@@ -1,106 +1,284 @@
-# Atomic Drift Tuner v0.8.0-beta.1 — Tester Guide
+# Atomic Drift Tuner (ADT) — Beta Tester Guide
 
-This public beta is intended to run without Visual Studio or a .NET SDK when distributed
-through the self-contained portable package or installer.
+Thank you for testing Atomic Drift Tuner (ADT).
 
-## Atomic Remote — iPhone / browser companion
+ADT is currently in public beta. Your feedback helps identify hardware compatibility issues, tuning problems, telemetry inconsistencies, usability problems, and bugs before a stable release.
 
-This package includes the `v0.8.0-beta.1` local-network companion.
-Open **REMOTE / IPHONE TEST** in the Windows app, start the local server, then
-open the displayed private-LAN address from Safari on an iPhone on the same
-network. Pair with the six-digit code shown on Windows.
+The installer and portable builds are self-contained. Testers do not need Visual Studio or the .NET SDK.
 
-Remote AZOM writes are OFF by default on every server start and require an
-explicit Windows-side opt-in. Keep them OFF until read-only telemetry and AZOM
-readback have been verified. The required Atomic SimHub Bridge remains v0.7.2.
-Do not expose the Atomic Remote port directly to the public Internet.
+---
 
+## 1. Choose Your Build
 
-## First launch
+ADT may be distributed as:
 
-Atomic opens **Setup & Paths** the first time it runs.
+- **Installer** — recommended for most testers.
+- **Portable ZIP** — extract it to a folder and run `AtomicDriftTuner.exe`.
+
+Do not run the portable version directly from inside the ZIP.
+
+---
+
+## 2. First Launch
+
+On first launch, ADT will guide you through **Setup & Paths**.
 
 Confirm or browse to:
 
 1. **SimHub** — the folder containing `SimHubWPF.exe`.
 2. **Assetto Corsa install** — the folder containing `content\cars`.
-3. **Assetto Corsa user data** — normally the Windows Documents `Assetto Corsa`
-   folder. Redirected and OneDrive Documents locations are supported.
+3. **Assetto Corsa user data** — normally your Windows Documents `Assetto Corsa` folder.
 
-Use **Test Everything**, then **Save & Continue**.
+Redirected Documents and OneDrive Documents locations are supported.
 
-## Atomic SimHub Bridge
+Use **Test Everything** to validate the detected paths, then choose **Save & Continue**.
 
-Beta packages contain a precompiled bridge under `BridgePayload`.
+---
 
-Open **Setup & Paths** and choose **Install / Repair Packaged Bridge**.
+## 3. ADT SimHub Bridge
 
-- Fully exit SimHub before installing.
-- If SimHub is inside a protected Windows folder, Atomic can request UAC
-  elevation for the bridge-copy operation only.
-- Restart SimHub and enable `Atomic Drift Tuner Bridge` under SimHub plugins.
+Some ADT features use the optional ADT SimHub Bridge.
 
-Testers do not need PowerShell, Visual Studio, or the SimHub SDK.
+Beta packages include a precompiled bridge under:
 
-## Diagnostics
+`BridgePayload`
 
-Use **System Diagnostics** from the main window.
+You do not need PowerShell, Visual Studio, or the SimHub SDK to install the packaged bridge.
 
-If something fails, click **Export Support Package** and send the resulting ZIP
-to the Atomic Drift Tuner developer.
+In ADT:
 
-The support package includes:
+1. Open **Setup & Paths**.
+2. Fully close SimHub.
+3. Choose **Install / Repair Packaged Bridge**.
+4. Allow the Windows elevation prompt if required.
+5. Start SimHub.
+6. Enable **Atomic Drift Tuner Bridge** under SimHub's plugin settings.
+7. Restart SimHub if prompted.
 
-- redacted diagnostics,
-- redacted machine-path settings,
-- Atomic log files.
+ADT should report the bridge/integration status after SimHub is running.
 
-It does **not** include telemetry sessions, saved tune profiles, Assetto Corsa
-setup files, or per-car behavior-profile contents.
+---
 
-## What to report
+## 4. Before Your First Test
 
-Please include:
+Select the hardware and vehicle context that matches your actual session as closely as possible.
 
-- hardware (wheelbase + wheel),
-- drift pack/car,
+Verify:
+
+- wheelbase,
+- wheel/rim,
+- drift pack,
+- installed car,
+- Assetto Corsa paths,
+- SimHub connection,
+- bridge status if using bridge-dependent features.
+
+If ADT automatically detects the active car or pack, verify that the detected information is correct.
+
+---
+
+## 5. Desired Behavior
+
+ADT can use per-car **Desired Behavior** settings to understand how you want a particular car to drive.
+
+Set these according to what you actually want from the car rather than what you think ADT expects.
+
+Desired Behavior may influence setup and tuning recommendations for that car.
+
+When reporting recommendation quality, tell us what Desired Behavior settings you were using.
+
+---
+
+## 6. Telemetry Testing
+
+For telemetry-assisted recommendations:
+
+1. Start Assetto Corsa and load the car you want to test.
+2. Confirm ADT sees the correct active context.
+3. Open **Telemetry Recorder**.
+4. Record a representative drifting session.
+5. Include sustained drifts, transitions, and normal corrections where possible.
+6. Save the session.
+7. Open **Tuning Assistant**.
+8. Review the observations, recommendations, and confidence.
+9. Make only changes you are comfortable testing.
+10. Record another representative session after the change.
+
+Before/After testing is especially valuable.
+
+Try to change one major variable at a time when possible so the result is easier to evaluate.
+
+---
+
+## 7. AC Setup Recommendations
+
+When testing AC setup recommendations, pay attention to more than whether the car simply feels "better."
+
+Useful feedback includes changes in:
+
+- initiation,
+- front grip,
+- rear grip,
+- transition behavior,
+- stability,
+- rotation,
+- self-steer behavior,
+- throttle response,
+- predictability,
+- ability to hold angle.
+
+Tell us both what improved and what became worse.
+
+Tradeoffs are useful feedback.
+
+---
+
+## 8. FFB and AZOM Testing
+
+Treat force-feedback changes as safety-sensitive.
+
+Start conservatively and do not apply a recommendation that appears unreasonable for your hardware.
+
+ADT's supported live Apply/Revert workflow uses controlled bridge operations, validation, serialized changes, and readback verification.
+
+If a requested value cannot be verified, the operation should stop rather than continuing through the remaining changes.
+
+If the wheelbase behaves unexpectedly:
+
+1. Stop testing immediately.
+2. Reduce or disable FFB if necessary.
+3. Restore known-safe settings.
+4. Record what happened.
+5. Report the issue before attempting to reproduce unsafe behavior.
+
+Do not repeatedly reproduce potentially unsafe wheelbase behavior just to gather more data.
+
+---
+
+## 9. ADT Remote
+
+ADT Remote provides a local-network browser interface that can be used from devices such as an iPhone or other touchscreen.
+
+Open the ADT Remote controls in the Windows application, start the local server, and open the displayed private-network address from a device on the same network.
+
+Pair using the code displayed by ADT.
+
+Remote write capabilities should remain disabled unless you intentionally enable them from the Windows application.
+
+Do not expose the ADT Remote service directly to the public Internet.
+
+---
+
+## 10. Diagnostics
+
+Use **System Diagnostics** if something is not working correctly.
+
+For issues involving:
+
+- path detection,
+- SimHub,
+- AZOM,
+- the ADT SimHub Bridge,
+- telemetry connections,
+- active-car detection,
+- crashes,
+- configuration or profile persistence,
+
+please create an **Export Support Package** when possible.
+
+The support package is designed to contain diagnostic information needed for troubleshooting while excluding user tuning and telemetry content that is not required for support.
+
+Review the package before sharing it if you have privacy concerns.
+
+---
+
+## 11. Reporting Bugs
+
+A useful bug report should include:
+
+- ADT version,
+- installer or portable build,
+- Windows version,
+- wheelbase,
+- wheel/rim,
+- firmware version when relevant,
+- SimHub version when relevant,
+- AZOM version when relevant,
+- drift pack,
+- car,
+- track when relevant,
 - what you expected,
-- what happened,
-- the support ZIP when the issue involves detection, SimHub/AZOM, paths, crashes,
-  or telemetry connection.
+- what actually happened,
+- steps to reproduce it,
+- whether it happens consistently,
+- screenshots or video when useful,
+- support package when applicable.
 
+Report bugs through the ADT GitHub **Bug Report** issue form.
 
-## v0.7 Tuning Assistant test flow
+---
 
-1. Select the exact wheelbase + wheel + drift pack + installed car.
-2. Open **Telemetry Recorder**.
-3. Record a representative run with several sustained drifts and transitions.
-4. Click **Save Session**.
-5. Open **Tuning Assistant**.
-6. Review Desired vs Observed, recommendations, and confidence.
-7. Apply calibration only if the proposed AZOM/AC FFB delta makes sense.
-8. Use **Open AC Setup with Guidance** to test temporary car-behavior guidance.
-9. Save another telemetry session after the change to populate Before / After.
+## 12. Beta Test Reports
 
-The assistant does not automatically write AZOM or overwrite AC setups.
+You do not need to find a bug to submit useful feedback.
 
+Successful tests are valuable too.
 
-## AZOM write-safety in v0.7.2
+Use the GitHub **Beta Test Report** form to report:
 
-Live Apply is explicit and verified. Atomic suppresses already-matched targets,
-serializes Apply/Revert batches, spaces direct compatibility commits, and stops a
-batch if readback does not match.
+- tuning results,
+- FFB/AZOM results,
+- telemetry quality,
+- Desired Behavior results,
+- hardware compatibility,
+- bridge behavior,
+- installation/update testing,
+- UI/workflow feedback,
+- Before/After results.
 
-Atomic does not currently send a write for every slider movement. Future
-write-on-edit controls are required to use a 500 ms last-value-wins debounce.
+Tell us what worked as well as what did not.
 
+---
 
-## Live appearance editing
+## 13. What We Need Most
 
-`Customize Appearance` is modeless in v0.7.3. Leave it open while normal Atomic
-tool windows are open. Color-wheel previews update application-level WPF brush
-resources only; they do not change tuning, telemetry, calibration, AC setup, or
-AZOM values.
+During the public beta, the most valuable testing is:
 
-Checkbox label, box background, border, and check-mark colors are independently
-customizable.
+- different wheelbases and rims,
+- different drift packs and cars,
+- AC setup recommendation accuracy,
+- FFB/AZOM recommendation accuracy,
+- telemetry reliability,
+- active-car and pack detection,
+- SimHub bridge reliability,
+- clean installation,
+- upgrading between ADT versions,
+- portable-build testing,
+- profile/configuration persistence,
+- confusing or frustrating UI workflows.
+
+If something feels wrong, confusing, inconsistent, or unnecessarily difficult, report it.
+
+That feedback matters even when ADT technically "works."
+
+---
+
+## Safety
+
+ADT provides tuning recommendations and integration tools for simulation hardware.
+
+Always review recommendations before applying them.
+
+Force-feedback behavior varies significantly between wheelbases, firmware versions, rims, vehicle configurations, and software environments.
+
+Keep physical access to your wheelbase's power or emergency-stop controls when testing unfamiliar FFB behavior.
+
+---
+
+## Thank You
+
+Every useful test helps make ADT more accurate, reliable, and easier to use.
+
+The goal is not just to find crashes.
+
+We want to know whether ADT correctly understands what the car is doing, recommends changes that make sense for the driver's goal, and helps verify whether those changes actually improved the car.

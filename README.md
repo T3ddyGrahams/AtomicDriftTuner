@@ -500,7 +500,7 @@ ADT is actively evolving during the public beta. Current development priorities 
 
 Future plans include deeper telemetry analysis, automatic Assetto Corsa setup application, a modernized UI, SimHub touchscreen controls, tune sharing, and more.
 
-➡️ View the full ADT Development Roadmap
+➡️ [`View the full ADT Development Roadmap `](ROADMAP.md)
 
 Have an idea that isn’t on the roadmap? Feature requests and feedback are welcome through GitHub and the ADT Discord community.
 

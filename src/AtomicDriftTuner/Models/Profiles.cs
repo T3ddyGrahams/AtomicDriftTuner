@@ -177,5 +177,6 @@ public sealed class AssettoCorsaScanResult
 {
     public string RootPath { get; set; } = "";
     public List<CarProfile> Cars { get; set; } = [];
+    public List<DriftPackProfile> DiscoveredPacks { get; set; } = [];
     public List<string> Warnings { get; set; } = [];
 }

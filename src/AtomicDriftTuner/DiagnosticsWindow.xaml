@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="SYSTEM DIAGNOSTICS" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="SYSTEM DIAGNOSTICS" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock x:Name="SummaryText"
                        Text="Checking this PC..."
                        Foreground="{DynamicResource SecondaryTextBrush}"

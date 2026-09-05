@@ -28,7 +28,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion=0.8.1.1
+VersionInfoVersion=0.8.1.0
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription=Atomic Drift Tuner beta installer
 

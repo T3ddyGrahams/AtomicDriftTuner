@@ -7,7 +7,6 @@
 > **Status:** Public beta / active development
 
 
-
 Atomic is designed to answer a practical drifting question:
 
 > **Given this wheelbase, this steering wheel, this car, this drift pack, and the way I want the car to behave — what should I change?**

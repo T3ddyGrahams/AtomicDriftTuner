@@ -78,7 +78,115 @@ public sealed partial class AssettoCorsaScanner
             }
         }
 
+        DiscoverFolderPrefixPacks(result);
         return result;
+    }
+
+    private static void DiscoverFolderPrefixPacks(AssettoCorsaScanResult result)
+    {
+        // Known signatures always win. Only cars that would otherwise land in
+        // Custom / Other participate in automatic pack discovery.
+        var customCars = result.Cars
+            .Where(x => x.PackId == "custom-pack" && !string.IsNullOrWhiteSpace(x.SourceFolderName))
+            .ToList();
+
+        if (customCars.Count < 2)
+            return;
+
+        var groups = customCars
+            .Select(car => new
+            {
+                Car = car,
+                Tokens = FolderTokens(car.SourceFolderName!)
+            })
+            .Where(x => x.Tokens.Count >= 3)
+            .Select(x => new
+            {
+                x.Car,
+                Prefix = x.Tokens.Take(2).ToArray()
+            })
+            .Where(x => IsUsefulPackPrefix(x.Prefix))
+            .GroupBy(x => string.Join("_", x.Prefix), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() >= 2)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var group in groups)
+        {
+            var prefix = group.First().Prefix;
+            string slug = string.Join("-", prefix.Select(SlugToken));
+            string packId = $"auto-pack-{slug}";
+            string packName = string.Join(" ", prefix.Select(DisplayToken));
+
+            // Protect against a future built-in ID or another inferred group
+            // accidentally colliding with this generated ID.
+            if (result.DiscoveredPacks.Any(x => x.Id.Equals(packId, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            result.DiscoveredPacks.Add(new DriftPackProfile
+            {
+                Id = packId,
+                Name = packName,
+                Category = "Auto-Detected",
+                GripBias = 0,
+                SelfSteerBias = 0,
+                DampingBias = 0,
+                DetailBias = 0,
+                IsCustom = true
+            });
+
+            foreach (var item in group)
+            {
+                item.Car.PackId = packId;
+                item.Car.DataSourceSummary = string.IsNullOrWhiteSpace(item.Car.DataSourceSummary)
+                    ? $"auto-pack: {packName}"
+                    : $"{item.Car.DataSourceSummary}, auto-pack: {packName}";
+            }
+        }
+    }
+
+    private static List<string> FolderTokens(string folder) =>
+        Regex.Matches(folder, @"[A-Za-z0-9]+")
+            .Select(m => m.Value.ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+    private static bool IsUsefulPackPrefix(IReadOnlyList<string> tokens)
+    {
+        if (tokens.Count < 2)
+            return false;
+
+        // Avoid creating nonsense packs such as "Nissan Silvia" just because
+        // several unrelated cars share a manufacturer/chassis naming scheme.
+        var genericFirstTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ac", "assetto", "assettocorsa", "car", "cars", "mod", "mods",
+            "nissan", "toyota", "bmw", "mazda", "ford", "honda", "lexus",
+            "mercedes", "benz", "porsche", "audi", "volkswagen", "vw",
+            "chevrolet", "chevy", "dodge", "subaru", "mitsubishi", "ferrari",
+            "lamborghini", "hyundai", "kia", "volvo"
+        };
+
+        if (genericFirstTokens.Contains(tokens[0]))
+            return false;
+
+        return tokens.All(x => x.Length >= 2 && !x.All(char.IsDigit));
+    }
+
+    private static string SlugToken(string token) =>
+        new(token.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+    private static string DisplayToken(string token)
+    {
+        var acronyms = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "vdc", "vdm", "adl", "wdt", "wdts", "dwg", "bdc"
+        };
+
+        if (acronyms.Contains(token))
+            return token.ToUpperInvariant();
+
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(token.ToLowerInvariant());
     }
 
     private CarProfile ReadCar(string dir)

@@ -1,3 +1,4 @@
+using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
@@ -37,7 +38,24 @@ public sealed class AssettoCorsaSessionIdentityReader
             {
                 var info = Marshal.PtrToStructure<AcStaticHeader>(handle.AddrOfPinnedObject());
                 string car = Clean(info.CarModel);
-                if (string.IsNullOrWhiteSpace(car))
+
+                // Some AC/CSP/Content Manager session combinations expose a numeric
+                // slot value (commonly "0") in the static shared-memory carModel
+                // field instead of the installed car folder id. In that case, use
+                // the launcher-generated race.ini as a read-only fallback.
+                //
+                // race.ini is written for the session that AC is currently running
+                // and [CAR_0] MODEL maps to content\cars\<folder>. We only use the
+                // fallback when shared memory is clearly not a usable model id so a
+                // valid shared-memory value always remains authoritative.
+                if (!LooksLikeCarModelId(car))
+                {
+                    string? raceIniCar = TryReadRaceIniCarModel();
+                    if (!string.IsNullOrWhiteSpace(raceIniCar))
+                        car = raceIniCar;
+                }
+
+                if (!LooksLikeCarModelId(car))
                     return null;
 
                 return new AssettoCorsaSessionIdentity
@@ -67,6 +85,73 @@ public sealed class AssettoCorsaSessionIdentityReader
 
     private static string Clean(string? value) =>
         (value ?? string.Empty).Trim().TrimEnd('\0');
+
+    private static bool LooksLikeCarModelId(string? value)
+    {
+        string model = Clean(value);
+        if (string.IsNullOrWhiteSpace(model) || model == "-")
+            return false;
+
+        // AC car folder ids contain letters. A bare numeric value is a car slot,
+        // not an installed-car folder name.
+        return model.Any(char.IsLetter);
+    }
+
+    private static string? TryReadRaceIniCarModel()
+    {
+        try
+        {
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (string.IsNullOrWhiteSpace(documents))
+                return null;
+
+            string path = Path.Combine(documents, "Assetto Corsa", "cfg", "race.ini");
+            if (!File.Exists(path))
+                return null;
+
+            string section = string.Empty;
+            string? raceSectionModel = null;
+
+            foreach (string rawLine in File.ReadLines(path))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#'))
+                    continue;
+
+                if (line.StartsWith('[') && line.EndsWith(']'))
+                {
+                    section = line[1..^1].Trim();
+                    continue;
+                }
+
+                int equals = line.IndexOf('=');
+                if (equals <= 0)
+                    continue;
+
+                string key = line[..equals].Trim();
+                if (!key.Equals("MODEL", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string value = line[(equals + 1)..].Trim().Trim('\"');
+                if (!LooksLikeCarModelId(value))
+                    continue;
+
+                if (section.Equals("CAR_0", StringComparison.OrdinalIgnoreCase))
+                    return value;
+
+                if (section.Equals("RACE", StringComparison.OrdinalIgnoreCase))
+                    raceSectionModel = value;
+            }
+
+            return raceSectionModel;
+        }
+        catch
+        {
+            // Identity detection is advisory; an inaccessible race.ini must never
+            // interfere with the rest of ADT.
+            return null;
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
     private struct AcStaticHeader

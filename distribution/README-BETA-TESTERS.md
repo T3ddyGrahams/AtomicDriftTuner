@@ -1,4 +1,4 @@
-# Atomic Drift Tuner v0.8.1-beta.1 — Tester Guide
+# Atomic Drift Tuner v0.8.0-beta.1 — Tester Guide
 
 This public beta is intended to run without Visual Studio or a .NET SDK when distributed
 through the self-contained portable package or installer.

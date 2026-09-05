@@ -7,7 +7,7 @@
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
-        <Style TargetType="Button">
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="13,8"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
             <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
@@ -32,7 +32,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="UPDATES" FontSize="25" FontWeight="Bold"/>
+            <TextBlock Text="UPDATES" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock x:Name="CurrentVersionText"
                        Foreground="{DynamicResource SecondaryTextBrush}"
                        Margin="0,4,0,5"/>

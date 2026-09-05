@@ -222,7 +222,12 @@ public partial class SetupWizardWindow : Window
 
         _store.Save(_settings);
         SettingsChanged = true;
-        DialogResult = true;
+
+        // First-run is still a real modal dialog. When Setup & Paths is hosted
+        // inside the ADT workspace there is no modal DialogResult to set.
+        if (_firstRun)
+            DialogResult = true;
+
         Close();
     }
 

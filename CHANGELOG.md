@@ -1,6 +1,24 @@
 # Atomic Drift Tuner — Changelog
 
-## v0.8.1-beta.1 — Share Codes + In-App Updates
+## v0.8.1-beta.1 — Modern Workflow UI + Automatic Pack Discovery
+
+- Fixed active-car auto-selection for AC/CSP sessions where shared memory reports a numeric car slot (for example `0`) instead of the installed car folder ID. ADT now safely falls back to the current `Documents\Assetto Corsa\cfg\race.ini` `[CAR_0] MODEL` value before matching the installed car and pack.
+
+- Rebuilt the Windows shell around a modern single-window ADT workspace.
+- Embedded Full AZOM Settings, AC Setup, Telemetry, Tuning Assistant, Share Codes, Remote, Diagnostics, Setup & Paths, and Updates in the main window.
+- Embedded pages preserve state while navigating between tools.
+- Appearance intentionally remains a separate modeless window for live side-by-side theme editing.
+- Added the six-step guided tuning loop: Car & Rig → Desired Behavior → Generate Tune → Drive & Telemetry → Refine → AC Setup.
+- Added unified dark styling for scrollbars, buttons, sliders, dropdowns, text fields, cards, and navigation states.
+- Added automatic custom drift-pack discovery from strong shared car-folder prefixes.
+- Built-in pack signatures continue to take priority; conservative filtering avoids obvious manufacturer/chassis false positives.
+- Auto-detected packs rebuild on each installed-car scan.
+- Existing tuning, telemetry, AZOM safety/write paths, AC setup, calibration, profiles, remote, Share Codes, diagnostics, and update systems are retained.
+- Required SimHub bridge remains v0.7.2.
+
+---
+
+## v0.8.1-updates-test.2 — Updates Window
 
 - Fix build error in `UpdateService.cs` by importing `System.Net.Http` for `HttpClient` / `HttpCompletionOption`.
 
@@ -20,15 +38,15 @@
 ---
 
 
-### Atomic Share Codes Phase 1
+## v0.8.1-share-test.1 — Atomic Share Codes Phase 1
 
-Built on the known-good v0.8.0-beta.1 Windows app.
+Development test built on the known-good v0.8.0-beta.1 Windows app.
 
 ### Portable AT1 share codes
 
 - Added a versioned `atomic-share/v1` payload and `AT1-...` portable share-code format.
 - Share codes are compressed, URL-safe and self-contained; no server is required for this first phase.
-- Added **ATOMIC SHARE CODES** to the main Windows app.
+- Added **ATOMIC SHARE CODES (TEST)** to the main Windows app.
 - Create/copy a share code from the currently generated tune.
 - Copy a human-readable tune preview for Discord or support discussions.
 - Paste/decode/review another AT1 code before loading it.
@@ -1035,3 +1053,5 @@ The exact numeric bridge path matches current AZOM's declarative
 AZOM converts display↔raw values, clamps to the setting/firmware range, writes
 the correct command(s), and persists the active settings. Road Sensitivity keeps
 its separate preset+EQ commit path.
+
+- Long mod-folder active-car auto-selection fix: uniquely resolves Assetto Corsa's truncated 32-character car model identifier to the full installed car folder.

@@ -95,7 +95,7 @@ public sealed class UpdateService
             Message = comparison switch
             {
                 > 0 => $"Update available: {latest.TagName}",
-                < 0 => $"This build ({DistributionInfo.Version}) is newer than the latest matching published release ({latest.TagName}).",
+                < 0 => $"This development build ({DistributionInfo.Version}) is newer than the latest matching published release ({latest.TagName}).",
                 _ => $"You are up to date: {latest.TagName}"
             }
         };

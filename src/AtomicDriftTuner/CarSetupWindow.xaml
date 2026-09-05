@@ -7,7 +7,7 @@
     <Window.Resources>
         <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}"><Setter Property="Padding" Value="7"/><Setter Property="Margin" Value="0,4,0,8"/></Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}"><Setter Property="Padding" Value="7"/><Setter Property="Margin" Value="0,4,0,8"/></Style>
-        <Style TargetType="Button"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Style>
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Style>
     </Window.Resources>
     <Grid Margin="18">
         <Grid.RowDefinitions>
@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="ASSETTO CORSA CAR SETUP TUNER" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="ASSETTO CORSA CAR SETUP TUNER" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock x:Name="CarSummaryText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap"/>
         </StackPanel>
 

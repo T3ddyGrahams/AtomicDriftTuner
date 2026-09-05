@@ -1,12 +1,12 @@
 <Window x:Class="AtomicDriftTuner.ShareCodeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Atomic Share Codes • v1 Portable"
+        Title="Atomic Share Codes • v1 Portable Test"
         Width="900" Height="760" MinWidth="760" MinHeight="620"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
-        <Style TargetType="Button">
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="Margin" Value="0,4,8,4" />
             <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
@@ -25,7 +25,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="ATOMIC SHARE CODES" FontSize="25" FontWeight="Bold" />
+            <TextBlock Text="ATOMIC SHARE CODES" FontSize="25" FontWeight="Bold"  Visibility="Collapsed"/>
             <TextBlock Text="Phase 1 • portable AT1 code • server-backed short IDs come next"
                        Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,3,0,8" />
             <Border Background="{DynamicResource PanelBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,12">

@@ -2,6 +2,7 @@ using System.IO;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using AtomicDriftTuner.Data;
@@ -51,6 +52,8 @@ public partial class MainWindow : Window
     private RemoteControlWindow? _remoteControlWindow;
     private ShareCodeWindow? _shareCodeWindow;
     private UpdatesWindow? _updatesWindow;
+    private Window? _embeddedToolWindow;
+    private readonly Dictionary<Window, UIElement> _embeddedContentCache = new();
 
     public MainWindow()
     {
@@ -113,6 +116,15 @@ public partial class MainWindow : Window
 
         Closed += async (_, _) =>
         {
+            // All docked workspaces stay alive while navigating so their state is
+            // preserved. Close every backing Window only when ADT itself exits.
+            foreach (var toolWindow in _embeddedContentCache.Keys.ToList())
+            {
+                try { toolWindow.Close(); }
+                catch (InvalidOperationException) { }
+            }
+            _embeddedContentCache.Clear();
+
             _activeCarTimer.Stop();
             await _remoteServer.DisposeAsync();
             _telemetryHub.Dispose();
@@ -120,6 +132,41 @@ public partial class MainWindow : Window
 
         UpdateRemoteContextSafely();
     }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left)
+            return;
+
+        if (e.ClickCount == 2)
+        {
+            ToggleMaximize();
+            return;
+        }
+
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // Ignore a drag request that arrives after the mouse button was released.
+        }
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void Maximize_Click(object sender, RoutedEventArgs e) =>
+        ToggleMaximize();
+
+    private void Close_Click(object sender, RoutedEventArgs e) =>
+        Close();
+
+    private void ToggleMaximize() =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
@@ -136,6 +183,7 @@ public partial class MainWindow : Window
 
         _activeCarTimer.Start();
         TryApplyActiveCarSelection(force: true, allowRescan: true);
+        UpdateDashboardTelemetry();
     }
 
     private void OpenSetupWizard(bool firstRun)
@@ -186,7 +234,7 @@ public partial class MainWindow : Window
             ApplySettingsIfChanged();
             _setupWizardWindow = null;
         };
-        window.Show();
+        ShowEmbeddedTool(window, "Setup & Paths");
     }
 
     private static double Number(string value, string label)
@@ -445,17 +493,42 @@ public partial class MainWindow : Window
         try
         {
             string? preferredCarId = (CarBox.SelectedItem as CarProfile)?.Id;
+            string? preferredPackId = (PackBox.SelectedItem as DriftPackProfile)?.Id;
             var result = _scanner.Scan(AcRootBox.Text);
             AcRootBox.Text = result.RootPath;
             _installedCars = result.Cars;
+            SyncDiscoveredPacks(result.DiscoveredPacks);
             SaveAcRoot(result.RootPath);
 
-            var known = _installedCars.Count(x => x.PackId != "custom-pack");
-            var unknown = _installedCars.Count - known;
+            // If the selected installed car was just assigned to a newly
+            // discovered pack, follow it there. Otherwise preserve the pack
+            // the driver was already looking at whenever possible.
+            var preferredInstalledCar = _installedCars.FirstOrDefault(x => x.Id == preferredCarId);
+            string? targetPackId = preferredInstalledCar?.PackId ?? preferredPackId;
+            var targetPack = _packs.FirstOrDefault(x => x.Id == targetPackId);
+            if (targetPack is not null)
+                PackBox.SelectedItem = targetPack;
+
+            var autoDetectedCars = _installedCars.Count(x => x.PackId.StartsWith("auto-pack-", StringComparison.OrdinalIgnoreCase));
+            var known = _installedCars.Count(x => x.PackId != "custom-pack" &&
+                                                   !x.PackId.StartsWith("auto-pack-", StringComparison.OrdinalIgnoreCase));
+            var unknown = _installedCars.Count - known - autoDetectedCars;
             string prefix = automatic ? "Auto-scanned" : "Scanned";
             ScanStatusText.Text =
                 $"{prefix} {_installedCars.Count} installed cars. " +
-                $"{known} matched a known drift pack; {unknown} are under Custom / Other Pack.";
+                $"{known} matched built-in packs; {autoDetectedCars} grouped into " +
+                $"{result.DiscoveredPacks.Count} auto-detected pack(s); {unknown} remain under Custom / Other Pack.";
+
+            if (result.DiscoveredPacks.Count > 0)
+            {
+                string discovered = string.Join(", ", result.DiscoveredPacks
+                    .Take(4)
+                    .Select(pack => $"{pack.Name} ({_installedCars.Count(car => car.PackId == pack.Id)})"));
+                ScanStatusText.Text += $" Auto-detected: {discovered}";
+                if (result.DiscoveredPacks.Count > 4)
+                    ScanStatusText.Text += $" +{result.DiscoveredPacks.Count - 4} more";
+                ScanStatusText.Text += ".";
+            }
 
             if (result.Warnings.Count > 0)
                 ScanStatusText.Text += $" {result.Warnings.Count} folder(s) had metadata warnings.";
@@ -487,6 +560,23 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SyncDiscoveredPacks(IEnumerable<DriftPackProfile> discoveredPacks)
+    {
+        // Auto-detected packs are rebuilt from the current AC install on every
+        // scan. This prevents stale pack entries after mods are added/removed.
+        _packs.RemoveAll(x => x.Category.Equals("Auto-Detected", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var pack in discoveredPacks.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            if (_packs.Any(x => x.Id.Equals(pack.Id, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            _packs.Add(pack);
+        }
+
+        PackBox.Items.Refresh();
+    }
+
     private void AutoDetectionSetting_Click(object sender, RoutedEventArgs e)
     {
         var app = _appSettingsStore.Load();
@@ -504,8 +594,39 @@ public partial class MainWindow : Window
             ActiveCarStatusText.Text = "Active-car auto selection is OFF. Manual car/pack selection remains available.";
     }
 
-    private void ActiveCarTimer_Tick(object? sender, EventArgs e) =>
+    private void ActiveCarTimer_Tick(object? sender, EventArgs e)
+    {
         TryApplyActiveCarSelection(force: false, allowRescan: true);
+        UpdateDashboardTelemetry();
+    }
+
+    private void UpdateDashboardTelemetry()
+    {
+        try
+        {
+            var snapshot = _telemetryHub.GetSnapshot();
+            if (!snapshot.Connected || snapshot.Sample is null)
+            {
+                TelemetryConnectionText.Text = "OFFLINE";
+                TelemetrySpeedText.Text = "—";
+                TelemetrySlipText.Text = "—";
+                TelemetrySteeringText.Text = "—";
+                TelemetryThrottleFfbText.Text = "—";
+                return;
+            }
+
+            var sample = snapshot.Sample;
+            TelemetryConnectionText.Text = "LIVE";
+            TelemetrySpeedText.Text = $"{sample.SpeedKmh:0} km/h";
+            TelemetrySlipText.Text = $"{sample.SlipAngleDeg:0.0}°";
+            TelemetrySteeringText.Text = $"{sample.SteeringAngleDeg:0}°";
+            TelemetryThrottleFfbText.Text = $"{sample.Throttle * 100:0}% / {Math.Abs(sample.FinalFfb) * 100:0}%";
+        }
+        catch
+        {
+            TelemetryConnectionText.Text = "OFFLINE";
+        }
+    }
 
     private void TryApplyActiveCarSelection(bool force, bool allowRescan)
     {
@@ -601,9 +722,37 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(normalized))
             return null;
 
-        return _installedCars.FirstOrDefault(x =>
+        var normalizedExact = _installedCars.FirstOrDefault(x =>
             !string.IsNullOrWhiteSpace(x.SourceFolderName) &&
             Normalize(x.SourceFolderName!) == normalized);
+        if (normalizedExact is not null)
+            return normalizedExact;
+
+        // Assetto Corsa exposes carModel through a fixed 33-character shared-memory
+        // buffer (32 visible characters plus terminator). Long mod folder names are
+        // therefore truncated before ADT sees them. Accept a prefix match only when
+        // it is unique so two similarly named cars can never be auto-selected by
+        // accident.
+        if (carModel.Length >= 32)
+        {
+            var prefixMatches = _installedCars
+                .Where(x => !string.IsNullOrWhiteSpace(x.SourceFolderName) &&
+                            x.SourceFolderName!.StartsWith(carModel, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (prefixMatches.Count == 1)
+                return prefixMatches[0];
+
+            var normalizedPrefixMatches = _installedCars
+                .Where(x => !string.IsNullOrWhiteSpace(x.SourceFolderName) &&
+                            Normalize(x.SourceFolderName!).StartsWith(normalized, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (normalizedPrefixMatches.Count == 1)
+                return normalizedPrefixMatches[0];
+        }
+
+        return null;
     }
 
     private void VerifyCarData_Click(object sender, RoutedEventArgs e)
@@ -851,7 +1000,7 @@ public partial class MainWindow : Window
                 _azomSettingsWindow = null;
             };
 
-            window.Show();
+            ShowEmbeddedTool(window, "Full AZOM Settings");
         }
         catch (Exception ex)
         {
@@ -890,7 +1039,7 @@ public partial class MainWindow : Window
 
             _carSetupWindow = window;
             window.Closed += (_, _) => _carSetupWindow = null;
-            window.Show();
+            ShowEmbeddedTool(window, "AC Car Setup Tuner");
         }
         catch (Exception ex)
         {
@@ -918,7 +1067,12 @@ public partial class MainWindow : Window
 
         _themeWindow = window;
         window.Closed += (_, _) => _themeWindow = null;
+
+        // Appearance is intentionally the only normal ADT feature that stays
+        // as its own modeless window. Theme resources update the main shell
+        // live while the user's current embedded workspace remains untouched.
         window.Show();
+        window.Activate();
     }
 
     private void OpenTelemetry_Click(object sender, RoutedEventArgs e)
@@ -962,7 +1116,7 @@ public partial class MainWindow : Window
                 _telemetryWindow = null;
             };
 
-            window.Show();
+            ShowEmbeddedTool(window, "Telemetry Recorder");
         }
         catch (Exception ex)
         {
@@ -1014,7 +1168,7 @@ public partial class MainWindow : Window
                 _tuningAssistantWindow = null;
             };
 
-            window.Show();
+            ShowEmbeddedTool(window, "Tuning Assistant");
         }
         catch (Exception ex)
         {
@@ -1042,7 +1196,7 @@ public partial class MainWindow : Window
 
         _remoteControlWindow = window;
         window.Closed += (_, _) => _remoteControlWindow = null;
-        window.Show();
+        ShowEmbeddedTool(window, "Remote / iPhone");
     }
 
     private void OpenSetup_Click(object sender, RoutedEventArgs e) =>
@@ -1064,7 +1218,7 @@ public partial class MainWindow : Window
 
         _diagnosticsWindow = window;
         window.Closed += (_, _) => _diagnosticsWindow = null;
-        window.Show();
+        ShowEmbeddedTool(window, "System Diagnostics");
     }
 
     private void OpenUpdates_Click(object sender, RoutedEventArgs e)
@@ -1083,20 +1237,168 @@ public partial class MainWindow : Window
 
         _updatesWindow = window;
         window.Closed += (_, _) => _updatesWindow = null;
-        window.Show();
+        ShowEmbeddedTool(window, "Updates");
     }
 
-    private static void RestoreAndActivate(Window window)
+    private void ShowEmbeddedTool(Window window, string title)
     {
+        if (!_embeddedContentCache.TryGetValue(window, out var content))
+        {
+            if (window.Content is not UIElement newContent)
+                throw new InvalidOperationException("This ADT tool does not expose embeddable WPF content.");
+
+            // Detach the tool's existing visual tree once. The backing Window and
+            // all of its original code-behind/services remain authoritative.
+            window.Content = null;
+            content = newContent;
+            _embeddedContentCache[window] = content;
+
+            window.Closed += (_, _) =>
+                Dispatcher.BeginInvoke(new Action(() => RemoveEmbeddedTool(window)));
+        }
+
+        // Navigation is now page-like: the previous workspace is merely hidden,
+        // not closed. This preserves selections, scroll position and live state.
+        EmbeddedToolContent.Content = null;
+        _embeddedToolWindow = window;
+        EmbeddedToolTitle.Text = title;
+        EmbeddedToolSubtitle.Text = WorkspaceSubtitle(title);
+        EmbeddedToolContent.Content = content;
+        DashboardScroll.Visibility = Visibility.Collapsed;
+        EmbeddedToolPanel.Visibility = Visibility.Visible;
+        SetActiveNavigation(title);
+        EmbeddedToolContent.Focus();
+    }
+
+    private static string WorkspaceSubtitle(string title) => title switch
+    {
+        "Full AZOM Settings" => "Live bridge • compare • apply • revert",
+        "AC Car Setup Tuner" => "Assetto Corsa setup generation • per-car behavior",
+        "Telemetry Recorder" => "Live driving data • recording • analysis",
+        "Tuning Assistant" => "Telemetry-guided refinement • driver feedback",
+        "Atomic Share Codes" => "Export • import • share ADT tuning profiles",
+        "Remote / iPhone" => "Local-network companion controls • live rig access",
+        "System Diagnostics" => "Paths • bridge • telemetry • connection health",
+        "Setup & Paths" => "Machine configuration • Assetto Corsa • SimHub",
+        "Appearance" => "Theme • readability • interface personalization",
+        "Updates" => "Version status • GitHub release checks",
+        _ => "ADT workspace"
+    };
+
+    private void SetActiveNavigation(string? title)
+    {
+        var buttons = new[]
+        {
+            DashboardNavButton, AzomNavButton, CarSetupNavButton, TelemetryNavButton,
+            AssistantNavButton, ShareNavButton, RemoteNavButton, DiagnosticsNavButton,
+            SetupNavButton, AppearanceNavButton, UpdatesNavButton
+        };
+
+        foreach (var button in buttons)
+            button.Style = (Style)FindResource("NavButtonStyle");
+
+        Button active = title switch
+        {
+            "Full AZOM Settings" => AzomNavButton,
+            "AC Car Setup Tuner" => CarSetupNavButton,
+            "Telemetry Recorder" => TelemetryNavButton,
+            "Tuning Assistant" => AssistantNavButton,
+            "Atomic Share Codes" => ShareNavButton,
+            "Remote / iPhone" => RemoteNavButton,
+            "System Diagnostics" => DiagnosticsNavButton,
+            "Setup & Paths" => SetupNavButton,
+            "Appearance" => AppearanceNavButton,
+            "Updates" => UpdatesNavButton,
+            _ => DashboardNavButton
+        };
+
+        active.Style = (Style)FindResource("ActiveNavButtonStyle");
+    }
+
+    private void RemoveEmbeddedTool(Window window)
+    {
+        _embeddedContentCache.Remove(window);
+
+        if (!ReferenceEquals(_embeddedToolWindow, window))
+            return;
+
+        EmbeddedToolContent.Content = null;
+        _embeddedToolWindow = null;
+        EmbeddedToolPanel.Visibility = Visibility.Collapsed;
+        DashboardScroll.Visibility = Visibility.Visible;
+        SetActiveNavigation(null);
+        DashboardScroll.Focus();
+    }
+
+    private void ShowDashboardSection(FrameworkElement section)
+    {
+        EmbeddedToolContent.Content = null;
+        _embeddedToolWindow = null;
+        EmbeddedToolPanel.Visibility = Visibility.Collapsed;
+        DashboardScroll.Visibility = Visibility.Visible;
+        SetActiveNavigation(null);
+
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            section.BringIntoView();
+            section.Focus();
+        }));
+    }
+
+    private void FocusCarRig_Click(object sender, RoutedEventArgs e) =>
+        ShowDashboardSection(CurrentSessionCard);
+
+    private void FocusDesiredBehavior_Click(object sender, RoutedEventArgs e) =>
+        ShowDashboardSection(DriverIntentCard);
+
+    private void ReturnToDashboard_Click(object sender, RoutedEventArgs e)
+    {
+        // Do not close the active tool. Dashboard navigation simply hides it so
+        // returning later restores the exact same workspace state.
+        EmbeddedToolContent.Content = null;
+        _embeddedToolWindow = null;
+        EmbeddedToolPanel.Visibility = Visibility.Collapsed;
+        DashboardScroll.Visibility = Visibility.Visible;
+        SetActiveNavigation(null);
+        DashboardScroll.Focus();
+    }
+
+    private void RestoreAndActivate(Window window)
+    {
+        if (_embeddedContentCache.ContainsKey(window))
+        {
+            string title = WindowWorkspaceTitle(window);
+            ShowEmbeddedTool(window, title);
+            return;
+        }
+
+        // Fallback for the first-run modal wizard or any deliberately separate
+        // dialog that is not part of the docked workspace system.
         if (window.WindowState == WindowState.Minimized)
             window.WindowState = WindowState.Normal;
 
-        window.Show();
+        if (!window.IsVisible)
+            window.Show();
         window.Activate();
         window.Topmost = true;
         window.Topmost = false;
         window.Focus();
     }
+
+    private static string WindowWorkspaceTitle(Window window) => window switch
+    {
+        AzomSettingsWindow => "Full AZOM Settings",
+        CarSetupWindow => "AC Car Setup Tuner",
+        TelemetryWindow => "Telemetry Recorder",
+        TuningAssistantWindow => "Tuning Assistant",
+        ShareCodeWindow => "Atomic Share Codes",
+        RemoteControlWindow => "Remote / iPhone",
+        DiagnosticsWindow => "System Diagnostics",
+        SetupWizardWindow => "Setup & Paths",
+        ThemeWindow => "Appearance",
+        UpdatesWindow => "Updates",
+        _ => window.Title
+    };
 
     private void OpenShareCodes_Click(object sender, RoutedEventArgs e)
     {
@@ -1128,7 +1430,7 @@ public partial class MainWindow : Window
 
             _shareCodeWindow = window;
             window.Closed += (_, _) => _shareCodeWindow = null;
-            window.Show();
+            ShowEmbeddedTool(window, "Atomic Share Codes");
         }
         catch (Exception ex)
         {

@@ -7,7 +7,7 @@
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
-        <Style TargetType="Button">
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,4,8,4"/>
             <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
@@ -28,7 +28,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="REMOTE / IPHONE TEST" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="REMOTE / IPHONE TEST" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock Text="Experimental local-network companion. Windows Atomic remains authoritative for telemetry and all wheelbase writes."
                        Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,12"/>
         </StackPanel>

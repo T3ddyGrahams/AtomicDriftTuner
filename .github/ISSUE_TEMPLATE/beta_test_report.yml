@@ -1,0 +1,296 @@
+name: Beta Test Report
+description: Report ADT tuning results, telemetry behavior, hardware validation, or other beta testing feedback.
+title: "[BETA TEST] "
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping test Atomic Drift Tuner (ADT).
+
+        Use this form for structured beta testing results, including successful tests.
+
+        Please compare ADT's behavior or recommendation against a baseline whenever possible.
+
+        Direct-drive wheelbases can produce substantial force. If a recommendation creates unsafe or unexpected behavior, stop testing and report it.
+
+        Full testing guidance:
+        https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/BETA_TESTING.md
+
+  - type: input
+    id: adt_version
+    attributes:
+      label: ADT version
+      placeholder: v0.8.1-beta.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build_type
+    attributes:
+      label: Build type
+      options:
+        - Installer
+        - Portable
+        - Source / development build
+        - Unsure
+    validations:
+      required: true
+
+  - type: input
+    id: ac_version
+    attributes:
+      label: Assetto Corsa version
+      placeholder: Version if known
+
+  - type: input
+    id: simhub_version
+    attributes:
+      label: SimHub version
+      placeholder: Version if used
+
+  - type: input
+    id: azom_version
+    attributes:
+      label: AZOM version
+      placeholder: Version if used
+
+  - type: input
+    id: bridge_version
+    attributes:
+      label: ADT SimHub Bridge version
+      placeholder: Version if installed / known
+
+  - type: input
+    id: wheelbase
+    attributes:
+      label: Wheelbase
+      placeholder: MOZA R12
+    validations:
+      required: true
+
+  - type: input
+    id: wheel
+    attributes:
+      label: Steering wheel / rim
+      placeholder: MOZA CS Pro
+    validations:
+      required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Wheelbase firmware
+      placeholder: Version if known
+
+  - type: input
+    id: pack
+    attributes:
+      label: Drift pack
+      placeholder: VDC Public 5.0
+    validations:
+      required: true
+
+  - type: input
+    id: car
+    attributes:
+      label: Car
+      placeholder: Exact car name / folder
+    validations:
+      required: true
+
+  - type: input
+    id: track
+    attributes:
+      label: Track
+      placeholder: Track used for testing
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bridge_running
+    attributes:
+      label: Was the ADT SimHub Bridge installed and running?
+      options:
+        - "Yes"
+        - "No"
+        - "Not applicable"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: intent
+    attributes:
+      label: Session intent / Drift Target
+      options:
+        - Training
+        - Realistic
+        - Fast Self-Steer
+        - Tandem
+        - Competition
+        - Other / custom
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test_area
+    attributes:
+      label: What were you testing?
+      options:
+        - Generated AZOM / wheelbase tune
+        - Assetto Corsa FFB recommendation
+        - AC Car Setup Tuner
+        - Desired Behavior
+        - Telemetry recording / analysis
+        - Telemetry calibration recommendation
+        - Tuning Assistant
+        - Before / After comparison
+        - Car / drift-pack detection
+        - SimHub Bridge / AZOM integration
+        - Profile / configuration persistence
+        - Installation / update behavior
+        - General UI / workflow
+        - Multiple areas
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired
+    attributes:
+      label: Test goal / Desired Behavior
+      description: What were you trying to improve, validate, or make ADT do?
+      placeholder: Faster transitions, more rear stability, better self-steer, validate telemetry on this car...
+    validations:
+      required: true
+
+  - type: textarea
+    id: baseline
+    attributes:
+      label: Baseline
+      description: Describe how the car, wheel, or ADT feature behaved before applying the recommendation or change.
+      placeholder: Rear snapped during transitions, self-steer was too slow, telemetry appeared normal...
+    validations:
+      required: true
+
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: What did ADT recommend or change?
+      description: Include Current -> Recommended values or attach screenshots when useful.
+      placeholder: |
+        Wheel speed: 135 -> 142
+        Wheel damper: 8 -> 7
+        Rear rebound: 7 -> 8
+
+  - type: dropdown
+    id: result
+    attributes:
+      label: Overall result
+      options:
+        - Much better
+        - Better
+        - Slightly better
+        - No noticeable difference
+        - Different, but with a tradeoff
+        - Slightly worse
+        - Worse
+        - Much worse / unsafe
+        - Recommendation was not applied
+        - Not a tuning comparison
+    validations:
+      required: true
+
+  - type: textarea
+    id: feel
+    attributes:
+      label: What changed?
+      description: Describe what you actually noticed while driving or testing.
+      placeholder: |
+        Consider:
+        - initiation
+        - front grip
+        - rear grip
+        - rotation
+        - transition speed/stability
+        - self-steer
+        - oscillation
+        - steering weight/detail
+        - throttle response
+        - high/low-speed stability
+        - predictability
+    validations:
+      required: true
+
+  - type: dropdown
+    id: telemetry_normal
+    attributes:
+      label: Did telemetry appear normal?
+      options:
+        - "Yes"
+        - "No"
+        - "Unsure"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: car_detection
+    attributes:
+      label: Was the correct car detected?
+      options:
+        - "Yes"
+        - "No"
+        - "Unsure"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: textarea
+    id: telemetry_notes
+    attributes:
+      label: Telemetry / before-after evidence
+      description: Report missing, frozen, suspicious telemetry or paste useful before/after metrics.
+
+  - type: textarea
+    id: unexpected
+    attributes:
+      label: Problems or unexpected behavior
+      description: Describe crashes, errors, strange behavior, questionable recommendations, lost settings, or anything else that seemed wrong.
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Could you reproduce the problem?
+      options:
+        - Always reproducible
+        - Sometimes reproducible
+        - Only happened once
+        - Not tested again
+        - No problem occurred
+    validations:
+      required: true
+
+  - type: textarea
+    id: manual_adjustments
+    attributes:
+      label: Manual adjustments or workaround
+      description: If you corrected ADT's recommendation yourself or found a workaround, tell us what you changed.
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Attachments / additional information
+      description: Attach screenshots, error messages, support bundles, or other useful information by dragging them into this field.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety / validity checks
+      options:
+        - label: I tested the wheelbase, wheel, pack, car, and track listed above.
+          required: true
+        - label: I reviewed hardware-related values before applying them.
+          required: true
+        - label: If a recommendation appeared unsafe, I stopped testing the problematic setting.
+          required: true

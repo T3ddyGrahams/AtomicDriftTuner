@@ -12,11 +12,18 @@
     <RootNamespace>AtomicDriftTuner</RootNamespace>
 
     <!-- Development/default version values.
-         Release builds may override these from the packaging script. -->
-    <Version Condition="'$(Version)' == ''">0.8.1-beta.1</Version>
-    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.8.1.0</AssemblyVersion>
-    <FileVersion Condition="'$(FileVersion)' == ''">0.8.1.0</FileVersion>
-    <InformationalVersion Condition="'$(InformationalVersion)' == ''">0.8.1-beta.1</InformationalVersion>
+         Release packaging overrides Version/AssemblyVersion/FileVersion/
+         InformationalVersion explicitly from build-beta-package.ps1. -->
+    <ADTVersion Condition="'$(ADTVersion)' == ''">0.8.1-beta.1</ADTVersion>
+    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.8.1.0</ADTVersionInfoVersion>
+
+    <Version>$(ADTVersion)</Version>
+    <AssemblyVersion>$(ADTVersionInfoVersion)</AssemblyVersion>
+    <FileVersion>$(ADTVersionInfoVersion)</FileVersion>
+    <InformationalVersion>$(ADTVersion)</InformationalVersion>
+
+    <!-- Keep ADT's displayed product version deterministic. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

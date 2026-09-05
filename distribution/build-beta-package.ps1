@@ -10,6 +10,60 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function ConvertTo-WindowsVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SemanticVersion
+    )
+
+    $pattern =
+        '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)' +
+        '(?:-(?<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?' +
+        '(?:\+(?<metadata>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$'
+
+    if ($SemanticVersion -notmatch $pattern) {
+        throw "Version '$SemanticVersion' is not in a supported semantic-version format such as '0.8.2-beta.1' or '0.8.2'."
+    }
+
+    $major = [int]$Matches["major"]
+    $minor = [int]$Matches["minor"]
+    $patch = [int]$Matches["patch"]
+    $prerelease = $Matches["prerelease"]
+
+    $revision = 0
+
+    if (-not [string]::IsNullOrWhiteSpace($prerelease)) {
+        $numericIdentifiers =
+            @(
+                $prerelease.Split(".") |
+                Where-Object { $_ -match '^\d+$' }
+            )
+
+        if ($numericIdentifiers.Count -gt 0) {
+            $revision =
+                [int]$numericIdentifiers[-1]
+        }
+    }
+
+    foreach ($component in @($major, $minor, $patch, $revision)) {
+        if ($component -lt 0 -or $component -gt 65534) {
+            throw "Version '$SemanticVersion' contains a Windows assembly/file version component outside the supported 0..65534 range."
+        }
+    }
+
+    return "$major.$minor.$patch.$revision"
+}
+
+$Version = $Version.Trim()
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    throw "ADT package version cannot be blank."
+}
+
+$versionInfoVersion =
+    ConvertTo-WindowsVersion `
+        -SemanticVersion $Version
+
 $repo = Split-Path $PSScriptRoot -Parent
 $artifacts = Join-Path $repo "artifacts"
 $publish = Join-Path $artifacts "publish\win-x64"
@@ -18,6 +72,7 @@ $output = Join-Path $artifacts "release"
 
 Write-Host "ADT beta packaging" -ForegroundColor Cyan
 Write-Host "Version: $Version"
+Write-Host "Windows assembly/file version: $versionInfoVersion"
 Write-Host "SimHub build reference: $SimHubPath"
 
 if (-not (Test-Path $SimHubPath)) {
@@ -39,6 +94,11 @@ dotnet publish (Join-Path $repo "src\AtomicDriftTuner\AtomicDriftTuner.csproj") 
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:PublishTrimmed=false `
+    -p:Version="$Version" `
+    -p:AssemblyVersion="$versionInfoVersion" `
+    -p:FileVersion="$versionInfoVersion" `
+    -p:InformationalVersion="$Version" `
+    -p:IncludeSourceRevisionInInformationalVersion=false `
     -o $publish
 
 if ($LASTEXITCODE -ne 0) {
@@ -124,25 +184,6 @@ if (
     (Test-Path $InnoSetupPath)
 ) {
     Write-Host "`n[5/5] Building installer..." -ForegroundColor Cyan
-
-    if ($Version -match '^(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z]+(?:\.(\d+))?)?$') {
-        $major = [int]$Matches[1]
-        $minor = [int]$Matches[2]
-        $patch = [int]$Matches[3]
-
-        if ($Matches[4]) {
-            $revision = [int]$Matches[4]
-        }
-        else {
-            $revision = 0
-        }
-
-        $versionInfoVersion = "$major.$minor.$patch.$revision"
-    }
-    else {
-        throw "Version '$Version' is not in a supported format such as '0.8.2-beta.1' or '0.8.2'."
-    }
-
     Write-Host "Windows installer version: $versionInfoVersion"
 
     & $InnoSetupPath `

@@ -1,18 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
     <AssemblyName>AtomicDriftTuner</AssemblyName>
     <RootNamespace>AtomicDriftTuner</RootNamespace>
-    <Version>0.8.1-beta.1</Version>
-    <AssemblyVersion>0.8.1.0</AssemblyVersion>
-    <FileVersion>0.8.1.0</FileVersion>
-    <InformationalVersion>0.8.1-beta.1</InformationalVersion>
+
+    <!-- Development/default version values.
+         Release builds may override these from the packaging script. -->
+    <Version Condition="'$(Version)' == ''">0.8.1-beta.1</Version>
+    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.8.1.0</AssemblyVersion>
+    <FileVersion Condition="'$(FileVersion)' == ''">0.8.1.0</FileVersion>
+    <InformationalVersion Condition="'$(InformationalVersion)' == ''">0.8.1-beta.1</InformationalVersion>
   </PropertyGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+
 </Project>

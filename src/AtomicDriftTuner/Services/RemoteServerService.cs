@@ -11,400 +11,936 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AtomicDriftTuner.Services;
 
 /// <summary>
-/// Local-LAN companion server used by the experimental iPhone/browser remote.
-/// The Windows process remains authoritative: telemetry is read here and all
-/// AZOM writes still go through AzomLiveController's existing guarded,
-/// verified write path.
+/// Local-LAN companion server used by ADT Remote.
+///
+/// The Windows ADT process remains authoritative. Telemetry is read through
+/// the desktop telemetry service and all supported AZOM writes still pass
+/// through AzomLiveController's guarded, verified write path.
 /// </summary>
 public sealed class RemoteServerService : IAsyncDisposable
 {
     public const int DefaultPort = 5190;
 
+    private const int MaxRequestBodyBytes = 16 * 1024;
+    private const int MaxFailedPairAttempts = 5;
+    private const int PairBlockSeconds = 30;
+
+    private const string AdtTokenHeader = "X-ADT-Token";
+
+    // Kept temporarily for compatibility with existing ADT Remote clients.
+    // New clients should use X-ADT-Token.
+    private const string LegacyTokenHeader = "X-Atomic-Token";
+
     private readonly AppSettingsStore _settingsStore = new();
     private readonly CarBehaviorProfileStore _behaviorStore = new();
     private readonly TelemetryHubService _telemetryHub;
+
     private readonly object _stateGate = new();
+    private readonly object _pairGate = new();
 
     private WebApplication? _app;
+
     private RemoteTuneContext _tune = new();
     private TuneInput? _currentInput;
+
     private string _lastActivity = "Remote server is stopped.";
+
     private AzomLiveSnapshot? _remoteBeforeSnapshot;
     private string? _remoteChangedProperty;
+
     private int _failedPairAttempts;
     private DateTime _pairBlockedUntilUtc;
+
+    private string _pairingCode = "000000";
+    private string _pairToken = "";
 
     public event EventHandler? StateChanged;
     public event EventHandler<RemoteAzomChangedEventArgs>? AzomChanged;
 
     // These handlers are supplied by MainWindow so browser requests always
     // mutate the authoritative Windows UI/tuning state on the WPF dispatcher.
-    public Func<string, CancellationToken, Task<RemoteActionResponse>>? SetIntentHandler { get; set; }
-    public Func<CancellationToken, Task<RemoteActionResponse>>? GenerateTuneHandler { get; set; }
+    public Func<string, CancellationToken, Task<RemoteActionResponse>>?
+        SetIntentHandler { get; set; }
 
-    public bool IsRunning => _app is not null;
+    public Func<CancellationToken, Task<RemoteActionResponse>>?
+        GenerateTuneHandler { get; set; }
+
+    public bool IsRunning =>
+        _app is not null;
+
     public bool RemoteWritesEnabled { get; private set; }
-    public int Port { get; private set; } = DefaultPort;
-    public string PairingCode { get; private set; } = "000000";
-    public string PairToken { get; private set; } = "";
+
+    public int Port { get; private set; } =
+        DefaultPort;
+
+    public string PairingCode
+    {
+        get
+        {
+            lock (_pairGate)
+            {
+                return _pairingCode;
+            }
+        }
+    }
+
+    public string PairToken
+    {
+        get
+        {
+            lock (_pairGate)
+            {
+                return _pairToken;
+            }
+        }
+    }
 
     public string LastActivity
     {
         get
         {
             lock (_stateGate)
+            {
                 return _lastActivity;
+            }
         }
     }
 
-    public RemoteServerService(TelemetryHubService telemetryHub)
+    public RemoteServerService(
+        TelemetryHubService telemetryHub)
     {
-        _telemetryHub = telemetryHub ?? throw new ArgumentNullException(nameof(telemetryHub));
+        _telemetryHub =
+            telemetryHub ??
+            throw new ArgumentNullException(
+                nameof(telemetryHub));
+
         RegeneratePairing();
     }
 
-    public void UpdateTuneContext(TuneInput input, TuneResult? result)
+    public void UpdateTuneContext(
+        TuneInput input,
+        TuneResult? result)
     {
+        ArgumentNullException.ThrowIfNull(input);
+
         lock (_stateGate)
         {
             _currentInput = input;
+
             _tune = new RemoteTuneContext
             {
-                Wheelbase = input.Hardware.ToString(),
-                SteeringWheel = input.Wheel.ToString(),
-                DriftPack = input.DriftPack.Name,
-                Car = input.Car.DisplayName,
-                Intent = input.Intent.Name,
-                HasGeneratedTune = result is not null,
-                RecommendedAzom = result?.Azom,
-                RecommendedAc = result?.Ac,
-                SelfSteerScore = result?.SelfSteerScore ?? 0,
-                StabilityScore = result?.StabilityScore ?? 0,
-                DetailScore = result?.DetailScore ?? 0,
-                EstimatedPeakWheelTorqueNm = result?.EstimatedPeakWheelTorqueNm ?? 0,
-                Notes = result?.Notes?.ToList() ?? []
+                Wheelbase =
+                    input.Hardware.ToString(),
+
+                SteeringWheel =
+                    input.Wheel.ToString(),
+
+                DriftPack =
+                    input.DriftPack.Name,
+
+                Car =
+                    input.Car.DisplayName,
+
+                Intent =
+                    input.Intent.Name,
+
+                HasGeneratedTune =
+                    result is not null,
+
+                RecommendedAzom =
+                    result?.Azom,
+
+                RecommendedAc =
+                    result?.Ac,
+
+                SelfSteerScore =
+                    result?.SelfSteerScore ?? 0,
+
+                StabilityScore =
+                    result?.StabilityScore ?? 0,
+
+                DetailScore =
+                    result?.DetailScore ?? 0,
+
+                EstimatedPeakWheelTorqueNm =
+                    result?.EstimatedPeakWheelTorqueNm ?? 0,
+
+                Notes =
+                    result?.Notes?.ToList() ?? []
             };
         }
 
         RaiseStateChanged();
     }
 
-    public void SetRemoteWritesEnabled(bool enabled)
+    public void SetRemoteWritesEnabled(
+        bool enabled)
     {
-        RemoteWritesEnabled = enabled && IsRunning;
-        SetActivity(RemoteWritesEnabled
-            ? "Remote AZOM writes enabled for this Atomic run."
-            : "Remote AZOM writes disabled.");
+        RemoteWritesEnabled =
+            enabled &&
+            IsRunning;
+
+        SetActivity(
+            RemoteWritesEnabled
+                ? "Remote AZOM writes enabled for this ADT run."
+                : "Remote AZOM writes disabled.");
     }
 
     public void RegeneratePairing()
     {
-        PairingCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-        PairToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        _failedPairAttempts = 0;
-        _pairBlockedUntilUtc = DateTime.MinValue;
-        SetActivity(IsRunning
-            ? "Pairing credentials regenerated. Previously paired browsers must pair again."
-            : "Pairing credentials ready. Start the remote server to connect.");
+        var newCode =
+            RandomNumberGenerator
+                .GetInt32(
+                    100000,
+                    1000000)
+                .ToString();
+
+        var newToken =
+            Convert.ToHexString(
+                RandomNumberGenerator.GetBytes(32));
+
+        lock (_pairGate)
+        {
+            _pairingCode = newCode;
+            _pairToken = newToken;
+
+            _failedPairAttempts = 0;
+            _pairBlockedUntilUtc =
+                DateTime.MinValue;
+        }
+
+        SetActivity(
+            IsRunning
+                ? "Pairing credentials regenerated. Previously paired browsers must pair again."
+                : "Pairing credentials ready. Start ADT Remote to connect.");
     }
 
     public IReadOnlyList<string> GetLanUrls()
     {
-        var urls = new List<string>();
+        var urls =
+            new List<string>();
 
-        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        foreach (
+            var nic in
+            NetworkInterface.GetAllNetworkInterfaces())
         {
-            if (nic.OperationalStatus != OperationalStatus.Up ||
-                nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-
-            foreach (var unicast in nic.GetIPProperties().UnicastAddresses)
+            if (
+                nic.OperationalStatus !=
+                    OperationalStatus.Up ||
+                nic.NetworkInterfaceType ==
+                    NetworkInterfaceType.Loopback)
             {
-                var address = unicast.Address;
-                if (address.AddressFamily != AddressFamily.InterNetwork ||
-                    !IsPrivateOrLoopback(address))
-                    continue;
+                continue;
+            }
 
-                var url = $"http://{address}:{Port}/";
-                if (!urls.Contains(url, StringComparer.OrdinalIgnoreCase))
+            foreach (
+                var unicast in
+                nic.GetIPProperties()
+                    .UnicastAddresses)
+            {
+                var address =
+                    unicast.Address;
+
+                if (
+                    address.AddressFamily !=
+                        AddressFamily.InterNetwork ||
+                    !IsPrivateOrLoopback(address))
+                {
+                    continue;
+                }
+
+                var url =
+                    $"http://{address}:{Port}/";
+
+                if (
+                    !urls.Contains(
+                        url,
+                        StringComparer.OrdinalIgnoreCase))
+                {
                     urls.Add(url);
+                }
             }
         }
 
         if (urls.Count == 0)
-            urls.Add($"http://localhost:{Port}/");
+        {
+            urls.Add(
+                $"http://localhost:{Port}/");
+        }
 
         return urls;
     }
 
-    public async Task StartAsync(int port = DefaultPort, CancellationToken cancellationToken = default)
+    public async Task StartAsync(
+        int port = DefaultPort,
+        CancellationToken cancellationToken = default)
     {
         if (IsRunning)
+        {
             return;
+        }
 
         if (port is < 1024 or > 65535)
-            throw new ArgumentOutOfRangeException(nameof(port), "Remote port must be between 1024 and 65535.");
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(port),
+                "Remote port must be between 1024 and 65535.");
+        }
 
         Port = port;
+
         RemoteWritesEnabled = false;
+
         _remoteBeforeSnapshot = null;
         _remoteChangedProperty = null;
+
         RegeneratePairing();
 
-        var builder = WebApplication.CreateBuilder(
-            new WebApplicationOptions
-            {
-                Args = Array.Empty<string>(),
-                ApplicationName = typeof(RemoteServerService).Assembly.FullName,
-                ContentRootPath = AppContext.BaseDirectory
-            });
+        var builder =
+            WebApplication.CreateBuilder(
+                new WebApplicationOptions
+                {
+                    Args = Array.Empty<string>(),
+
+                    ApplicationName =
+                        typeof(RemoteServerService)
+                            .Assembly
+                            .FullName,
+
+                    ContentRootPath =
+                        AppContext.BaseDirectory
+                });
 
         builder.Logging.ClearProviders();
-        builder.Services.ConfigureHttpJsonOptions(options =>
-        {
-            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-            options.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
-        });
-        builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(port));
 
-        var app = builder.Build();
-
-        app.Use(async (context, next) =>
-        {
-            // Safari can be aggressive about reusing GET responses. Atomic Remote
-            // is live state, so never allow the browser/proxy to cache UI/API data.
-            context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
-            context.Response.Headers.Pragma = "no-cache";
-            context.Response.Headers.Expires = "0";
-
-            var remoteAddress = context.Connection.RemoteIpAddress;
-            if (remoteAddress is null || !IsPrivateOrLoopback(remoteAddress))
+        builder.Services.ConfigureHttpJsonOptions(
+            options =>
             {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsync("Atomic Remote accepts local/private network clients only.");
-                return;
-            }
+                options.SerializerOptions.PropertyNamingPolicy =
+                    JsonNamingPolicy.CamelCase;
 
-            if (context.Request.Path.StartsWithSegments("/api") &&
-                !context.Request.Path.StartsWithSegments("/api/pair"))
+                options.SerializerOptions.DictionaryKeyPolicy =
+                    JsonNamingPolicy.CamelCase;
+            });
+
+        builder.WebHost.ConfigureKestrel(
+            options =>
             {
-                var supplied = context.Request.Headers["X-Atomic-Token"].FirstOrDefault();
-                if (!TokenMatches(supplied))
+                options.Limits.MaxRequestBodySize =
+                    MaxRequestBodyBytes;
+
+                options.Limits.RequestHeadersTimeout =
+                    TimeSpan.FromSeconds(10);
+
+                options.Limits.KeepAliveTimeout =
+                    TimeSpan.FromMinutes(2);
+
+                options.ListenAnyIP(
+                    port,
+                    listenOptions =>
+                    {
+                        listenOptions.Protocols =
+                            HttpProtocols.Http1;
+                    });
+            });
+
+        var app =
+            builder.Build();
+
+        app.Use(
+            async (context, next) =>
+            {
+                // ADT Remote represents live application state.
+                // Browser/proxy caching would produce misleading stale data.
+                context.Response.Headers.CacheControl =
+                    "no-store, no-cache, must-revalidate";
+
+                context.Response.Headers.Pragma =
+                    "no-cache";
+
+                context.Response.Headers.Expires =
+                    "0";
+
+                context.Response.Headers[
+                    "X-Content-Type-Options"] =
+                    "nosniff";
+
+                context.Response.Headers[
+                    "X-Frame-Options"] =
+                    "DENY";
+
+                context.Response.Headers[
+                    "Referrer-Policy"] =
+                    "no-referrer";
+
+                context.Response.Headers[
+                    "Permissions-Policy"] =
+                    "camera=(), microphone=(), geolocation=()";
+
+                var remoteAddress =
+                    context.Connection.RemoteIpAddress;
+
+                if (
+                    remoteAddress is null ||
+                    !IsPrivateOrLoopback(remoteAddress))
                 {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsJsonAsync(new { error = "Pairing required." });
+                    context.Response.StatusCode =
+                        StatusCodes.Status403Forbidden;
+
+                    await context.Response.WriteAsync(
+                        "ADT Remote accepts local/private network clients only.");
+
                     return;
                 }
-            }
 
-            await next();
-        });
-
-        app.MapGet("/", () => Results.Content(RemoteWebApp.Html, "text/html; charset=utf-8"));
-        app.MapGet("/apple-touch-icon.png", () => Results.NotFound());
-
-        app.MapPost("/api/pair", async (HttpContext context) =>
-        {
-            if (DateTime.UtcNow < _pairBlockedUntilUtc)
-            {
-                return Results.Json(
-                    new { ok = false, error = "Too many pairing attempts. Wait 30 seconds and try again." },
-                    statusCode: StatusCodes.Status429TooManyRequests);
-            }
-
-            var request = await context.Request.ReadFromJsonAsync<RemotePairRequest>(cancellationToken: context.RequestAborted);
-            if (request is null || !PairingCodeMatches(request.Code))
-            {
-                _failedPairAttempts++;
-                if (_failedPairAttempts >= 5)
+                if (
+                    context.Request.Path
+                        .StartsWithSegments("/api") &&
+                    !context.Request.Path
+                        .StartsWithSegments("/api/pair"))
                 {
-                    _failedPairAttempts = 0;
-                    _pairBlockedUntilUtc = DateTime.UtcNow.AddSeconds(30);
+                    var supplied =
+                        GetSuppliedToken(context);
+
+                    if (!TokenMatches(supplied))
+                    {
+                        context.Response.StatusCode =
+                            StatusCodes.Status401Unauthorized;
+
+                        await context.Response.WriteAsJsonAsync(
+                            new
+                            {
+                                error =
+                                    "Pairing required."
+                            });
+
+                        return;
+                    }
                 }
 
-                return Results.Json(
-                    new { ok = false, error = "Incorrect pairing code." },
-                    statusCode: StatusCodes.Status401Unauthorized);
-            }
+                await next();
+            });
 
-            _failedPairAttempts = 0;
-            SetActivity("A local browser paired with Atomic Remote.");
-            return Results.Json(new { ok = true, token = PairToken });
-        });
+        app.MapGet(
+            "/",
+            () =>
+                Results.Content(
+                    RemoteWebApp.Html,
+                    "text/html; charset=utf-8"));
 
-        app.MapGet("/api/status", () => Results.Json(BuildStatus()));
+        app.MapGet(
+            "/apple-touch-icon.png",
+            () =>
+                Results.NotFound());
 
-        app.MapGet("/api/intents", () =>
-        {
-            string selected;
-            lock (_stateGate)
-                selected = _tune.Intent;
+        app.MapPost(
+            "/api/pair",
+            async (HttpContext context) =>
+            {
+                var blockedSeconds =
+                    GetRemainingPairBlockSeconds();
 
-            var intents = BuiltInProfiles.Intents()
-                .Select(x => new RemoteIntentOption
+                if (blockedSeconds > 0)
                 {
-                    Name = x.Name,
-                    Selected = string.Equals(x.Name, selected, StringComparison.OrdinalIgnoreCase)
-                })
-                .ToList();
+                    return Results.Json(
+                        new
+                        {
+                            ok = false,
+                            error =
+                                $"Too many pairing attempts. Wait {blockedSeconds} seconds and try again."
+                        },
+                        statusCode:
+                            StatusCodes
+                                .Status429TooManyRequests);
+                }
 
-            return Results.Json(intents);
-        });
+                RemotePairRequest? request;
 
-        app.MapPost("/api/intent", async (HttpContext context) =>
-        {
-            var request = await context.Request.ReadFromJsonAsync<RemoteIntentRequest>(
-                cancellationToken: context.RequestAborted);
+                try
+                {
+                    request =
+                        await context.Request
+                            .ReadFromJsonAsync<RemotePairRequest>(
+                                cancellationToken:
+                                    context.RequestAborted);
+                }
+                catch (
+                    Exception ex
+                    when (
+                        ex is JsonException ||
+                        ex is BadHttpRequestException ||
+                        ex is IOException))
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid pairing request."
+                        });
+                }
 
-            var intent = BuiltInProfiles.Intents().FirstOrDefault(
-                x => request is not null &&
-                     string.Equals(x.Name, request.Name, StringComparison.OrdinalIgnoreCase));
+                if (
+                    request is null ||
+                    !TryAcceptPairingCode(
+                        request.Code))
+                {
+                    return Results.Json(
+                        new
+                        {
+                            ok = false,
+                            error =
+                                "Incorrect pairing code."
+                        },
+                        statusCode:
+                            StatusCodes
+                                .Status401Unauthorized);
+                }
 
-            if (intent is null)
-                return Results.BadRequest(new { error = "Unknown drift target." });
+                SetActivity(
+                    "A local browser paired with ADT Remote.");
 
-            if (SetIntentHandler is null)
-                return Results.Json(new { error = "Windows intent control is unavailable." },
-                    statusCode: StatusCodes.Status503ServiceUnavailable);
-
-            var response = await SetIntentHandler(intent.Name, context.RequestAborted);
-            if (response.Ok)
-                SetActivity($"Remote selected drift target: {intent.Name}.");
-
-            return response.Ok
-                ? Results.Json(response)
-                : Results.Json(response, statusCode: StatusCodes.Status400BadRequest);
-        });
-
-        app.MapPost("/api/tune/generate", async (HttpContext context) =>
-        {
-            if (GenerateTuneHandler is null)
-                return Results.Json(new { error = "Windows tune generation is unavailable." },
-                    statusCode: StatusCodes.Status503ServiceUnavailable);
-
-            var response = await GenerateTuneHandler(context.RequestAborted);
-            if (response.Ok)
-                SetActivity("Remote requested a tune generation. Windows Atomic generated and displayed the result.");
-
-            return response.Ok
-                ? Results.Json(response)
-                : Results.Json(response, statusCode: StatusCodes.Status400BadRequest);
-        });
-
-        app.MapGet("/api/behavior", () => Results.Json(ReadBehaviorView()));
-
-        app.MapPost("/api/behavior", async (HttpContext context) =>
-        {
-            var request = await context.Request.ReadFromJsonAsync<RemoteBehaviorUpdateRequest>(
-                cancellationToken: context.RequestAborted);
-
-            if (request is null)
-                return Results.BadRequest(new { error = "Invalid Desired Behavior request." });
-
-            var response = SaveBehaviorFromRemote(request);
-            return response.Ok
-                ? Results.Json(response)
-                : Results.Json(response, statusCode: StatusCodes.Status400BadRequest);
-        });
-
-        app.MapGet("/api/telemetry", (HttpContext context) =>
-        {
-            try
-            {
-                context.RequestAborted.ThrowIfCancellationRequested();
-                var view = BuildTelemetryView();
-
-                // Keep this response deliberately primitive so mobile telemetry
-                // transport cannot depend on desktop model serialization.
                 return Results.Json(
                     new
                     {
-                        connected = view.Connected,
-                        error = view.Error,
-                        sample = view.Sample is null
-                            ? null
-                            : new
-                            {
-                                packetId = view.Sample.PacketId,
-                                speedKmh = view.Sample.SpeedKmh,
-                                slipAngleDeg = view.Sample.SlipAngleDeg,
-                                steeringAngleDeg = view.Sample.SteeringAngleDeg,
-                                finalFfb = view.Sample.FinalFfb
-                            },
-                        isDrifting = view.IsDrifting,
-                        serverTimeUtc = view.ServerTimeUtc
+                        ok = true,
+                        token = PairToken
                     });
-            }
-            catch (Exception ex)
+            });
+
+        app.MapGet(
+            "/api/status",
+            () =>
+                Results.Json(
+                    BuildStatus()));
+
+        app.MapGet(
+            "/api/intents",
+            () =>
             {
+                string selected;
+
+                lock (_stateGate)
+                {
+                    selected =
+                        _tune.Intent;
+                }
+
+                var intents =
+                    BuiltInProfiles
+                        .Intents()
+                        .Select(
+                            x =>
+                                new RemoteIntentOption
+                                {
+                                    Name =
+                                        x.Name,
+
+                                    Selected =
+                                        string.Equals(
+                                            x.Name,
+                                            selected,
+                                            StringComparison
+                                                .OrdinalIgnoreCase)
+                                })
+                        .ToList();
+
                 return Results.Json(
-                    new
-                    {
-                        connected = false,
-                        error = "Remote telemetry endpoint failed: " +
-                                ex.GetType().Name + ": " + ex.Message,
-                        sample = (object?)null,
-                        isDrifting = false,
-                        serverTimeUtc = DateTimeOffset.UtcNow
-                    });
-            }
-        });
-        app.MapGet("/api/azom", async (HttpContext context) =>
-            Results.Json(await ReadAzomViewAsync(context.RequestAborted)));
+                    intents);
+            });
 
-        app.MapPost("/api/azom/apply", async (HttpContext context) =>
-        {
-            var request = await context.Request.ReadFromJsonAsync<RemoteAzomWriteRequest>(cancellationToken: context.RequestAborted);
-            if (request is null)
-                return Results.BadRequest(new { error = "Invalid write request." });
+        app.MapPost(
+            "/api/intent",
+            async (HttpContext context) =>
+            {
+                RemoteIntentRequest? request;
 
-            var response = await ApplyRemoteSettingAsync(request, context.RequestAborted);
-            return response.Ok
-                ? Results.Json(response)
-                : Results.Json(response, statusCode: StatusCodes.Status400BadRequest);
-        });
+                try
+                {
+                    request =
+                        await context.Request
+                            .ReadFromJsonAsync<RemoteIntentRequest>(
+                                cancellationToken:
+                                    context.RequestAborted);
+                }
+                catch (
+                    Exception ex
+                    when (
+                        ex is JsonException ||
+                        ex is BadHttpRequestException ||
+                        ex is IOException))
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid drift-target request."
+                        });
+                }
 
-        app.MapPost("/api/azom/revert", async (HttpContext context) =>
-        {
-            var response = await RevertLastRemoteSettingAsync(context.RequestAborted);
-            return response.Ok
-                ? Results.Json(response)
-                : Results.Json(response, statusCode: StatusCodes.Status400BadRequest);
-        });
+                var intent =
+                    BuiltInProfiles
+                        .Intents()
+                        .FirstOrDefault(
+                            x =>
+                                request is not null &&
+                                string.Equals(
+                                    x.Name,
+                                    request.Name,
+                                    StringComparison
+                                        .OrdinalIgnoreCase));
 
-        await app.StartAsync(cancellationToken);
-        _app = app;
+                if (intent is null)
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Unknown drift target."
+                        });
+                }
 
-        // Best-effort connection. If AC is not running yet, the telemetry hub
-        // retries automatically when desktop/remote clients request data.
-        _telemetryHub.GetSnapshot();
+                if (SetIntentHandler is null)
+                {
+                    return Results.Json(
+                        new
+                        {
+                            error =
+                                "Windows intent control is unavailable."
+                        },
+                        statusCode:
+                            StatusCodes
+                                .Status503ServiceUnavailable);
+                }
 
-        SetActivity($"Atomic Remote started on port {Port}. Remote writes are OFF.");
-    }
+                var response =
+                    await SetIntentHandler(
+                        intent.Name,
+                        context.RequestAborted);
 
-    public async Task StopAsync(CancellationToken cancellationToken = default)
-    {
-        var app = _app;
-        if (app is null)
-            return;
+                if (response.Ok)
+                {
+                    SetActivity(
+                        $"Remote selected drift target: {intent.Name}.");
+                }
 
-        _app = null;
-        RemoteWritesEnabled = false;
+                return response.Ok
+                    ? Results.Json(response)
+                    : Results.Json(
+                        response,
+                        statusCode:
+                            StatusCodes.Status400BadRequest);
+            });
+
+        app.MapPost(
+            "/api/tune/generate",
+            async (HttpContext context) =>
+            {
+                if (GenerateTuneHandler is null)
+                {
+                    return Results.Json(
+                        new
+                        {
+                            error =
+                                "Windows tune generation is unavailable."
+                        },
+                        statusCode:
+                            StatusCodes
+                                .Status503ServiceUnavailable);
+                }
+
+                var response =
+                    await GenerateTuneHandler(
+                        context.RequestAborted);
+
+                if (response.Ok)
+                {
+                    SetActivity(
+                        "Remote requested tune generation. Windows ADT generated and displayed the result.");
+                }
+
+                return response.Ok
+                    ? Results.Json(response)
+                    : Results.Json(
+                        response,
+                        statusCode:
+                            StatusCodes.Status400BadRequest);
+            });
+
+        app.MapGet(
+            "/api/behavior",
+            () =>
+                Results.Json(
+                    ReadBehaviorView()));
+
+        app.MapPost(
+            "/api/behavior",
+            async (HttpContext context) =>
+            {
+                RemoteBehaviorUpdateRequest? request;
+
+                try
+                {
+                    request =
+                        await context.Request
+                            .ReadFromJsonAsync<RemoteBehaviorUpdateRequest>(
+                                cancellationToken:
+                                    context.RequestAborted);
+                }
+                catch (
+                    Exception ex
+                    when (
+                        ex is JsonException ||
+                        ex is BadHttpRequestException ||
+                        ex is IOException))
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid Desired Behavior request."
+                        });
+                }
+
+                if (request is null)
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid Desired Behavior request."
+                        });
+                }
+
+                var response =
+                    SaveBehaviorFromRemote(
+                        request);
+
+                return response.Ok
+                    ? Results.Json(response)
+                    : Results.Json(
+                        response,
+                        statusCode:
+                            StatusCodes.Status400BadRequest);
+            });
+
+        app.MapGet(
+            "/api/telemetry",
+            (HttpContext context) =>
+            {
+                try
+                {
+                    context.RequestAborted
+                        .ThrowIfCancellationRequested();
+
+                    var view =
+                        BuildTelemetryView();
+
+                    // Keep this response deliberately primitive so
+                    // mobile telemetry transport does not depend on
+                    // desktop model serialization.
+                    return Results.Json(
+                        new
+                        {
+                            connected =
+                                view.Connected,
+
+                            error =
+                                view.Error,
+
+                            sample =
+                                view.Sample is null
+                                    ? null
+                                    : new
+                                    {
+                                        packetId =
+                                            view.Sample.PacketId,
+
+                                        speedKmh =
+                                            view.Sample.SpeedKmh,
+
+                                        slipAngleDeg =
+                                            view.Sample.SlipAngleDeg,
+
+                                        steeringAngleDeg =
+                                            view.Sample.SteeringAngleDeg,
+
+                                        finalFfb =
+                                            view.Sample.FinalFfb
+                                    },
+
+                            isDrifting =
+                                view.IsDrifting,
+
+                            serverTimeUtc =
+                                view.ServerTimeUtc
+                        });
+                }
+                catch (
+                    OperationCanceledException)
+                {
+                    return Results.StatusCode(
+                        StatusCodes
+                            .Status499ClientClosedRequest);
+                }
+                catch (Exception ex)
+                {
+                    SetActivity(
+                        "Remote telemetry endpoint failed: " +
+                        ex.GetType().Name +
+                        ": " +
+                        ex.Message);
+
+                    return Results.Json(
+                        new
+                        {
+                            connected = false,
+
+                            error =
+                                "ADT Remote could not read telemetry.",
+
+                            sample =
+                                (object?)null,
+
+                            isDrifting =
+                                false,
+
+                            serverTimeUtc =
+                                DateTimeOffset.UtcNow
+                        });
+                }
+            });
+
+        app.MapGet(
+            "/api/azom",
+            async (HttpContext context) =>
+                Results.Json(
+                    await ReadAzomViewAsync(
+                        context.RequestAborted)));
+
+        app.MapPost(
+            "/api/azom/apply",
+            async (HttpContext context) =>
+            {
+                RemoteAzomWriteRequest? request;
+
+                try
+                {
+                    request =
+                        await context.Request
+                            .ReadFromJsonAsync<RemoteAzomWriteRequest>(
+                                cancellationToken:
+                                    context.RequestAborted);
+                }
+                catch (
+                    Exception ex
+                    when (
+                        ex is JsonException ||
+                        ex is BadHttpRequestException ||
+                        ex is IOException))
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid AZOM write request."
+                        });
+                }
+
+                if (request is null)
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error =
+                                "Invalid AZOM write request."
+                        });
+                }
+
+                var response =
+                    await ApplyRemoteSettingAsync(
+                        request,
+                        context.RequestAborted);
+
+                return response.Ok
+                    ? Results.Json(response)
+                    : Results.Json(
+                        response,
+                        statusCode:
+                            StatusCodes.Status400BadRequest);
+            });
+
+        app.MapPost(
+            "/api/azom/revert",
+            async (HttpContext context) =>
+            {
+                var response =
+                    await RevertLastRemoteSettingAsync(
+                        context.RequestAborted);
+
+                return response.Ok
+                    ? Results.Json(response)
+                    : Results.Json(
+                        response,
+                        statusCode:
+                            StatusCodes.Status400BadRequest);
+            });
 
         try
         {
-            await app.StopAsync(cancellationToken);
+            await app.StartAsync(
+                cancellationToken);
+
+            _app = app;
+        }
+        catch
+        {
+            await app.DisposeAsync();
+            throw;
+        }
+
+        // Best-effort connection. If AC is not running yet,
+        // TelemetryHubService retries when clients request data.
+        _telemetryHub.GetSnapshot();
+
+        SetActivity(
+            $"ADT Remote started on port {Port}. Remote writes are OFF.");
+    }
+
+    public async Task StopAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var app =
+            _app;
+
+        if (app is null)
+        {
+            return;
+        }
+
+        _app = null;
+
+        RemoteWritesEnabled = false;
+
+        _remoteBeforeSnapshot = null;
+        _remoteChangedProperty = null;
+
+        try
+        {
+            await app.StopAsync(
+                cancellationToken);
         }
         finally
         {
             await app.DisposeAsync();
-            SetActivity("Remote server stopped. Remote writes are OFF.");
+
+            SetActivity(
+                "ADT Remote stopped. Remote writes are OFF.");
         }
     }
 
@@ -414,10 +950,17 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             return new RemoteStatusView
             {
-                AtomicVersion = DistributionInfo.Version,
-                RemoteWritesEnabled = RemoteWritesEnabled,
-                LastActivity = _lastActivity,
-                Tune = _tune
+                AtomicVersion =
+                    DistributionInfo.Version,
+
+                RemoteWritesEnabled =
+                    RemoteWritesEnabled,
+
+                LastActivity =
+                    _lastActivity,
+
+                Tune =
+                    _tune
             };
         }
     }
@@ -425,134 +968,238 @@ public sealed class RemoteServerService : IAsyncDisposable
     private RemoteBehaviorView ReadBehaviorView()
     {
         TuneInput? input;
+
         lock (_stateGate)
-            input = _currentInput;
+        {
+            input =
+                _currentInput;
+        }
 
         if (input is null)
         {
             return new RemoteBehaviorView
             {
                 Ok = false,
-                Error = "Select a wheelbase, wheel, drift pack and car in Windows Atomic first."
+
+                Error =
+                    "Select a wheelbase, wheel, drift pack and car in Windows ADT first."
             };
         }
 
         try
         {
-            var target = _behaviorStore.Load(input);
+            var target =
+                _behaviorStore.Load(input);
+
             target.Normalize();
 
             return new RemoteBehaviorView
             {
                 Ok = true,
-                DisplayName = target.DisplayName,
-                UpdatedUtc = target.UpdatedUtc,
-                FrontEndBite = target.FrontEndBite,
-                RearGrip = target.RearGrip,
-                SelfSteerSpeed = target.SelfSteerSpeed,
-                TransitionSpeed = target.TransitionSpeed,
-                AngleStability = target.AngleStability,
-                ThrottleSteering = target.ThrottleSteering,
-                InitiationSharpness = target.InitiationSharpness
+
+                DisplayName =
+                    target.DisplayName,
+
+                UpdatedUtc =
+                    target.UpdatedUtc,
+
+                FrontEndBite =
+                    target.FrontEndBite,
+
+                RearGrip =
+                    target.RearGrip,
+
+                SelfSteerSpeed =
+                    target.SelfSteerSpeed,
+
+                TransitionSpeed =
+                    target.TransitionSpeed,
+
+                AngleStability =
+                    target.AngleStability,
+
+                ThrottleSteering =
+                    target.ThrottleSteering,
+
+                InitiationSharpness =
+                    target.InitiationSharpness
             };
         }
         catch (Exception ex)
         {
+            SetActivity(
+                "Remote Desired Behavior read failed: " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message);
+
             return new RemoteBehaviorView
             {
                 Ok = false,
-                Error = ex.Message
+
+                Error =
+                    "ADT could not load Desired Behavior for the current car."
             };
         }
     }
 
-    private RemoteActionResponse SaveBehaviorFromRemote(RemoteBehaviorUpdateRequest request)
+    private RemoteActionResponse SaveBehaviorFromRemote(
+        RemoteBehaviorUpdateRequest request)
     {
         TuneInput? input;
+
         lock (_stateGate)
-            input = _currentInput;
+        {
+            input =
+                _currentInput;
+        }
 
         if (input is null)
         {
             return new RemoteActionResponse
             {
                 Ok = false,
-                Message = "Select a current car in Windows Atomic first."
+
+                Message =
+                    "Select a current car in Windows ADT first."
             };
         }
 
         try
         {
-            var target = new CarBehaviorTarget
-            {
-                FrontEndBite = request.FrontEndBite,
-                RearGrip = request.RearGrip,
-                SelfSteerSpeed = request.SelfSteerSpeed,
-                TransitionSpeed = request.TransitionSpeed,
-                AngleStability = request.AngleStability,
-                ThrottleSteering = request.ThrottleSteering,
-                InitiationSharpness = request.InitiationSharpness
-            };
+            var target =
+                new CarBehaviorTarget
+                {
+                    FrontEndBite =
+                        request.FrontEndBite,
+
+                    RearGrip =
+                        request.RearGrip,
+
+                    SelfSteerSpeed =
+                        request.SelfSteerSpeed,
+
+                    TransitionSpeed =
+                        request.TransitionSpeed,
+
+                    AngleStability =
+                        request.AngleStability,
+
+                    ThrottleSteering =
+                        request.ThrottleSteering,
+
+                    InitiationSharpness =
+                        request.InitiationSharpness
+                };
 
             target.Normalize();
-            _behaviorStore.Save(input, target);
+
+            _behaviorStore.Save(
+                input,
+                target);
 
             SetActivity(
                 $"Remote saved Desired Behavior for {input.DriftPack.Name} • {input.Car.DisplayName}. " +
-                "This changes Atomic's per-car setup target only; it does not write the wheelbase.");
+                "This changes ADT's per-car setup target only; it does not write the wheelbase.");
 
             return new RemoteActionResponse
             {
                 Ok = true,
-                Message = $"Saved Desired Behavior for {input.Car.DisplayName}."
+
+                Message =
+                    $"Saved Desired Behavior for {input.Car.DisplayName}."
             };
         }
         catch (Exception ex)
         {
+            SetActivity(
+                "Remote Desired Behavior save failed: " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message);
+
             return new RemoteActionResponse
             {
                 Ok = false,
-                Message = ex.Message
+
+                Message =
+                    "ADT could not save Desired Behavior."
             };
         }
     }
 
     private RemoteTelemetryView BuildTelemetryView()
     {
-        var snapshot = _telemetryHub.GetSnapshot();
-        var sample = snapshot.Sample;
+        var snapshot =
+            _telemetryHub.GetSnapshot();
 
-        if (!snapshot.Connected || sample is null)
+        var sample =
+            snapshot.Sample;
+
+        if (
+            !snapshot.Connected ||
+            sample is null)
         {
             return new RemoteTelemetryView
             {
                 Connected = false,
-                Error = snapshot.Error ?? "Assetto Corsa telemetry unavailable.",
-                ServerTimeUtc = DateTimeOffset.UtcNow
+
+                Error =
+                    snapshot.Error ??
+                    "Assetto Corsa telemetry unavailable.",
+
+                ServerTimeUtc =
+                    DateTimeOffset.UtcNow
             };
         }
 
-        var speed = FiniteOrNull(sample.SpeedKmh);
-        var slip = FiniteOrNull(sample.SlipAngleDeg);
-        var steering = FiniteOrNull(sample.SteeringAngleDeg);
-        var ffb = FiniteOrNull(sample.FinalFfb);
+        var speed =
+            FiniteOrNull(
+                sample.SpeedKmh);
+
+        var slip =
+            FiniteOrNull(
+                sample.SlipAngleDeg);
+
+        var steering =
+            FiniteOrNull(
+                sample.SteeringAngleDeg);
+
+        var ffb =
+            FiniteOrNull(
+                sample.FinalFfb);
 
         return new RemoteTelemetryView
         {
             Connected = true,
-            Sample = new RemoteTelemetrySampleView
-            {
-                PacketId = sample.PacketId,
-                SpeedKmh = speed,
-                SlipAngleDeg = slip,
-                SteeringAngleDeg = steering,
-                FinalFfb = ffb
-            },
-            IsDrifting = speed.HasValue &&
-                         slip.HasValue &&
-                         speed.Value >= 20 &&
-                         Math.Abs(slip.Value) >= 10,
-            ServerTimeUtc = DateTimeOffset.UtcNow
+
+            Sample =
+                new RemoteTelemetrySampleView
+                {
+                    PacketId =
+                        sample.PacketId,
+
+                    SpeedKmh =
+                        speed,
+
+                    SlipAngleDeg =
+                        slip,
+
+                    SteeringAngleDeg =
+                        steering,
+
+                    FinalFfb =
+                        ffb
+                },
+
+            IsDrifting =
+                speed.HasValue &&
+                slip.HasValue &&
+                speed.Value >= 20 &&
+                Math.Abs(slip.Value) >= 10,
+
+            ServerTimeUtc =
+                DateTimeOffset.UtcNow
         };
     }
 
@@ -560,237 +1207,501 @@ public sealed class RemoteServerService : IAsyncDisposable
     {
         try
         {
-            var snapshot = _telemetryHub.GetSnapshot();
-            if (!snapshot.Connected || snapshot.Sample is null)
+            var snapshot =
+                _telemetryHub.GetSnapshot();
+
+            if (
+                !snapshot.Connected ||
+                snapshot.Sample is null)
             {
-                return "OFFLINE • " +
-                       (snapshot.Error ?? "No shared telemetry sample is available.");
+                return
+                    "OFFLINE • " +
+                    (
+                        snapshot.Error ??
+                        "No shared telemetry sample is available."
+                    );
             }
 
-            var ageMs = snapshot.UpdatedUtc.HasValue
-                ? Math.Max(0, (DateTimeOffset.UtcNow - snapshot.UpdatedUtc.Value).TotalMilliseconds)
-                : -1;
+            var ageMs =
+                snapshot.UpdatedUtc.HasValue
+                    ? Math.Max(
+                        0,
+                        (
+                            DateTimeOffset.UtcNow -
+                            snapshot.UpdatedUtc.Value
+                        ).TotalMilliseconds)
+                    : -1;
 
-            return $"LIVE • packet {snapshot.Sample.PacketId} • sample age {(ageMs < 0 ? "?" : ageMs.ToString("0"))} ms";
+            return
+                $"LIVE • packet {snapshot.Sample.PacketId} • " +
+                $"sample age {(ageMs < 0 ? "?" : ageMs.ToString("0"))} ms";
         }
         catch (Exception ex)
         {
-            return "ERROR • " + ex.GetType().Name + ": " + ex.Message;
+            return
+                "ERROR • " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message;
         }
     }
 
-    private static double? FiniteOrNull(double value) =>
-        double.IsFinite(value) ? value : null;
+    private static double? FiniteOrNull(
+        double value)
+    {
+        return double.IsFinite(value)
+            ? value
+            : null;
+    }
 
-    private async Task<object> ReadAzomViewAsync(CancellationToken cancellationToken)
+    private async Task<object> ReadAzomViewAsync(
+        CancellationToken cancellationToken)
     {
         try
         {
-            var snapshot = await CreateLiveController().ReadAsync(cancellationToken);
-            var settings = SettingDefinitions
-                .Select(def => new RemoteAzomSettingView
-                {
-                    PropertyName = def.PropertyName,
-                    DisplayName = def.DisplayName,
-                    Current = def.Getter(snapshot),
-                    Min = def.Range.Min,
-                    Max = def.Range.Max,
-                    Unit = def.Range.Unit,
-                    Writable = RemoteWritesEnabled &&
-                               snapshot.SettingsReadable &&
-                               string.Equals(snapshot.PropertyNamespace, "AZOM", StringComparison.OrdinalIgnoreCase) &&
-                               def.Getter(snapshot).HasValue
-                })
-                .ToList();
+            var snapshot =
+                await CreateLiveController()
+                    .ReadAsync(
+                        cancellationToken);
+
+            var settings =
+                SettingDefinitions
+                    .Select(
+                        def =>
+                            new RemoteAzomSettingView
+                            {
+                                PropertyName =
+                                    def.PropertyName,
+
+                                DisplayName =
+                                    def.DisplayName,
+
+                                Current =
+                                    def.Getter(snapshot),
+
+                                Min =
+                                    def.Range.Min,
+
+                                Max =
+                                    def.Range.Max,
+
+                                Unit =
+                                    def.Range.Unit,
+
+                                Writable =
+                                    RemoteWritesEnabled &&
+                                    snapshot.SettingsReadable &&
+                                    string.Equals(
+                                        snapshot.PropertyNamespace,
+                                        "AZOM",
+                                        StringComparison
+                                            .OrdinalIgnoreCase) &&
+                                    def.Getter(snapshot)
+                                        .HasValue
+                            })
+                    .ToList();
 
             return new
             {
                 ok = true,
-                bridgeVersion = snapshot.BridgeVersion,
-                propertyNamespace = snapshot.PropertyNamespace,
-                settingsReadable = snapshot.SettingsReadable,
-                baseConnected = snapshot.BaseConnected,
-                remoteWritesEnabled = RemoteWritesEnabled,
+
+                bridgeVersion =
+                    snapshot.BridgeVersion,
+
+                propertyNamespace =
+                    snapshot.PropertyNamespace,
+
+                settingsReadable =
+                    snapshot.SettingsReadable,
+
+                baseConnected =
+                    snapshot.BaseConnected,
+
+                remoteWritesEnabled =
+                    RemoteWritesEnabled,
+
                 settings
             };
         }
         catch (Exception ex)
         {
+            SetActivity(
+                "Remote AZOM read failed: " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message);
+
             return new
             {
                 ok = false,
-                error = ex.Message,
-                remoteWritesEnabled = RemoteWritesEnabled,
-                settings = Array.Empty<RemoteAzomSettingView>()
+
+                error =
+                    "ADT Remote could not read live AZOM settings.",
+
+                remoteWritesEnabled =
+                    RemoteWritesEnabled,
+
+                settings =
+                    Array.Empty<RemoteAzomSettingView>()
             };
         }
     }
 
-    private async Task<RemoteAzomWriteResponse> ApplyRemoteSettingAsync(
-        RemoteAzomWriteRequest request,
-        CancellationToken cancellationToken)
+    private async Task<RemoteAzomWriteResponse>
+        ApplyRemoteSettingAsync(
+            RemoteAzomWriteRequest request,
+            CancellationToken cancellationToken)
     {
         if (!RemoteWritesEnabled)
         {
-            return Failure(request, "Remote AZOM writes are disabled on the Windows PC.");
+            return Failure(
+                request,
+                "Remote AZOM writes are disabled on the Windows PC.");
         }
 
-        var definition = SettingDefinitions.FirstOrDefault(
-            x => string.Equals(x.PropertyName, request.PropertyName, StringComparison.OrdinalIgnoreCase));
+        var definition =
+            SettingDefinitions.FirstOrDefault(
+                x =>
+                    string.Equals(
+                        x.PropertyName,
+                        request.PropertyName,
+                        StringComparison.OrdinalIgnoreCase));
 
         if (definition is null)
-            return Failure(request, "That setting is not in Atomic Remote's explicit write allow-list.");
-
-        if (request.Value < definition.Range.Min || request.Value > definition.Range.Max)
         {
             return Failure(
                 request,
-                $"Requested value is outside Atomic's known range {definition.Range.Display}.");
+                "That setting is not in ADT Remote's explicit write allow-list.");
+        }
+
+        if (
+            request.Value <
+                definition.Range.Min ||
+            request.Value >
+                definition.Range.Max)
+        {
+            return Failure(
+                request,
+                $"Requested value is outside ADT's known range {definition.Range.Display}.");
         }
 
         try
         {
-            var controller = CreateLiveController();
-            var before = await controller.ReadAsync(cancellationToken);
+            var controller =
+                CreateLiveController();
 
-            if (!before.SettingsReadable ||
-                !string.Equals(before.PropertyNamespace, "AZOM", StringComparison.OrdinalIgnoreCase))
+            var before =
+                await controller.ReadAsync(
+                    cancellationToken);
+
+            if (
+                !before.SettingsReadable ||
+                !string.Equals(
+                    before.PropertyNamespace,
+                    "AZOM",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                return Failure(request, "Current AZOM Base settings are not safely readable through the Atomic bridge.");
+                return Failure(
+                    request,
+                    "Current AZOM Base settings are not safely readable through the ADT bridge.");
             }
 
-            var current = definition.Getter(before);
-            if (!current.HasValue || current.Value < 0)
-                return Failure(request, "The requested live AZOM setting is not readable on this AZOM/base combination.");
+            var current =
+                definition.Getter(before);
 
-            if (current.Value == request.Value)
+            if (
+                !current.HasValue ||
+                current.Value < 0)
             {
-                SetActivity($"Remote request for {definition.DisplayName} already matched live value {request.Value}{definition.Range.Unit}.");
+                return Failure(
+                    request,
+                    "The requested live AZOM setting is not readable on this AZOM/base combination.");
+            }
+
+            if (
+                current.Value ==
+                request.Value)
+            {
+                SetActivity(
+                    $"Remote request for {definition.DisplayName} already matched live value " +
+                    $"{request.Value}{definition.Range.Unit}.");
+
                 return new RemoteAzomWriteResponse
                 {
                     Ok = true,
                     Verified = true,
-                    PropertyName = definition.PropertyName,
-                    RequestedValue = request.Value,
-                    LiveValue = current.Value,
-                    Message = "Already matched; no write was sent."
+
+                    PropertyName =
+                        definition.PropertyName,
+
+                    RequestedValue =
+                        request.Value,
+
+                    LiveValue =
+                        current.Value,
+
+                    Message =
+                        "Already matched; no write was sent."
                 };
             }
 
-            // Keep an in-memory remote-only rollback snapshot. The underlying
-            // controller also preserves Atomic's normal pre-apply Revert record.
-            _remoteBeforeSnapshot = before;
-            _remoteChangedProperty = definition.PropertyName;
+            // Preserve the live pre-change snapshot before attempting
+            // the guarded write. This is intentionally retained even
+            // if verification later fails, because a partially changed
+            // live state may still need to be reverted.
+            _remoteBeforeSnapshot =
+                before;
 
-            var plan = new List<AzomApplyPlanItem>
-            {
-                new()
+            _remoteChangedProperty =
+                definition.PropertyName;
+
+            var plan =
+                new List<AzomApplyPlanItem>
                 {
-                    Group = "Remote",
-                    DisplayName = definition.DisplayName,
-                    PropertyName = definition.PropertyName,
-                    Kind = AzomApplyItemKind.Numeric,
-                    CurrentInt = current.Value,
-                    TargetInt = request.Value,
-                    CurrentDisplay = current.Value + definition.Range.Unit,
-                    TargetDisplay = request.Value + definition.Range.Unit,
-                    ActionBase = definition.PropertyName,
-                    FineStep = definition.FineStep,
-                    CoarseStep = definition.CoarseStep,
-                    CanApply = true,
-                    IsSelectedForApply = true
-                }
-            };
+                    new()
+                    {
+                        Group =
+                            "Remote",
 
-            var result = await controller.ApplyAsync(plan, before, cancellationToken);
-            var after = result.After ?? await controller.ReadAsync(cancellationToken);
-            var live = definition.Getter(after);
-            var verified = live.HasValue && live.Value == request.Value && result.VerifiedSettingsChanged == 1;
+                        DisplayName =
+                            definition.DisplayName,
 
-            var response = new RemoteAzomWriteResponse
-            {
-                Ok = verified,
-                Verified = verified,
-                PropertyName = definition.PropertyName,
-                RequestedValue = request.Value,
-                LiveValue = live,
-                Message = verified
-                    ? $"Verified live readback at {live}{definition.Range.Unit}."
-                    : "Atomic did not verify the requested live value. The guarded batch stopped."
-            };
+                        PropertyName =
+                            definition.PropertyName,
+
+                        Kind =
+                            AzomApplyItemKind.Numeric,
+
+                        CurrentInt =
+                            current.Value,
+
+                        TargetInt =
+                            request.Value,
+
+                        CurrentDisplay =
+                            current.Value +
+                            definition.Range.Unit,
+
+                        TargetDisplay =
+                            request.Value +
+                            definition.Range.Unit,
+
+                        ActionBase =
+                            definition.PropertyName,
+
+                        FineStep =
+                            definition.FineStep,
+
+                        CoarseStep =
+                            definition.CoarseStep,
+
+                        CanApply =
+                            true,
+
+                        IsSelectedForApply =
+                            true
+                    }
+                };
+
+            var result =
+                await controller.ApplyAsync(
+                    plan,
+                    before,
+                    cancellationToken);
+
+            var after =
+                result.After ??
+                await controller.ReadAsync(
+                    cancellationToken);
+
+            var live =
+                definition.Getter(after);
+
+            var verified =
+                live.HasValue &&
+                live.Value == request.Value &&
+                result.VerifiedSettingsChanged == 1;
+
+            var response =
+                new RemoteAzomWriteResponse
+                {
+                    Ok =
+                        verified,
+
+                    Verified =
+                        verified,
+
+                    PropertyName =
+                        definition.PropertyName,
+
+                    RequestedValue =
+                        request.Value,
+
+                    LiveValue =
+                        live,
+
+                    Message =
+                        verified
+                            ? $"Verified live readback at {live}{definition.Range.Unit}."
+                            : "ADT did not verify the requested live value. The guarded batch stopped."
+                };
 
             SetActivity(
                 verified
-                    ? $"REMOTE VERIFIED: {definition.DisplayName} {current}{definition.Range.Unit} → {live}{definition.Range.Unit}."
-                    : $"REMOTE FAILED VERIFY: {definition.DisplayName} requested {request.Value}{definition.Range.Unit}; live {live?.ToString() ?? "N/A"}{definition.Range.Unit}.");
+                    ? $"REMOTE VERIFIED: {definition.DisplayName} " +
+                      $"{current}{definition.Range.Unit} → " +
+                      $"{live}{definition.Range.Unit}."
+                    : $"REMOTE FAILED VERIFY: {definition.DisplayName} requested " +
+                      $"{request.Value}{definition.Range.Unit}; live " +
+                      $"{live?.ToString() ?? "N/A"}{definition.Range.Unit}.");
 
             AzomChanged?.Invoke(
                 this,
                 new RemoteAzomChangedEventArgs
                 {
-                    PropertyName = definition.PropertyName,
-                    Value = live,
-                    Verified = verified
+                    PropertyName =
+                        definition.PropertyName,
+
+                    Value =
+                        live,
+
+                    Verified =
+                        verified
                 });
 
             return response;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            SetActivity($"Remote AZOM write failed: {ex.Message}");
-            return Failure(request, ex.Message);
+            SetActivity(
+                "Remote AZOM write failed: " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message);
+
+            return Failure(
+                request,
+                "ADT could not complete the requested AZOM write.");
         }
     }
 
-    private async Task<RemoteAzomWriteResponse> RevertLastRemoteSettingAsync(CancellationToken cancellationToken)
+    private async Task<RemoteAzomWriteResponse>
+        RevertLastRemoteSettingAsync(
+            CancellationToken cancellationToken)
     {
         if (!RemoteWritesEnabled)
         {
             return new RemoteAzomWriteResponse
             {
                 Ok = false,
-                Message = "Remote AZOM writes are disabled on the Windows PC."
+
+                Message =
+                    "Remote AZOM writes are disabled on the Windows PC."
             };
         }
 
-        var beforeSnapshot = _remoteBeforeSnapshot;
-        var changedProperty = _remoteChangedProperty;
-        if (beforeSnapshot is null || string.IsNullOrWhiteSpace(changedProperty))
+        var beforeSnapshot =
+            _remoteBeforeSnapshot;
+
+        var changedProperty =
+            _remoteChangedProperty;
+
+        if (
+            beforeSnapshot is null ||
+            string.IsNullOrWhiteSpace(
+                changedProperty))
         {
             return new RemoteAzomWriteResponse
             {
                 Ok = false,
-                Message = "No successful remote-change snapshot is available to revert in this Atomic run."
+
+                Message =
+                    "No remote-change snapshot is available to revert in this ADT run."
             };
         }
 
         try
         {
-            var controller = CreateLiveController();
-            var current = await controller.ReadAsync(cancellationToken);
-            var plan = controller.BuildRevertPlan(beforeSnapshot, current, new[] { changedProperty });
-            var changed = plan.Where(x => x.CanApply && x.IsDifferent).ToList();
+            var controller =
+                CreateLiveController();
+
+            var current =
+                await controller.ReadAsync(
+                    cancellationToken);
+
+            var plan =
+                controller.BuildRevertPlan(
+                    beforeSnapshot,
+                    current,
+                    new[]
+                    {
+                        changedProperty
+                    });
+
+            var changed =
+                plan
+                    .Where(
+                        x =>
+                            x.CanApply &&
+                            x.IsDifferent)
+                    .ToList();
 
             if (changed.Count == 0)
             {
                 _remoteBeforeSnapshot = null;
                 _remoteChangedProperty = null;
-                SetActivity("Remote Revert: the live setting already matches the saved pre-change snapshot.");
+
+                SetActivity(
+                    "Remote Revert: the live setting already matches the saved pre-change snapshot.");
+
                 return new RemoteAzomWriteResponse
                 {
                     Ok = true,
                     Verified = true,
-                    PropertyName = changedProperty,
-                    Message = "Already reverted."
+
+                    PropertyName =
+                        changedProperty,
+
+                    Message =
+                        "Already reverted."
                 };
             }
 
-            var result = await controller.ApplyAsync(plan, current, cancellationToken);
-            var after = result.After ?? await controller.ReadAsync(cancellationToken);
-            var definition = SettingDefinitions.First(x => string.Equals(x.PropertyName, changedProperty, StringComparison.OrdinalIgnoreCase));
-            var desired = definition.Getter(beforeSnapshot);
-            var live = definition.Getter(after);
-            var verified = desired.HasValue && live == desired && result.VerifiedSettingsChanged >= 1;
+            var result =
+                await controller.ApplyAsync(
+                    plan,
+                    current,
+                    cancellationToken);
+
+            var after =
+                result.After ??
+                await controller.ReadAsync(
+                    cancellationToken);
+
+            var definition =
+                SettingDefinitions.First(
+                    x =>
+                        string.Equals(
+                            x.PropertyName,
+                            changedProperty,
+                            StringComparison.OrdinalIgnoreCase));
+
+            var desired =
+                definition.Getter(
+                    beforeSnapshot);
+
+            var live =
+                definition.Getter(
+                    after);
+
+            var verified =
+                desired.HasValue &&
+                live == desired &&
+                result.VerifiedSettingsChanged >= 1;
 
             if (verified)
             {
@@ -798,118 +1709,368 @@ public sealed class RemoteServerService : IAsyncDisposable
                 _remoteChangedProperty = null;
             }
 
-            SetActivity(verified
-                ? $"REMOTE REVERT VERIFIED: {definition.DisplayName} restored to {live}{definition.Range.Unit}."
-                : $"REMOTE REVERT FAILED VERIFY: {definition.DisplayName} live {live?.ToString() ?? "N/A"}{definition.Range.Unit}.");
+            SetActivity(
+                verified
+                    ? $"REMOTE REVERT VERIFIED: {definition.DisplayName} restored to " +
+                      $"{live}{definition.Range.Unit}."
+                    : $"REMOTE REVERT FAILED VERIFY: {definition.DisplayName} live " +
+                      $"{live?.ToString() ?? "N/A"}{definition.Range.Unit}.");
 
             AzomChanged?.Invoke(
                 this,
                 new RemoteAzomChangedEventArgs
                 {
-                    PropertyName = changedProperty,
-                    Value = live,
-                    Verified = verified
+                    PropertyName =
+                        changedProperty,
+
+                    Value =
+                        live,
+
+                    Verified =
+                        verified
                 });
 
             return new RemoteAzomWriteResponse
             {
-                Ok = verified,
-                Verified = verified,
-                PropertyName = changedProperty,
-                RequestedValue = desired,
-                LiveValue = live,
-                Message = verified ? "Remote change reverted and verified." : "Revert did not verify; Atomic stopped the batch."
+                Ok =
+                    verified,
+
+                Verified =
+                    verified,
+
+                PropertyName =
+                    changedProperty,
+
+                RequestedValue =
+                    desired,
+
+                LiveValue =
+                    live,
+
+                Message =
+                    verified
+                        ? "Remote change reverted and verified."
+                        : "Revert did not verify; ADT stopped the batch."
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            SetActivity($"Remote Revert failed: {ex.Message}");
+            SetActivity(
+                "Remote Revert failed: " +
+                ex.GetType().Name +
+                ": " +
+                ex.Message);
+
             return new RemoteAzomWriteResponse
             {
                 Ok = false,
-                PropertyName = changedProperty,
-                Message = ex.Message
+
+                PropertyName =
+                    changedProperty,
+
+                Message =
+                    "ADT could not complete the remote revert."
             };
         }
     }
 
     private AzomLiveController CreateLiveController()
     {
-        var live = _settingsStore.Load().AzomLive ?? new AzomLiveConnectionSettings();
-        SimHubActionInvoker? cliFallback = null;
+        var live =
+            _settingsStore.Load().AzomLive ??
+            new AzomLiveConnectionSettings();
 
-        var exe = SimHubLocator.FindSimHubExe(live.SimHubExePath) ?? live.SimHubExePath;
-        if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
-            cliFallback = new SimHubActionInvoker(exe, live.ActionDelayMs);
+        SimHubActionInvoker? cliFallback =
+            null;
+
+        var exe =
+            SimHubLocator.FindSimHubExe(
+                live.SimHubExePath) ??
+            live.SimHubExePath;
+
+        if (
+            !string.IsNullOrWhiteSpace(exe) &&
+            File.Exists(exe))
+        {
+            cliFallback =
+                new SimHubActionInvoker(
+                    exe,
+                    live.ActionDelayMs);
+        }
 
         return new AzomLiveController(
-            new AzomBridgeClient(live.PipeName),
+            new AzomBridgeClient(
+                live.PipeName),
             live.ActionDelayMs,
             cliFallback);
     }
 
-    private RemoteAzomWriteResponse Failure(RemoteAzomWriteRequest request, string message) =>
-        new()
+    private static RemoteAzomWriteResponse Failure(
+        RemoteAzomWriteRequest request,
+        string message)
+    {
+        return new RemoteAzomWriteResponse
         {
             Ok = false,
             Verified = false,
-            PropertyName = request.PropertyName,
-            RequestedValue = request.Value,
-            Message = message
+
+            PropertyName =
+                request.PropertyName,
+
+            RequestedValue =
+                request.Value,
+
+            Message =
+                message
         };
-
-    private bool TokenMatches(string? supplied)
-    {
-        if (string.IsNullOrWhiteSpace(supplied) || supplied.Length != PairToken.Length)
-            return false;
-
-        var a = Encoding.UTF8.GetBytes(supplied);
-        var b = Encoding.UTF8.GetBytes(PairToken);
-        return CryptographicOperations.FixedTimeEquals(a, b);
     }
 
-    private bool PairingCodeMatches(string? supplied)
+    private static string? GetSuppliedToken(
+        HttpContext context)
     {
-        if (string.IsNullOrWhiteSpace(supplied) || supplied.Length != PairingCode.Length)
-            return false;
+        var current =
+            context.Request.Headers[
+                AdtTokenHeader]
+                .FirstOrDefault();
 
-        var a = Encoding.UTF8.GetBytes(supplied.Trim());
-        var b = Encoding.UTF8.GetBytes(PairingCode);
-        return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
+        if (
+            !string.IsNullOrWhiteSpace(
+                current))
+        {
+            return current;
+        }
+
+        return context.Request.Headers[
+                LegacyTokenHeader]
+            .FirstOrDefault();
     }
 
-    private void SetActivity(string activity)
+    private bool TokenMatches(
+        string? supplied)
+    {
+        if (string.IsNullOrWhiteSpace(supplied))
+        {
+            return false;
+        }
+
+        string expected;
+
+        lock (_pairGate)
+        {
+            expected =
+                _pairToken;
+        }
+
+        if (
+            supplied.Length !=
+            expected.Length)
+        {
+            return false;
+        }
+
+        var a =
+            Encoding.UTF8.GetBytes(
+                supplied);
+
+        var b =
+            Encoding.UTF8.GetBytes(
+                expected);
+
+        return
+            a.Length == b.Length &&
+            CryptographicOperations
+                .FixedTimeEquals(
+                    a,
+                    b);
+    }
+
+    private bool TryAcceptPairingCode(
+        string? supplied)
+    {
+        if (string.IsNullOrWhiteSpace(supplied))
+        {
+            RegisterPairFailure();
+            return false;
+        }
+
+        var normalized =
+            supplied.Trim();
+
+        lock (_pairGate)
+        {
+            if (
+                DateTime.UtcNow <
+                _pairBlockedUntilUtc)
+            {
+                return false;
+            }
+
+            if (
+                normalized.Length ==
+                    _pairingCode.Length)
+            {
+                var a =
+                    Encoding.UTF8.GetBytes(
+                        normalized);
+
+                var b =
+                    Encoding.UTF8.GetBytes(
+                        _pairingCode);
+
+                if (
+                    a.Length == b.Length &&
+                    CryptographicOperations
+                        .FixedTimeEquals(
+                            a,
+                            b))
+                {
+                    _failedPairAttempts = 0;
+                    _pairBlockedUntilUtc =
+                        DateTime.MinValue;
+
+                    return true;
+                }
+            }
+
+            _failedPairAttempts++;
+
+            if (
+                _failedPairAttempts >=
+                MaxFailedPairAttempts)
+            {
+                _failedPairAttempts = 0;
+
+                _pairBlockedUntilUtc =
+                    DateTime.UtcNow.AddSeconds(
+                        PairBlockSeconds);
+            }
+
+            return false;
+        }
+    }
+
+    private void RegisterPairFailure()
+    {
+        lock (_pairGate)
+        {
+            if (
+                DateTime.UtcNow <
+                _pairBlockedUntilUtc)
+            {
+                return;
+            }
+
+            _failedPairAttempts++;
+
+            if (
+                _failedPairAttempts >=
+                MaxFailedPairAttempts)
+            {
+                _failedPairAttempts = 0;
+
+                _pairBlockedUntilUtc =
+                    DateTime.UtcNow.AddSeconds(
+                        PairBlockSeconds);
+            }
+        }
+    }
+
+    private int GetRemainingPairBlockSeconds()
+    {
+        lock (_pairGate)
+        {
+            var remaining =
+                _pairBlockedUntilUtc -
+                DateTime.UtcNow;
+
+            if (remaining <= TimeSpan.Zero)
+            {
+                return 0;
+            }
+
+            return Math.Max(
+                1,
+                (int)Math.Ceiling(
+                    remaining.TotalSeconds));
+        }
+    }
+
+    private void SetActivity(
+        string activity)
     {
         lock (_stateGate)
-            _lastActivity = activity;
+        {
+            _lastActivity =
+                activity;
+        }
+
         RaiseStateChanged();
     }
 
-    private void RaiseStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
+    private void RaiseStateChanged()
+    {
+        StateChanged?.Invoke(
+            this,
+            EventArgs.Empty);
+    }
 
-    private static bool IsPrivateOrLoopback(IPAddress address)
+    private static bool IsPrivateOrLoopback(
+        IPAddress address)
     {
         if (address.IsIPv4MappedToIPv6)
-            address = address.MapToIPv4();
-
-        if (IPAddress.IsLoopback(address))
-            return true;
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
         {
-            var b = address.GetAddressBytes();
-            return b[0] == 10 ||
-                   (b[0] == 172 && b[1] is >= 16 and <= 31) ||
-                   (b[0] == 192 && b[1] == 168) ||
-                   (b[0] == 169 && b[1] == 254);
+            address =
+                address.MapToIPv4();
         }
 
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        if (IPAddress.IsLoopback(address))
+        {
+            return true;
+        }
+
+        if (
+            address.AddressFamily ==
+            AddressFamily.InterNetwork)
+        {
+            var bytes =
+                address.GetAddressBytes();
+
+            return
+                bytes[0] == 10 ||
+                (
+                    bytes[0] == 172 &&
+                    bytes[1] is >= 16 and <= 31
+                ) ||
+                (
+                    bytes[0] == 192 &&
+                    bytes[1] == 168
+                ) ||
+                (
+                    bytes[0] == 169 &&
+                    bytes[1] == 254
+                );
+        }
+
+        if (
+            address.AddressFamily ==
+            AddressFamily.InterNetworkV6)
         {
             if (address.IsIPv6LinkLocal)
+            {
                 return true;
-            var b = address.GetAddressBytes();
-            return (b[0] & 0xFE) == 0xFC; // fc00::/7 unique-local range
+            }
+
+            var bytes =
+                address.GetAddressBytes();
+
+            // fc00::/7 unique-local range.
+            return
+                (bytes[0] & 0xFE) ==
+                0xFC;
         }
 
         return false;
@@ -930,23 +2091,95 @@ public sealed class RemoteServerService : IAsyncDisposable
 
     private sealed class RemotePairRequest
     {
-        public string Code { get; set; } = "";
+        public string Code { get; set; } =
+            "";
     }
 
-    // Test-build write surface: only the core/wheelbase controls Atomic already
-    // knows how to range-check and verify. Preferences, EQ, curve nodes and
-    // undocumented controls remain read-only/not exposed remotely for now.
-    private static readonly IReadOnlyList<RemoteSettingDefinition> SettingDefinitions =
-    [
-        new("AZOM.FfbStrength", "Game FFB Strength", AzomSettingCatalog.GameFfbStrength, x => x.FfbStrength, 5, 10),
-        new("AZOM.Torque", "Base Torque Output", AzomSettingCatalog.BaseTorqueOutput, x => x.Torque, 5, 10),
-        new("AZOM.Rotation", "Wheel Rotation Angle", AzomSettingCatalog.WheelRotationAngle, x => x.Rotation, 90, 180),
-        new("AZOM.WheelSpeedLimit", "Maximum Wheel Speed", AzomSettingCatalog.MaximumWheelSpeed, x => x.WheelSpeedLimit, 5, 10),
-        new("AZOM.Interpolation", "Interpolation", AzomSettingCatalog.Interpolation, x => x.Interpolation, 1, 2),
-        new("AZOM.Damper", "Wheel Damper", AzomSettingCatalog.WheelDamper, x => x.Damper, 5, 10),
-        new("AZOM.Friction", "Wheel Friction", AzomSettingCatalog.WheelFriction, x => x.Friction, 5, 10),
-        new("AZOM.Inertia", "Natural Inertia", AzomSettingCatalog.NaturalInertia, x => x.Inertia, 10, 50),
-        new("AZOM.SpeedDamping", "High-Speed Damping", AzomSettingCatalog.HighSpeedDampingLevel, x => x.SpeedDamping, 5, 10),
-        new("AZOM.SpeedDampingPoint", "High-Speed Trigger", AzomSettingCatalog.HighSpeedTriggerSpeed, x => x.SpeedDampingPoint, 10, 50)
-    ];
+    // Remote write surface: only the core/wheelbase controls ADT already
+    // knows how to range-check and verify. Preferences, EQ, curve nodes
+    // and undocumented controls remain read-only/not exposed remotely.
+    private static readonly
+        IReadOnlyList<RemoteSettingDefinition>
+        SettingDefinitions =
+        [
+            new(
+                "AZOM.FfbStrength",
+                "Game FFB Strength",
+                AzomSettingCatalog.GameFfbStrength,
+                x => x.FfbStrength,
+                5,
+                10),
+
+            new(
+                "AZOM.Torque",
+                "Base Torque Output",
+                AzomSettingCatalog.BaseTorqueOutput,
+                x => x.Torque,
+                5,
+                10),
+
+            new(
+                "AZOM.Rotation",
+                "Wheel Rotation Angle",
+                AzomSettingCatalog.WheelRotationAngle,
+                x => x.Rotation,
+                90,
+                180),
+
+            new(
+                "AZOM.WheelSpeedLimit",
+                "Maximum Wheel Speed",
+                AzomSettingCatalog.MaximumWheelSpeed,
+                x => x.WheelSpeedLimit,
+                5,
+                10),
+
+            new(
+                "AZOM.Interpolation",
+                "Interpolation",
+                AzomSettingCatalog.Interpolation,
+                x => x.Interpolation,
+                1,
+                2),
+
+            new(
+                "AZOM.Damper",
+                "Wheel Damper",
+                AzomSettingCatalog.WheelDamper,
+                x => x.Damper,
+                5,
+                10),
+
+            new(
+                "AZOM.Friction",
+                "Wheel Friction",
+                AzomSettingCatalog.WheelFriction,
+                x => x.Friction,
+                5,
+                10),
+
+            new(
+                "AZOM.Inertia",
+                "Natural Inertia",
+                AzomSettingCatalog.NaturalInertia,
+                x => x.Inertia,
+                10,
+                50),
+
+            new(
+                "AZOM.SpeedDamping",
+                "High-Speed Damping",
+                AzomSettingCatalog.HighSpeedDampingLevel,
+                x => x.SpeedDamping,
+                5,
+                10),
+
+            new(
+                "AZOM.SpeedDampingPoint",
+                "High-Speed Trigger",
+                AzomSettingCatalog.HighSpeedTriggerSpeed,
+                x => x.SpeedDampingPoint,
+                10,
+                50)
+        ];
 }

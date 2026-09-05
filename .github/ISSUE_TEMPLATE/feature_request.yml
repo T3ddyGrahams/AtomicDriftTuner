@@ -1,13 +1,19 @@
-name: Feature request
-description: Suggest a new feature or improvement for Atomic Drift Tuner.
+name: Feature Request
+description: Suggest a new feature or improvement for Atomic Drift Tuner (ADT).
 title: "[FEATURE] "
+
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting an improvement.
+        Thanks for suggesting an improvement to Atomic Drift Tuner (ADT).
 
-        Please describe the problem/use case first. That makes it easier to decide whether the best solution belongs in the UI, tuning engine, telemetry system, AC setup layer, or SimHub/AZOM bridge.
+        Please describe the problem or use case first. That makes it easier to determine whether the best solution belongs in the UI, tuning engine, telemetry system, AC setup layer, hardware integration, or another part of ADT.
+
+        Before submitting, please check the existing issues and ADT Development Roadmap for similar ideas.
+
+        Roadmap:
+        https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/ROADMAP.md
 
   - type: dropdown
     id: area
@@ -16,16 +22,23 @@ body:
       options:
         - Tuning engine
         - Wheelbase / wheel support
-        - AZOM / SimHub integration
+        - FFB / AZOM
+        - SimHub Bridge / integration
         - Assetto Corsa car scanner
+        - Active car / drift-pack detection
         - AC Car Setup Tuner
         - Desired Behavior
         - Telemetry Recorder / analysis
         - Tuning Assistant
+        - ADT Remote
+        - Control Center / touchscreen
         - Appearance / accessibility
         - Diagnostics / support tools
-        - Profiles / import / export
+        - Profiles / tune history / data
+        - Tune sharing / community
         - Installer / distribution
+        - Updates / release system
+        - Discord / community integration
         - Documentation
         - Other
     validations:
@@ -35,14 +48,16 @@ body:
     id: problem
     attributes:
       label: What problem would this solve?
-      placeholder: Describe the current limitation or workflow problem.
+      description: Describe the current limitation, repetitive task, missing capability, or workflow problem.
+      placeholder: What are you trying to do that ADT does not currently handle well?
     validations:
       required: true
 
   - type: textarea
     id: solution
     attributes:
-      label: What would you like Atomic to do?
+      label: What would you like ADT to do?
+      description: Describe the behavior, feature, or improvement you would like to see.
       placeholder: Describe the proposed behavior or UI.
     validations:
       required: true
@@ -54,27 +69,54 @@ body:
       description: Show how you imagine using the feature.
       placeholder: |
         1. I select...
-        2. Atomic detects...
-        3. Atomic shows...
-        4. I review/apply...
+        2. ADT detects...
+        3. ADT recommends/shows...
+        4. I review...
+        5. I apply/save/compare...
+
+  - type: textarea
+    id: benefit
+    attributes:
+      label: What would make this feature successful?
+      description: Describe the result you would expect if this feature worked well.
+      placeholder: |
+        For example:
+        - saves repeated setup work
+        - makes a recommendation easier to understand
+        - supports additional hardware
+        - improves tuning accuracy
+        - reduces steps during a drift session
 
   - type: textarea
     id: hardware
     attributes:
-      label: Relevant hardware / car / pack
-      description: Optional. Include these if the idea only makes sense for a particular setup.
+      label: Relevant hardware / car / pack / integration
+      description: Optional. Include these if the idea depends on a particular setup, car, drift pack, SimHub/AZOM configuration, or other integration.
 
   - type: dropdown
-    id: priority
+    id: importance
     attributes:
-      label: How important is this to your testing/use?
+      label: How important is this to your use of ADT?
       options:
         - Nice to have
         - Would improve my workflow
-        - Major missing feature
-        - Blocks me from using/testing Atomic
+        - Major missing capability
+        - Blocks a workflow I want to use
+        - Blocks me from using/testing ADT
     validations:
       required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current workaround or alternative
+      description: Optional. If you currently accomplish this another way, tell us how.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Optional. Add screenshots, mockups, examples, links, or anything else that helps explain the idea.
 
   - type: checkboxes
     id: checks
@@ -83,5 +125,7 @@ body:
       options:
         - label: I checked existing issues for a similar request.
           required: true
-        - label: This request does not require redistributing proprietary third-party binaries.
+        - label: I checked the ADT Development Roadmap for an existing planned feature.
+          required: true
+        - label: This request does not require redistributing proprietary third-party binaries without permission.
           required: true

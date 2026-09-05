@@ -114,7 +114,8 @@ if (-not (Test-Path $publishedExe)) {
 Write-Host "`n[2/5] Building SimHub bridge..." -ForegroundColor Cyan
 
 & (Join-Path $repo "bridge\build-bridge.ps1") `
-    -SimHubPath $SimHubPath
+    -SimHubPath $SimHubPath `
+    -Version $Version
 
 if ($LASTEXITCODE -ne 0) {
     throw "SimHub bridge build failed with exit code $LASTEXITCODE."

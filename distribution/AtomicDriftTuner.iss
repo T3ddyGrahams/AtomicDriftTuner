@@ -40,9 +40,11 @@ ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 VersionInfoVersion={#MyVersionInfoVersion}
+VersionInfoTextVersion={#MyAppVersion}
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription=Atomic Drift Tuner installer
-VersionInfoProductVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyVersionInfoVersion}
+VersionInfoProductTextVersion={#MyAppVersion}
 
 CloseApplications=yes
 RestartApplications=no

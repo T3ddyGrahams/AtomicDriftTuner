@@ -1,47 +1,88 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <PlatformTarget>x86</PlatformTarget>
     <OutputType>Library</OutputType>
+
     <RootNamespace>AtomicDriftTuner.SimHubBridge</RootNamespace>
     <AssemblyName>AtomicDriftTuner.SimHubBridge</AssemblyName>
+
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <Version>0.7.2</Version>
-    <AssemblyVersion>0.7.2.0</AssemblyVersion>
-    <FileVersion>0.7.2.0</FileVersion>
+
+    <!-- Development/default bridge version values.
+         Release packaging overrides the standard MSBuild version properties
+         explicitly through build-bridge.ps1. -->
+    <ADTVersion Condition="'$(ADTVersion)' == ''">0.8.1-beta.1</ADTVersion>
+    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.8.1.1</ADTVersionInfoVersion>
+
+    <Version>$(ADTVersion)</Version>
+    <AssemblyVersion>$(ADTVersionInfoVersion)</AssemblyVersion>
+    <FileVersion>$(ADTVersionInfoVersion)</FileVersion>
+    <InformationalVersion>$(ADTVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <SimHubInstallPath Condition="'$(SimHubInstallPath)' == ''">C:\Program Files (x86)\SimHub\</SimHubInstallPath>
+
+    <!-- Do not depend on a trailing slash. Every reference below inserts its
+         own separator so both "E:\SimHub" and "E:\SimHub\" work. -->
+    <SimHubInstallPath Condition="'$(SimHubInstallPath)' == ''">C:\Program Files (x86)\SimHub</SimHubInstallPath>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
+
   <ItemGroup>
     <Reference Include="SimHub.Plugins">
-      <HintPath>$(SimHubInstallPath)SimHub.Plugins.dll</HintPath>
+      <HintPath>$(SimHubInstallPath)\SimHub.Plugins.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
     <Reference Include="GameReaderCommon">
-      <HintPath>$(SimHubInstallPath)GameReaderCommon.dll</HintPath>
+      <HintPath>$(SimHubInstallPath)\GameReaderCommon.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
     <Reference Include="SimHub.Logging">
-      <HintPath>$(SimHubInstallPath)SimHub.Logging.dll</HintPath>
+      <HintPath>$(SimHubInstallPath)\SimHub.Logging.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
     <Reference Include="Newtonsoft.Json">
-      <HintPath>$(SimHubInstallPath)Newtonsoft.Json.dll</HintPath>
+      <HintPath>$(SimHubInstallPath)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
     <Reference Include="log4net">
-      <HintPath>$(SimHubInstallPath)log4net.dll</HintPath>
+      <HintPath>$(SimHubInstallPath)\log4net.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+
   <Target Name="CheckSimHub" BeforeTargets="ResolveReferences">
-    <Error Condition="!Exists('$(SimHubInstallPath)SimHub.Plugins.dll')" Text="SimHub.Plugins.dll was not found. Build with /p:SimHubInstallPath=YOUR_SIMHUB_FOLDER\" />
-    <Error Condition="!Exists('$(SimHubInstallPath)log4net.dll')" Text="log4net.dll was not found next to SimHub.Plugins.dll. Point SimHubInstallPath at the actual SimHub installation folder." />
+    <Error
+      Condition="!Exists('$(SimHubInstallPath)\SimHub.Plugins.dll')"
+      Text="SimHub.Plugins.dll was not found under '$(SimHubInstallPath)'. Pass /p:SimHubInstallPath=YOUR_SIMHUB_FOLDER." />
+
+    <Error
+      Condition="!Exists('$(SimHubInstallPath)\GameReaderCommon.dll')"
+      Text="GameReaderCommon.dll was not found under '$(SimHubInstallPath)'." />
+
+    <Error
+      Condition="!Exists('$(SimHubInstallPath)\SimHub.Logging.dll')"
+      Text="SimHub.Logging.dll was not found under '$(SimHubInstallPath)'." />
+
+    <Error
+      Condition="!Exists('$(SimHubInstallPath)\Newtonsoft.Json.dll')"
+      Text="Newtonsoft.Json.dll was not found under '$(SimHubInstallPath)'." />
+
+    <Error
+      Condition="!Exists('$(SimHubInstallPath)\log4net.dll')"
+      Text="log4net.dll was not found under '$(SimHubInstallPath)'." />
   </Target>
+
 </Project>

@@ -22,7 +22,7 @@ namespace AtomicDriftTuner.SimHubBridge
     public sealed class AtomicDriftTunerBridge : IPlugin, IDataPlugin
     {
         private const string PipeName = "AtomicDriftTuner.AzomBridge.v1";
-        private const string BridgeVersion = "0.7.2";
+        private static readonly string BridgeVersion = ResolveBridgeVersion();
         private Thread? _serverThread;
         private volatile bool _stop;
         private NamedPipeServerStream? _activeServer;
@@ -74,6 +74,30 @@ namespace AtomicDriftTuner.SimHubBridge
         }
 
         public PluginManager PluginManager { get; set; } = null!;
+
+        private static string ResolveBridgeVersion()
+        {
+            var assembly =
+                typeof(AtomicDriftTunerBridge).Assembly;
+
+            var informationalVersion =
+                assembly
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                    ?.InformationalVersion;
+
+            if (informationalVersion != null &&
+                informationalVersion.Trim().Length > 0)
+            {
+                return informationalVersion.Trim();
+            }
+
+            var assemblyVersion =
+                assembly.GetName().Version;
+
+            return assemblyVersion != null
+                ? assemblyVersion.ToString()
+                : "unknown";
+        }
 
         public void Init(PluginManager pluginManager)
         {
@@ -1990,9 +2014,12 @@ namespace AtomicDriftTuner.SimHubBridge
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var item in values)
                 {
-                    var s = item as string;
-                    if (!string.IsNullOrWhiteSpace(s) && seen.Add(s))
+                    if (item is string s &&
+                        !string.IsNullOrWhiteSpace(s) &&
+                        seen.Add(s))
+                    {
                         list.Add(s);
+                    }
                 }
                 list.Sort(StringComparer.OrdinalIgnoreCase);
                 return list;

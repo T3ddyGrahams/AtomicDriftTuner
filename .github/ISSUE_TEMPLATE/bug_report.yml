@@ -1,27 +1,46 @@
-name: Bug report
-description: Report a reproducible problem with Atomic Drift Tuner.
+name: Bug Report
+description: Report a reproducible problem with Atomic Drift Tuner (ADT).
 title: "[BUG] "
+
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping test Atomic Drift Tuner.
+        Thanks for helping test Atomic Drift Tuner (ADT).
 
-        Please include enough detail for the issue to be reproduced. Do not post passwords, tokens, private paths, proprietary third-party files, or personal telemetry you do not want public.
+        Use this form when something in ADT is broken, crashes, behaves incorrectly, loses data, or otherwise does not work as expected.
+
+        If ADT works technically but you are evaluating whether a tuning, FFB, AZOM, Desired Behavior, or telemetry recommendation made the car better or worse, please use the **Beta Test Report** instead.
+
+        Please include enough detail for the issue to be reproduced.
+
+        Do not post passwords, tokens, credentials, private paths, proprietary third-party files, or personal telemetry you do not want made public.
 
   - type: input
-    id: atomic_version
+    id: adt_version
     attributes:
-      label: Atomic Drift Tuner version
-      description: "Example: v0.7.3-beta.2"
-      placeholder: v0.7.3-beta.2
+      label: ADT version
+      description: The version where you experienced the problem.
+      placeholder: v0.8.1-beta.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build_type
+    attributes:
+      label: Build type
+      options:
+        - Installer
+        - Portable
+        - Source / development build
+        - Unsure
     validations:
       required: true
 
   - type: input
     id: bridge_version
     attributes:
-      label: Atomic SimHub Bridge version
+      label: ADT SimHub Bridge version
       description: Found in System Diagnostics. Enter N/A if the issue does not involve SimHub/AZOM.
       placeholder: v0.7.2 or N/A
     validations:
@@ -36,15 +55,19 @@ body:
         - Full AZOM Settings
         - Live AZOM readback / Apply / Revert
         - AC Car Scanner
+        - Active car / drift-pack detection
         - AC Car Setup Tuner
         - Desired Behavior / behavior blending
         - Telemetry Recorder
         - Tuning Assistant
+        - ADT Remote
+        - Profiles / configuration persistence
         - Appearance / UI readability
         - Setup & Paths
         - System Diagnostics / support package
         - Installer / portable package
         - SimHub Bridge
+        - Update / upgrade process
         - Other
     validations:
       required: true
@@ -58,7 +81,16 @@ body:
         - Minor - workaround exists
         - Major - feature cannot be used
         - Crash / freeze
+        - Data loss / corrupted settings
         - Safety concern involving wheelbase behavior
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
     validations:
       required: true
 
@@ -67,18 +99,25 @@ body:
     attributes:
       label: Wheelbase
       description: Enter N/A if not relevant.
-      placeholder: MOZA R9
+      placeholder: MOZA R12
     validations:
       required: true
 
   - type: input
     id: wheel
     attributes:
-      label: Steering wheel
+      label: Steering wheel / rim
       description: Enter N/A if not relevant.
-      placeholder: MOZA CS V2P
+      placeholder: MOZA CS Pro
     validations:
       required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Wheelbase firmware
+      description: Enter N/A or Unknown if not relevant or not known.
+      placeholder: Firmware version or N/A
 
   - type: input
     id: drift_pack
@@ -94,24 +133,32 @@ body:
     attributes:
       label: Car
       description: Exact car/folder name when possible. Enter N/A if not relevant.
-      placeholder: Example car name
+      placeholder: Exact car name / folder
     validations:
       required: true
 
   - type: input
-    id: windows
+    id: track
     attributes:
-      label: Windows version
-      placeholder: Windows 11 24H2
+      label: Track
+      description: Enter N/A if the problem is not related to an AC session.
+      placeholder: Track name or N/A
+
+  - type: input
+    id: simhub_version
+    attributes:
+      label: SimHub version
+      description: Enter N/A if the issue does not involve SimHub.
+      placeholder: SimHub version or N/A
     validations:
       required: true
 
   - type: input
-    id: simhub
+    id: azom_version
     attributes:
-      label: SimHub / AZOM versions
-      description: Enter N/A if the issue does not involve them.
-      placeholder: SimHub x.x.x / AZOM x.x.x
+      label: AZOM version
+      description: Enter N/A if the issue does not involve AZOM.
+      placeholder: AZOM version or N/A
     validations:
       required: true
 
@@ -127,7 +174,7 @@ body:
     id: actual
     attributes:
       label: What actually happened?
-      placeholder: Include exact messages, incorrect values, visual problems, or behavior.
+      placeholder: Include exact error messages, incorrect values, visual problems, lost data, or unexpected behavior.
     validations:
       required: true
 
@@ -137,12 +184,31 @@ body:
       label: Steps to reproduce
       description: Please make the steps as exact as possible.
       placeholder: |
-        1. Open Atomic...
+        1. Open ADT...
         2. Select...
         3. Click...
         4. Observe...
     validations:
       required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: How often can you reproduce the problem?
+      options:
+        - Every time
+        - Most of the time
+        - Sometimes
+        - Only happened once
+        - Unable to test again
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: If you found a way to avoid or temporarily fix the problem, describe it here.
 
   - type: textarea
     id: diagnostics
@@ -150,22 +216,27 @@ body:
       label: Diagnostics / logs / support ZIP
       description: |
         If relevant, attach the privacy-redacted support ZIP from System Diagnostics by dragging it into this field.
-        Do not attach proprietary SimHub/AZOM/MOZA DLLs.
+
+        Before uploading, you are welcome to review the support bundle contents.
+
+        Do not attach proprietary SimHub/AZOM/MOZA DLLs, credentials, or unrelated private files.
 
   - type: textarea
     id: additional
     attributes:
       label: Additional context
-      description: Screenshots, video, whether the issue is consistent/intermittent, and anything else that may help.
+      description: Add screenshots, video, error messages, or anything else that may help investigate the problem.
 
   - type: checkboxes
     id: checklist
     attributes:
       label: Tester checklist
       options:
-        - label: I reproduced this on the version listed above.
+        - label: I reproduced or observed this problem on the ADT version listed above.
           required: true
-        - label: I checked that I am not reporting a password, token, secret, or private file.
+        - label: I checked that I am not posting a password, token, credential, secret, or private file.
           required: true
-        - label: If this involves a live AZOM write, I verified the requested and live/readback values where possible.
+        - label: If this involves unsafe wheelbase behavior, I stopped testing the problematic settings.
+          required: true
+        - label: If this involves a live AZOM write, I checked the requested and live/readback values where possible.
           required: false

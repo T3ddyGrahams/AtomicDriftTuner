@@ -1,5 +1,6 @@
 using System.IO;
 using System.Globalization;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -54,11 +55,14 @@ public partial class MainWindow : Window
     private UpdatesWindow? _updatesWindow;
     private Window? _embeddedToolWindow;
     private readonly Dictionary<Window, UIElement> _embeddedContentCache = new();
+    private readonly Dictionary<Window, string> _embeddedContextKeys = new();
 
     public MainWindow()
     {
         _remoteServer = new RemoteServerService(_telemetryHub);
         InitializeComponent();
+        ApplyWindowVersionText();
+        UpdateWindowStateUi();
 
         HardwareBox.ItemsSource = _hardware;
         WheelBox.ItemsSource = _wheels;
@@ -124,6 +128,7 @@ public partial class MainWindow : Window
                 catch (InvalidOperationException) { }
             }
             _embeddedContentCache.Clear();
+            _embeddedContextKeys.Clear();
 
             _activeCarTimer.Stop();
             await _remoteServer.DisposeAsync();
@@ -167,6 +172,52 @@ public partial class MainWindow : Window
         WindowState = WindowState == WindowState.Maximized
             ? WindowState.Normal
             : WindowState.Maximized;
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e) =>
+        UpdateWindowStateUi();
+
+    private void UpdateWindowStateUi()
+    {
+        if (MaximizeButton is null)
+            return;
+
+        bool maximized = WindowState == WindowState.Maximized;
+        MaximizeButton.Content = maximized ? "❐" : "□";
+        MaximizeButton.ToolTip = maximized ? "Restore" : "Maximize";
+    }
+
+    private void ApplyWindowVersionText()
+    {
+        string version = ResolveDisplayVersion();
+
+        Title = $"ADT • Atomic Drift Tuner • v{version}";
+        HeaderVersionText.Text = $"TUNING WORKFLOW • v{version}";
+        EmbeddedVersionText.Text = $"v{version}";
+        FooterStatusText.Text = $"●  ADT v{version} • Tuning engines ready";
+    }
+
+    private static string ResolveDisplayVersion()
+    {
+        var assembly = typeof(MainWindow).Assembly;
+
+        string? informational =
+            assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            string normalized = informational.Trim();
+            int metadataIndex = normalized.IndexOf('+');
+            if (metadataIndex >= 0)
+                normalized = normalized[..metadataIndex];
+
+            if (!string.IsNullOrWhiteSpace(normalized))
+                return normalized;
+        }
+
+        return assembly.GetName().Version?.ToString(3) ?? "unknown";
+    }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
@@ -596,7 +647,12 @@ public partial class MainWindow : Window
 
     private void ActiveCarTimer_Tick(object? sender, EventArgs e)
     {
-        TryApplyActiveCarSelection(force: false, allowRescan: true);
+        // Do not silently change the car/rig context behind a tool that was
+        // opened from the current tune. When the driver returns to the
+        // dashboard, the next timer tick can safely follow the live AC car.
+        if (!IsContextBoundWorkspaceActive())
+            TryApplyActiveCarSelection(force: false, allowRescan: true);
+
         UpdateDashboardTelemetry();
     }
 
@@ -607,11 +663,7 @@ public partial class MainWindow : Window
             var snapshot = _telemetryHub.GetSnapshot();
             if (!snapshot.Connected || snapshot.Sample is null)
             {
-                TelemetryConnectionText.Text = "OFFLINE";
-                TelemetrySpeedText.Text = "—";
-                TelemetrySlipText.Text = "—";
-                TelemetrySteeringText.Text = "—";
-                TelemetryThrottleFfbText.Text = "—";
+                RenderTelemetryOffline();
                 return;
             }
 
@@ -624,8 +676,17 @@ public partial class MainWindow : Window
         }
         catch
         {
-            TelemetryConnectionText.Text = "OFFLINE";
+            RenderTelemetryOffline();
         }
+    }
+
+    private void RenderTelemetryOffline()
+    {
+        TelemetryConnectionText.Text = "OFFLINE";
+        TelemetrySpeedText.Text = "—";
+        TelemetrySlipText.Text = "—";
+        TelemetrySteeringText.Text = "—";
+        TelemetryThrottleFfbText.Text = "—";
     }
 
     private void TryApplyActiveCarSelection(bool force, bool allowRescan)
@@ -676,7 +737,7 @@ public partial class MainWindow : Window
         if (car is null)
         {
             ActiveCarStatusText.Text =
-                $"Active AC: {model} • {trackText} • car folder was not found in Atomic's installed-car scan.";
+                $"Active AC: {model} • {trackText} • car folder was not found in ADT's installed-car scan.";
             return;
         }
 
@@ -777,12 +838,25 @@ public partial class MainWindow : Window
                 FrontTireWidth = DataConfidence.High,
                 Grip = DataConfidence.High
             };
-            car.DataSourceSummary = string.IsNullOrWhiteSpace(car.DataSourceSummary)
-                ? "user verified"
-                : car.DataSourceSummary + ", user verified edits";
+            if (string.IsNullOrWhiteSpace(car.DataSourceSummary))
+            {
+                car.DataSourceSummary = "user verified";
+            }
+            else if (!car.DataSourceSummary.Contains(
+                         "user verified",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                car.DataSourceSummary += ", user verified edits";
+            }
 
             RenderConfidence(car.Confidence);
-            CarSourceText.Text += " • Edited values marked verified.";
+
+            if (!CarSourceText.Text.Contains(
+                    "Edited values marked verified.",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                CarSourceText.Text += " • Edited values marked verified.";
+            }
         }
         catch (Exception ex)
         {
@@ -901,7 +975,11 @@ public partial class MainWindow : Window
         var notes = new List<string>(result.Notes);
         if (input.Car.IsInstalled)
             notes.Insert(0, $"Installed AC car: {input.Car.SourceFolderName}. Scanner source: {input.Car.DataSourceSummary}.");
-        NotesText.Text = "• " + string.Join("\n• ", notes);
+
+        NotesText.Text = notes.Count == 0
+            ? "No additional recommendation notes."
+            : "• " + string.Join("\n• ", notes);
+
         _remoteServer.UpdateTuneContext(input, result);
     }
 
@@ -962,13 +1040,20 @@ public partial class MainWindow : Window
     {
         try
         {
+            var input = BuildInput();
+
             if (_azomSettingsWindow is not null)
             {
-                RestoreAndActivate(_azomSettingsWindow);
-                return;
+                if (EmbeddedContextMatches(_azomSettingsWindow, input))
+                {
+                    RestoreAndActivate(_azomSettingsWindow);
+                    return;
+                }
+
+                CloseToolWindowSafely(_azomSettingsWindow);
+                _azomSettingsWindow = null;
             }
 
-            var input = BuildInput();
             _currentCalibration = _calibrationStore.Get(_calibrationEngine.BuildKey(input));
             _lastResult = _engine.Generate(input, _currentCalibration, _azomPreferences);
 
@@ -979,6 +1064,7 @@ public partial class MainWindow : Window
                 };
 
             _azomSettingsWindow = window;
+            TrackEmbeddedContext(window, input);
 
             window.Closed += (_, _) =>
             {
@@ -988,13 +1074,7 @@ public partial class MainWindow : Window
                         _appSettingsStore.Load().AzomPreferences ??
                         new AzomUserPreferences();
 
-                    _lastResult =
-                        _engine.Generate(
-                            input,
-                            _currentCalibration,
-                            _azomPreferences);
-
-                    Render(input, _lastResult);
+                    RefreshCurrentTuneSafely();
                 }
 
                 _azomSettingsWindow = null;
@@ -1012,13 +1092,19 @@ public partial class MainWindow : Window
     {
         try
         {
+            var input = BuildInput();
+
             if (_carSetupWindow is not null)
             {
-                RestoreAndActivate(_carSetupWindow);
-                return;
-            }
+                if (EmbeddedContextMatches(_carSetupWindow, input))
+                {
+                    RestoreAndActivate(_carSetupWindow);
+                    return;
+                }
 
-            var input = BuildInput();
+                CloseToolWindowSafely(_carSetupWindow);
+                _carSetupWindow = null;
+            }
 
             if (!input.Car.IsInstalled ||
                 string.IsNullOrWhiteSpace(input.Car.SourceFolderName))
@@ -1038,6 +1124,7 @@ public partial class MainWindow : Window
                 };
 
             _carSetupWindow = window;
+            TrackEmbeddedContext(window, input);
             window.Closed += (_, _) => _carSetupWindow = null;
             ShowEmbeddedTool(window, "AC Car Setup Tuner");
         }
@@ -1079,13 +1166,20 @@ public partial class MainWindow : Window
     {
         try
         {
+            var input = BuildInput();
+
             if (_telemetryWindow is not null)
             {
-                RestoreAndActivate(_telemetryWindow);
-                return;
+                if (EmbeddedContextMatches(_telemetryWindow, input))
+                {
+                    RestoreAndActivate(_telemetryWindow);
+                    return;
+                }
+
+                CloseToolWindowSafely(_telemetryWindow);
+                _telemetryWindow = null;
             }
 
-            var input = BuildInput();
             var window =
                 new TelemetryWindow(input, _telemetryHub)
                 {
@@ -1093,25 +1187,12 @@ public partial class MainWindow : Window
                 };
 
             _telemetryWindow = window;
+            TrackEmbeddedContext(window, input);
 
             window.Closed += (_, _) =>
             {
                 if (window.CalibrationChanged)
-                {
-                    _currentCalibration =
-                        _calibrationStore.Get(
-                            _calibrationEngine.BuildKey(input));
-
-                    _lastResult =
-                        _engine.Generate(
-                            input,
-                            _currentCalibration,
-                            _azomPreferences);
-
-                    Render(
-                        input,
-                        _lastResult);
-                }
+                    RefreshCurrentTuneSafely();
 
                 _telemetryWindow = null;
             };
@@ -1130,13 +1211,19 @@ public partial class MainWindow : Window
     {
         try
         {
+            var input = BuildInput();
+
             if (_tuningAssistantWindow is not null)
             {
-                RestoreAndActivate(_tuningAssistantWindow);
-                return;
-            }
+                if (EmbeddedContextMatches(_tuningAssistantWindow, input))
+                {
+                    RestoreAndActivate(_tuningAssistantWindow);
+                    return;
+                }
 
-            var input = BuildInput();
+                CloseToolWindowSafely(_tuningAssistantWindow);
+                _tuningAssistantWindow = null;
+            }
 
             var window =
                 new TuningAssistantWindow(input)
@@ -1145,25 +1232,12 @@ public partial class MainWindow : Window
                 };
 
             _tuningAssistantWindow = window;
+            TrackEmbeddedContext(window, input);
 
             window.Closed += (_, _) =>
             {
                 if (window.CalibrationChanged)
-                {
-                    _currentCalibration =
-                        _calibrationStore.Get(
-                            _calibrationEngine.BuildKey(input));
-
-                    _lastResult =
-                        _engine.Generate(
-                            input,
-                            _currentCalibration,
-                            _azomPreferences);
-
-                    Render(
-                        input,
-                        _lastResult);
-                }
+                    RefreshCurrentTuneSafely();
 
                 _tuningAssistantWindow = null;
             };
@@ -1240,6 +1314,133 @@ public partial class MainWindow : Window
         ShowEmbeddedTool(window, "Updates");
     }
 
+    private bool IsContextBoundWorkspaceActive() =>
+        _embeddedToolWindow is AzomSettingsWindow or
+            CarSetupWindow or
+            TelemetryWindow or
+            TuningAssistantWindow or
+            ShareCodeWindow;
+
+    private void TrackEmbeddedContext(
+        Window window,
+        TuneInput input)
+    {
+        _embeddedContextKeys[window] =
+            BuildContextSignature(input);
+    }
+
+    private bool EmbeddedContextMatches(
+        Window window,
+        TuneInput input)
+    {
+        return
+            _embeddedContextKeys.TryGetValue(
+                window,
+                out var expected) &&
+            string.Equals(
+                expected,
+                BuildContextSignature(input),
+                StringComparison.Ordinal);
+    }
+
+    private static string BuildContextSignature(
+        TuneInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+
+        static string ValueKey(object? value) =>
+            Convert.ToString(
+                value,
+                CultureInfo.InvariantCulture) ??
+            string.Empty;
+
+        return string.Join(
+            "\u001F",
+            input.Hardware.Id,
+            ValueKey(input.Hardware.PeakTorqueNm),
+            ValueKey(input.Hardware.MaxRotationDeg),
+            input.Wheel.Id,
+            ValueKey(input.Wheel.DiameterMm),
+            ValueKey(input.Wheel.InertiaFactor),
+            ValueKey(input.Wheel.IsRound),
+            input.DriftPack.Id,
+            ValueKey(input.DriftPack.GripBias),
+            ValueKey(input.DriftPack.SelfSteerBias),
+            ValueKey(input.DriftPack.DampingBias),
+            ValueKey(input.DriftPack.DetailBias),
+            input.Car.Id,
+            input.Car.PackId,
+            ValueKey(input.Car.MassKg),
+            ValueKey(input.Car.PowerHp),
+            ValueKey(input.Car.TorqueNm),
+            ValueKey(input.Car.Drivetrain),
+            ValueKey(input.Car.CasterDeg),
+            ValueKey(input.Car.SteeringLockPerSideDeg),
+            ValueKey(input.Car.FrontTireWidthMm),
+            ValueKey(input.Car.RearTireWidthMm),
+            ValueKey(input.Car.Grip),
+            input.Car.SourceFolderName ?? string.Empty,
+            input.Car.SourceFolderPath ?? string.Empty,
+            ValueKey(input.Intent.Kind));
+    }
+
+    private void CloseToolWindowSafely(
+        Window window)
+    {
+        if (ReferenceEquals(
+                _embeddedToolWindow,
+                window))
+        {
+            EmbeddedToolContent.Content = null;
+            _embeddedToolWindow = null;
+            EmbeddedToolPanel.Visibility = Visibility.Collapsed;
+            DashboardScroll.Visibility = Visibility.Visible;
+            SetActiveNavigation(null);
+        }
+
+        _embeddedContextKeys.Remove(window);
+        _embeddedContentCache.Remove(window);
+
+        try
+        {
+            window.Close();
+        }
+        catch (InvalidOperationException)
+        {
+            // A backing window that is already closing/closed needs no
+            // additional cleanup here.
+        }
+    }
+
+    private void RefreshCurrentTuneSafely()
+    {
+        try
+        {
+            var input = BuildInput();
+
+            _currentCalibration =
+                _calibrationStore.Get(
+                    _calibrationEngine.BuildKey(input));
+
+            _lastResult =
+                _engine.Generate(
+                    input,
+                    _currentCalibration,
+                    _azomPreferences);
+
+            Render(
+                input,
+                _lastResult);
+        }
+        catch
+        {
+            // A tool can close while selection controls are between values.
+            // Normal selection events will refresh context once inputs settle.
+            UpdateCalibrationStatusSafely();
+            UpdateRemoteContextSafely();
+        }
+    }
+
     private void ShowEmbeddedTool(Window window, string title)
     {
         if (!_embeddedContentCache.TryGetValue(window, out var content))
@@ -1276,7 +1477,7 @@ public partial class MainWindow : Window
         "AC Car Setup Tuner" => "Assetto Corsa setup generation • per-car behavior",
         "Telemetry Recorder" => "Live driving data • recording • analysis",
         "Tuning Assistant" => "Telemetry-guided refinement • driver feedback",
-        "Atomic Share Codes" => "Export • import • share ADT tuning profiles",
+        "ADT Share Codes" => "Export • import • share ADT tuning profiles",
         "Remote / iPhone" => "Local-network companion controls • live rig access",
         "System Diagnostics" => "Paths • bridge • telemetry • connection health",
         "Setup & Paths" => "Machine configuration • Assetto Corsa • SimHub",
@@ -1303,7 +1504,7 @@ public partial class MainWindow : Window
             "AC Car Setup Tuner" => CarSetupNavButton,
             "Telemetry Recorder" => TelemetryNavButton,
             "Tuning Assistant" => AssistantNavButton,
-            "Atomic Share Codes" => ShareNavButton,
+            "ADT Share Codes" => ShareNavButton,
             "Remote / iPhone" => RemoteNavButton,
             "System Diagnostics" => DiagnosticsNavButton,
             "Setup & Paths" => SetupNavButton,
@@ -1318,6 +1519,7 @@ public partial class MainWindow : Window
     private void RemoveEmbeddedTool(Window window)
     {
         _embeddedContentCache.Remove(window);
+        _embeddedContextKeys.Remove(window);
 
         if (!ReferenceEquals(_embeddedToolWindow, window))
             return;
@@ -1391,7 +1593,7 @@ public partial class MainWindow : Window
         CarSetupWindow => "AC Car Setup Tuner",
         TelemetryWindow => "Telemetry Recorder",
         TuningAssistantWindow => "Tuning Assistant",
-        ShareCodeWindow => "Atomic Share Codes",
+        ShareCodeWindow => "ADT Share Codes",
         RemoteControlWindow => "Remote / iPhone",
         DiagnosticsWindow => "System Diagnostics",
         SetupWizardWindow => "Setup & Paths",
@@ -1404,16 +1606,23 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (_shareCodeWindow is not null)
-            {
-                RestoreAndActivate(_shareCodeWindow);
-                return;
-            }
-
             // Re-generate from the currently visible inputs before creating
             // the payload so a stale result can never be paired with changed
             // hardware/car/intent fields.
             var input = BuildInput();
+
+            if (_shareCodeWindow is not null)
+            {
+                if (EmbeddedContextMatches(_shareCodeWindow, input))
+                {
+                    RestoreAndActivate(_shareCodeWindow);
+                    return;
+                }
+
+                CloseToolWindowSafely(_shareCodeWindow);
+                _shareCodeWindow = null;
+            }
+
             _currentCalibration =
                 _calibrationStore.Get(_calibrationEngine.BuildKey(input));
             _lastResult =
@@ -1429,12 +1638,13 @@ public partial class MainWindow : Window
             };
 
             _shareCodeWindow = window;
+            TrackEmbeddedContext(window, input);
             window.Closed += (_, _) => _shareCodeWindow = null;
-            ShowEmbeddedTool(window, "Atomic Share Codes");
+            ShowEmbeddedTool(window, "ADT Share Codes");
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Atomic Share Codes", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(ex.Message, "ADT Share Codes", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -1472,7 +1682,7 @@ public partial class MainWindow : Window
 
         int intentIndex = _intents.FindIndex(x => x.Kind == shared.Intent.Kind);
         if (intentIndex < 0)
-            throw new InvalidDataException("The shared Drift Target is not supported by this Atomic build.");
+            throw new InvalidDataException("The shared Drift Target is not supported by this ADT build.");
 
         IntentBox.SelectedIndex = intentIndex;
 
@@ -1500,7 +1710,7 @@ public partial class MainWindow : Window
             _behaviorStore.Save(localInput, payload.Behavior.ToTarget());
 
         // Import is intentionally non-authoritative for hardware values:
-        // Atomic always regenerates through the local engine, local calibration,
+        // ADT always regenerates through the local engine, local calibration,
         // and local AZOM preferences. The shared recommendation stays a preview.
         _currentCalibration =
             _calibrationStore.Get(_calibrationEngine.BuildKey(localInput));
@@ -1528,8 +1738,8 @@ public partial class MainWindow : Window
 
             var dialog = new SaveFileDialog
             {
-                Filter = "Atomic Drift Tune (*.adt.json)|*.adt.json|JSON (*.json)|*.json",
-                FileName = "AtomicDriftTune.adt.json"
+                Filter = "ADT Tune (*.adt.json)|*.adt.json|JSON (*.json)|*.json",
+                FileName = "ADT-Tune.adt.json"
             };
 
             if (dialog.ShowDialog() == true)
@@ -1547,7 +1757,7 @@ public partial class MainWindow : Window
         {
             var dialog = new OpenFileDialog
             {
-                Filter = "Atomic Drift Tune (*.adt.json;*.json)|*.adt.json;*.json|JSON (*.json)|*.json"
+                Filter = "ADT Tune (*.adt.json;*.json)|*.adt.json;*.json|JSON (*.json)|*.json"
             };
             if (dialog.ShowDialog() != true) return;
 
@@ -1634,6 +1844,17 @@ public partial class MainWindow : Window
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
+                    if (IsContextBoundWorkspaceActive())
+                    {
+                        return new RemoteActionResponse
+                        {
+                            Ok = false,
+                            Message =
+                                "Return to the ADT Dashboard before changing the Drift Target remotely. " +
+                                "This prevents an open tuning workspace from silently using stale car/intent context."
+                        };
+                    }
+
                     var intent = _intents.FirstOrDefault(
                         x => string.Equals(x.Name, intentName, StringComparison.OrdinalIgnoreCase));
 
@@ -1642,7 +1863,7 @@ public partial class MainWindow : Window
                         return new RemoteActionResponse
                         {
                             Ok = false,
-                            Message = "That drift target is not available in this Atomic build."
+                            Message = "That drift target is not available in this ADT build."
                         };
                     }
 
@@ -1652,7 +1873,7 @@ public partial class MainWindow : Window
                     return new RemoteActionResponse
                     {
                         Ok = true,
-                        Message = $"Windows Atomic drift target changed to {intent.Name}."
+                        Message = $"Windows ADT drift target changed to {intent.Name}."
                     };
                 });
 

@@ -1,5 +1,14 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
+
 contact_links:
-  - name: Atomic Drift Tuner README
+  - name: ADT README
     url: https://github.com/T3ddyGrahams/AtomicDriftTuner#readme
-    about: Read setup, safety, build, and beta-testing information before filing an issue.
+    about: Read setup, safety, installation, and general ADT information before filing an issue.
+
+  - name: ADT Beta Testing Guide
+    url: https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/BETA_TESTING.md
+    about: Read the structured beta-testing procedure before submitting testing feedback.
+
+  - name: ADT Development Roadmap
+    url: https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/ROADMAP.md
+    about: Check planned features and development priorities before submitting a feature request.

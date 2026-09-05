@@ -1,5 +1,9 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.8.1-beta.1"
+  #error MyAppVersion must be provided by build-beta-package.ps1
+#endif
+
+#ifndef MyVersionInfoVersion
+  #error MyVersionInfoVersion must be provided by build-beta-package.ps1
 #endif
 
 #ifndef RepoRoot
@@ -16,21 +20,32 @@ AppId={{5EAC35E3-6D44-4C4E-B476-80F3A063B001}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
+
 DefaultDirName={localappdata}\Programs\AtomicDriftTuner
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+
 OutputDir={#ReleaseDir}
 OutputBaseFilename=AtomicDriftTuner-{#MyAppVersion}-setup
+
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+
 PrivilegesRequired=lowest
+
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion=0.8.1.0
+
+VersionInfoVersion={#MyVersionInfoVersion}
 VersionInfoProductName={#MyAppName}
-VersionInfoDescription=Atomic Drift Tuner beta installer
+VersionInfoDescription=Atomic Drift Tuner installer
+VersionInfoProductVersion={#MyAppVersion}
+
+CloseApplications=yes
+RestartApplications=no
 
 [Files]
 Source: "{#StagingDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

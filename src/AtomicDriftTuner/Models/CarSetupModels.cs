@@ -538,7 +538,8 @@ public sealed class CarSetupAnalysis
             {
                 fileName =
                     Path.GetFileName(
-                        SetupDefinitionPath);
+                        SetupDefinitionPath) ??
+                    "setup.ini";
             }
             catch
             {

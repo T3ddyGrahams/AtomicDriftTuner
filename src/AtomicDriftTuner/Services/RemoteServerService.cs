@@ -470,12 +470,11 @@ public sealed class RemoteServerService : IAsyncDisposable
                                 cancellationToken:
                                     context.RequestAborted);
                 }
-                catch (
-                    Exception ex
+                catch (Exception ex)
                     when (
                         ex is JsonException ||
-                        ex is BadHttpRequestException ||
-                        ex is IOException))
+                        ex is Microsoft.AspNetCore.Http.BadHttpRequestException ||
+                        ex is IOException)
                 {
                     return Results.BadRequest(
                         new
@@ -568,12 +567,11 @@ public sealed class RemoteServerService : IAsyncDisposable
                                 cancellationToken:
                                     context.RequestAborted);
                 }
-                catch (
-                    Exception ex
+                catch (Exception ex)
                     when (
                         ex is JsonException ||
-                        ex is BadHttpRequestException ||
-                        ex is IOException))
+                        ex is Microsoft.AspNetCore.Http.BadHttpRequestException ||
+                        ex is IOException)
                 {
                     return Results.BadRequest(
                         new
@@ -692,12 +690,11 @@ public sealed class RemoteServerService : IAsyncDisposable
                                 cancellationToken:
                                     context.RequestAborted);
                 }
-                catch (
-                    Exception ex
+                catch (Exception ex)
                     when (
                         ex is JsonException ||
-                        ex is BadHttpRequestException ||
-                        ex is IOException))
+                        ex is Microsoft.AspNetCore.Http.BadHttpRequestException ||
+                        ex is IOException)
                 {
                     return Results.BadRequest(
                         new
@@ -837,12 +834,11 @@ public sealed class RemoteServerService : IAsyncDisposable
                                 cancellationToken:
                                     context.RequestAborted);
                 }
-                catch (
-                    Exception ex
+                catch (Exception ex)
                     when (
                         ex is JsonException ||
-                        ex is BadHttpRequestException ||
-                        ex is IOException))
+                        ex is Microsoft.AspNetCore.Http.BadHttpRequestException ||
+                        ex is IOException)
                 {
                     return Results.BadRequest(
                         new

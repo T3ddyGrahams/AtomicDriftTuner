@@ -11,7 +11,8 @@ public sealed class UpdateService
 {
     public const string RepositoryOwner = "T3ddyGrahams";
     public const string RepositoryName = "AtomicDriftTuner";
-    public const string ReleasesPageUrl = "https://github.com/T3ddyGrahams/AtomicDriftTuner/releases";
+    public const string ReleasesPageUrl =
+        "https://github.com/T3ddyGrahams/AtomicDriftTuner/releases";
 
     private static readonly HttpClient Http = CreateHttpClient();
 
@@ -24,9 +25,14 @@ public sealed class UpdateService
 
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             $"AtomicDriftTuner/{DistributionInfo.Version}");
+
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+
+        client.DefaultRequestHeaders.Add(
+            "X-GitHub-Api-Version",
+            "2022-11-28");
+
         return client;
     }
 
@@ -37,11 +43,16 @@ public sealed class UpdateService
         var url =
             $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases?per_page=30";
 
-        using var response = await Http.GetAsync(url, cancellationToken);
+        using var response = await Http.GetAsync(
+            url,
+            cancellationToken);
+
         if (!response.IsSuccessStatusCode)
         {
             var rateRemaining =
-                response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
+                response.Headers.TryGetValues(
+                    "X-RateLimit-Remaining",
+                    out var remaining)
                     ? remaining.FirstOrDefault()
                     : null;
 
@@ -54,15 +65,20 @@ public sealed class UpdateService
                 $"GitHub update check failed: HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).{suffix}");
         }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var stream =
+            await response.Content.ReadAsStreamAsync(cancellationToken);
+
         var releases =
             await JsonSerializer.DeserializeAsync<List<GitHubReleaseDto>>(
                 stream,
-                cancellationToken: cancellationToken) ?? [];
+                cancellationToken: cancellationToken)
+            ?? [];
 
         var candidates =
             releases
-                .Where(x => !x.Draft && (includePrerelease || !x.Prerelease))
+                .Where(x =>
+                    !x.Draft &&
+                    (includePrerelease || !x.Prerelease))
                 .Select(ToReleaseInfo)
                 .ToList();
 
@@ -78,13 +94,21 @@ public sealed class UpdateService
         }
 
         var latest = candidates[0];
+
         foreach (var candidate in candidates.Skip(1))
         {
-            if (CompareVersionStrings(candidate.TagName, latest.TagName) > 0)
+            if (CompareVersionStrings(
+                    candidate.TagName,
+                    latest.TagName) > 0)
+            {
                 latest = candidate;
+            }
         }
 
-        int comparison = CompareVersionStrings(latest.TagName, DistributionInfo.Version);
+        var comparison =
+            CompareVersionStrings(
+                latest.TagName,
+                DistributionInfo.Version);
 
         return new AtomicUpdateCheckResult
         {
@@ -94,9 +118,14 @@ public sealed class UpdateService
             CurrentBuildIsNewer = comparison < 0,
             Message = comparison switch
             {
-                > 0 => $"Update available: {latest.TagName}",
-                < 0 => $"This development build ({DistributionInfo.Version}) is newer than the latest matching published release ({latest.TagName}).",
-                _ => $"You are up to date: {latest.TagName}"
+                > 0 =>
+                    $"Update available: {latest.TagName}",
+
+                < 0 =>
+                    $"This development build ({DistributionInfo.Version}) is newer than the latest matching published release ({latest.TagName}).",
+
+                _ =>
+                    $"You are up to date: {latest.TagName}"
             }
         };
     }
@@ -111,65 +140,105 @@ public sealed class UpdateService
 
         var destination = Path.GetFullPath(destinationPath);
         var directory = Path.GetDirectoryName(destination);
+
         if (string.IsNullOrWhiteSpace(directory))
-            throw new InvalidOperationException("Choose a valid download location.");
+        {
+            throw new InvalidOperationException(
+                "Choose a valid download location.");
+        }
 
         Directory.CreateDirectory(directory);
+
         var partial = destination + ".part";
 
         try
         {
             if (File.Exists(partial))
+            {
                 File.Delete(partial);
+            }
 
             using var response = await Http.GetAsync(
                 asset.DownloadUrl,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
+
             response.EnsureSuccessStatusCode();
 
-            var length = response.Content.Headers.ContentLength;
-            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var length =
+                response.Content.Headers.ContentLength;
+
+            await using var input =
+                await response.Content.ReadAsStreamAsync(
+                    cancellationToken);
+
             var buffer = new byte[1024 * 128];
             long total = 0;
 
-            await using (var output = new FileStream(
-                partial,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                1024 * 128,
-                useAsync: true))
+            await using (
+                var output = new FileStream(
+                    partial,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    1024 * 128,
+                    useAsync: true))
             {
                 while (true)
                 {
-                    int read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
-                    if (read <= 0)
-                        break;
+                    var read =
+                        await input.ReadAsync(
+                            buffer.AsMemory(0, buffer.Length),
+                            cancellationToken);
 
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    await output.WriteAsync(
+                        buffer.AsMemory(0, read),
+                        cancellationToken);
+
                     total += read;
 
                     if (length is > 0)
-                        progress?.Report(Math.Clamp(total * 100d / length.Value, 0, 100));
+                    {
+                        progress?.Report(
+                            Math.Clamp(
+                                total * 100d / length.Value,
+                                0,
+                                100));
+                    }
                 }
 
                 await output.FlushAsync(cancellationToken);
             }
 
-            if (length is > 0 && total != length.Value)
+            if (length is > 0 &&
+                total != length.Value)
+            {
                 throw new InvalidOperationException(
                     $"The update download was incomplete. Expected {length.Value} bytes but received {total}.");
+            }
 
-            if (asset.SizeBytes > 0 && total != asset.SizeBytes)
+            if (asset.SizeBytes > 0 &&
+                total != asset.SizeBytes)
+            {
                 throw new InvalidOperationException(
                     $"The downloaded file size did not match the GitHub release asset. Expected {asset.SizeBytes} bytes but received {total}.");
+            }
 
-            if (File.Exists(destination))
-                File.Delete(destination);
-            File.Move(partial, destination);
+            File.Move(
+                partial,
+                destination,
+                overwrite: true);
 
-            var hash = await ComputeSha256Async(destination, cancellationToken);
+            var hash =
+                await ComputeSha256Async(
+                    destination,
+                    cancellationToken);
+
             progress?.Report(100);
 
             return new AtomicDownloadResult
@@ -184,7 +253,9 @@ public sealed class UpdateService
             try
             {
                 if (File.Exists(partial))
+                {
                     File.Delete(partial);
+                }
             }
             catch
             {
@@ -195,80 +266,154 @@ public sealed class UpdateService
         }
     }
 
-    public static AtomicReleaseAsset? FindInstaller(AtomicReleaseInfo release) =>
-        release.Assets.FirstOrDefault(
-            x => x.Name.EndsWith("-setup.exe", StringComparison.OrdinalIgnoreCase));
+    public static AtomicReleaseAsset? FindInstaller(
+        AtomicReleaseInfo release)
+    {
+        return release.Assets.FirstOrDefault(
+            x =>
+                x.Name.EndsWith(
+                    "-setup.exe",
+                    StringComparison.OrdinalIgnoreCase));
+    }
 
-    public static AtomicReleaseAsset? FindPortable(AtomicReleaseInfo release) =>
-        release.Assets.FirstOrDefault(
-            x => x.Name.EndsWith("-portable.zip", StringComparison.OrdinalIgnoreCase));
+    public static AtomicReleaseAsset? FindPortable(
+        AtomicReleaseInfo release)
+    {
+        return release.Assets.FirstOrDefault(
+            x =>
+                x.Name.EndsWith(
+                    "-portable.zip",
+                    StringComparison.OrdinalIgnoreCase));
+    }
 
     private static async Task<string> ComputeSha256Async(
         string path,
         CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            1024 * 128,
-            useAsync: true);
+        await using var stream =
+            new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 128,
+                useAsync: true);
 
         using var sha = SHA256.Create();
-        var hash = await sha.ComputeHashAsync(stream, cancellationToken);
-        return Convert.ToHexString(hash).ToLowerInvariant();
+
+        var hash =
+            await sha.ComputeHashAsync(
+                stream,
+                cancellationToken);
+
+        return Convert
+            .ToHexString(hash)
+            .ToLowerInvariant();
     }
 
-    private static void ValidateAsset(AtomicReleaseAsset asset)
+    private static void ValidateAsset(
+        AtomicReleaseAsset asset)
     {
-        if (!Uri.TryCreate(asset.DownloadUrl, UriKind.Absolute, out var uri) ||
-            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        if (!Uri.TryCreate(
+                asset.DownloadUrl,
+                UriKind.Absolute,
+                out var uri) ||
+            !string.Equals(
+                uri.Scheme,
+                Uri.UriSchemeHttps,
+                StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Atomic refused a non-HTTPS update download URL.");
+            throw new InvalidOperationException(
+                "ADT refused a non-HTTPS update download URL.");
         }
 
-        if (!string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase) ||
+        if (!string.Equals(
+                uri.Host,
+                "github.com",
+                StringComparison.OrdinalIgnoreCase) ||
             !uri.AbsolutePath.StartsWith(
                 $"/{RepositoryOwner}/{RepositoryName}/releases/download/",
                 StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "Atomic refused an update asset that did not come from the official AtomicDriftTuner GitHub Releases path.");
+                "ADT refused an update asset that did not come from the official AtomicDriftTuner GitHub Releases path.");
         }
     }
 
-    private static AtomicReleaseInfo ToReleaseInfo(GitHubReleaseDto dto) =>
-        new()
-        {
-            TagName = dto.TagName ?? "",
-            Name = string.IsNullOrWhiteSpace(dto.Name) ? dto.TagName ?? "" : dto.Name,
-            Body = dto.Body ?? "",
-            HtmlUrl = dto.HtmlUrl ?? ReleasesPageUrl,
-            Prerelease = dto.Prerelease,
-            PublishedAt = dto.PublishedAt,
-            Assets = dto.Assets
-                .Select(
-                    x => new AtomicReleaseAsset
-                    {
-                        Name = x.Name ?? "",
-                        DownloadUrl = x.BrowserDownloadUrl ?? "",
-                        ContentType = x.ContentType ?? "",
-                        SizeBytes = x.Size
-                    })
-                .Where(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.DownloadUrl))
-                .ToList()
-        };
-
-    internal static int CompareVersionStrings(string left, string right)
+    private static AtomicReleaseInfo ToReleaseInfo(
+        GitHubReleaseDto dto)
     {
-        bool leftOk = AtomicVersion.TryParse(left, out var leftVersion);
-        bool rightOk = AtomicVersion.TryParse(right, out var rightVersion);
+        return new AtomicReleaseInfo
+        {
+            TagName =
+                dto.TagName ?? "",
+
+            Name =
+                string.IsNullOrWhiteSpace(dto.Name)
+                    ? dto.TagName ?? ""
+                    : dto.Name,
+
+            Body =
+                dto.Body ?? "",
+
+            HtmlUrl =
+                dto.HtmlUrl ?? ReleasesPageUrl,
+
+            Prerelease =
+                dto.Prerelease,
+
+            PublishedAt =
+                dto.PublishedAt,
+
+            Assets =
+                dto.Assets
+                    .Select(
+                        x =>
+                            new AtomicReleaseAsset
+                            {
+                                Name =
+                                    x.Name ?? "",
+
+                                DownloadUrl =
+                                    x.BrowserDownloadUrl ?? "",
+
+                                ContentType =
+                                    x.ContentType ?? "",
+
+                                SizeBytes =
+                                    x.Size
+                            })
+                    .Where(
+                        x =>
+                            !string.IsNullOrWhiteSpace(x.Name) &&
+                            !string.IsNullOrWhiteSpace(x.DownloadUrl))
+                    .ToList()
+        };
+    }
+
+    internal static int CompareVersionStrings(
+        string left,
+        string right)
+    {
+        var leftOk =
+            AtomicVersion.TryParse(
+                left,
+                out var leftVersion);
+
+        var rightOk =
+            AtomicVersion.TryParse(
+                right,
+                out var rightVersion);
 
         if (leftOk && rightOk)
+        {
             return leftVersion.CompareTo(rightVersion);
+        }
 
-        return string.Compare(left.TrimStart('v', 'V'), right.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase);
+        return string.Compare(
+            left.TrimStart('v', 'V'),
+            right.TrimStart('v', 'V'),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class GitHubReleaseDto
@@ -317,85 +462,180 @@ public sealed class UpdateService
         int Major,
         int Minor,
         int Patch,
-        string[] Prerelease) : IComparable<AtomicVersion>
+        string[] Prerelease)
+        : IComparable<AtomicVersion>
     {
-        public static bool TryParse(string value, out AtomicVersion version)
+        public static bool TryParse(
+            string value,
+            out AtomicVersion version)
         {
             version = default;
+
             if (string.IsNullOrWhiteSpace(value))
+            {
                 return false;
+            }
 
-            var clean = value.Trim().TrimStart('v', 'V');
-            int plus = clean.IndexOf('+');
+            var clean =
+                value
+                    .Trim()
+                    .TrimStart('v', 'V');
+
+            var plus =
+                clean.IndexOf('+');
+
             if (plus >= 0)
+            {
                 clean = clean[..plus];
+            }
 
-            string numeric = clean;
-            string prerelease = "";
-            int dash = clean.IndexOf('-');
+            var numeric = clean;
+            var prerelease = "";
+
+            var dash =
+                clean.IndexOf('-');
+
             if (dash >= 0)
             {
-                numeric = clean[..dash];
-                prerelease = clean[(dash + 1)..];
+                numeric =
+                    clean[..dash];
+
+                prerelease =
+                    clean[(dash + 1)..];
             }
 
-            var parts = numeric.Split('.');
+            var parts =
+                numeric.Split('.');
+
             if (parts.Length < 3 ||
-                !int.TryParse(parts[0], out int major) ||
-                !int.TryParse(parts[1], out int minor) ||
-                !int.TryParse(parts[2], out int patch))
+                !int.TryParse(
+                    parts[0],
+                    out var major) ||
+                !int.TryParse(
+                    parts[1],
+                    out var minor) ||
+                !int.TryParse(
+                    parts[2],
+                    out var patch))
             {
                 return false;
             }
 
-            version = new AtomicVersion(
-                major,
-                minor,
-                patch,
-                string.IsNullOrWhiteSpace(prerelease)
-                    ? []
-                    : prerelease.Split(new[] { '.', '-' }, StringSplitOptions.RemoveEmptyEntries));
+            version =
+                new AtomicVersion(
+                    major,
+                    minor,
+                    patch,
+                    string.IsNullOrWhiteSpace(prerelease)
+                        ? []
+                        : prerelease.Split(
+                            new[] { '.', '-' },
+                            StringSplitOptions.RemoveEmptyEntries));
+
             return true;
         }
 
-        public int CompareTo(AtomicVersion other)
+        public int CompareTo(
+            AtomicVersion other)
         {
-            int compare = Major.CompareTo(other.Major);
-            if (compare != 0) return compare;
-            compare = Minor.CompareTo(other.Minor);
-            if (compare != 0) return compare;
-            compare = Patch.CompareTo(other.Patch);
-            if (compare != 0) return compare;
+            var compare =
+                Major.CompareTo(other.Major);
 
-            if (Prerelease.Length == 0 && other.Prerelease.Length == 0) return 0;
-            if (Prerelease.Length == 0) return 1;
-            if (other.Prerelease.Length == 0) return -1;
-
-            int count = Math.Max(Prerelease.Length, other.Prerelease.Length);
-            for (int i = 0; i < count; i++)
+            if (compare != 0)
             {
-                if (i >= Prerelease.Length) return -1;
-                if (i >= other.Prerelease.Length) return 1;
+                return compare;
+            }
 
-                string a = Prerelease[i];
-                string b = other.Prerelease[i];
-                bool aNumber = int.TryParse(a, out int aInt);
-                bool bNumber = int.TryParse(b, out int bInt);
+            compare =
+                Minor.CompareTo(other.Minor);
+
+            if (compare != 0)
+            {
+                return compare;
+            }
+
+            compare =
+                Patch.CompareTo(other.Patch);
+
+            if (compare != 0)
+            {
+                return compare;
+            }
+
+            if (Prerelease.Length == 0 &&
+                other.Prerelease.Length == 0)
+            {
+                return 0;
+            }
+
+            if (Prerelease.Length == 0)
+            {
+                return 1;
+            }
+
+            if (other.Prerelease.Length == 0)
+            {
+                return -1;
+            }
+
+            var count =
+                Math.Max(
+                    Prerelease.Length,
+                    other.Prerelease.Length);
+
+            for (var i = 0; i < count; i++)
+            {
+                if (i >= Prerelease.Length)
+                {
+                    return -1;
+                }
+
+                if (i >= other.Prerelease.Length)
+                {
+                    return 1;
+                }
+
+                var a =
+                    Prerelease[i];
+
+                var b =
+                    other.Prerelease[i];
+
+                var aNumber =
+                    int.TryParse(
+                        a,
+                        out var aInt);
+
+                var bNumber =
+                    int.TryParse(
+                        b,
+                        out var bInt);
 
                 if (aNumber && bNumber)
                 {
-                    compare = aInt.CompareTo(bInt);
+                    compare =
+                        aInt.CompareTo(bInt);
                 }
                 else if (aNumber != bNumber)
                 {
-                    compare = aNumber ? -1 : 1;
+                    compare =
+                        aNumber
+                            ? -1
+                            : 1;
                 }
                 else
                 {
-                    compare = string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+                    compare =
+                        string.Compare(
+                            a,
+                            b,
+                            StringComparison.OrdinalIgnoreCase);
                 }
 
-                if (compare != 0) return compare;
+                if (compare != 0)
+                {
+                    return compare;
+                }
             }
 
             return 0;

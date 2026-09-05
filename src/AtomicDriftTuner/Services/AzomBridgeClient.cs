@@ -7,244 +7,309 @@ namespace AtomicDriftTuner.Services;
 
 public sealed class AzomBridgeClient
 {
-    private readonly string _pipeName;
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private const int DefaultSnapshotTimeoutMs = 2500;
+    private const int DefaultActionTimeoutMs = 4000;
+    private const int DefaultDirectWriteTimeoutMs = 4500;
 
-    // Even though explicit Apply batches are already sequential, keep a
-    // process-wide single-flight gate around direct AZOM commits so two Atomic
-    // windows/tasks cannot overlap internal writes.
-    private static readonly SemaphoreSlim DirectWriteGate = new(1, 1);
-    private static readonly object DirectWriteTimingLock = new();
-    private static long _lastDirectWriteTick;
+    private const int MaxSnapshotResponseChars = 256_000;
+    private const int MaxActionResponseChars = 64_000;
+    private const int MaxDirectWriteResponseChars = 64_000;
+
+    private const int MaxPipeNameLength = 256;
+    private const int MaxAzomNameLength = 256;
+
     private const int DirectWriteMinGapMs = 120;
 
-    public AzomBridgeClient(string pipeName) => _pipeName = pipeName;
+    private readonly string _pipeName;
 
-    public async Task<AzomLiveSnapshot> ReadSnapshotAsync(int timeoutMs = 2500, CancellationToken cancellationToken = default)
+    private static readonly JsonSerializerOptions Json =
+        new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+    // Direct AZOM writes are process-wide single-flight.
+    //
+    // Even when callers already serialize an Apply batch, this prevents
+    // multiple ADT windows/tasks from overlapping bridge-level write
+    // requests in the same process.
+    private static readonly SemaphoreSlim DirectWriteGate =
+        new(1, 1);
+
+    private static readonly object DirectWriteTimingLock =
+        new();
+
+    private static long _lastDirectWriteTick;
+
+    public AzomBridgeClient(
+        string pipeName)
     {
-        using var pipe = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(timeoutMs);
+        _pipeName =
+            NormalizePipeName(
+                pipeName);
+    }
+
+    public async Task<AzomLiveSnapshot> ReadSnapshotAsync(
+        int timeoutMs = DefaultSnapshotTimeoutMs,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateTimeout(
+            timeoutMs);
+
+        using var timeout =
+            CreateTimeout(
+                timeoutMs,
+                cancellationToken);
+
+        using var pipe =
+            CreatePipe();
+
+        await ConnectAsync(
+            pipe,
+            timeout.Token,
+            cancellationToken,
+            "connecting to the ADT SimHub Bridge for a live AZOM snapshot");
+
+        using var writer =
+            CreateWriter(
+                pipe);
+
+        using var reader =
+            CreateReader(
+                pipe);
+
+        await writer.WriteLineAsync(
+            "{\"command\":\"snapshot\"}");
+
+        var line =
+            await ReadRequiredResponseLineAsync(
+                reader,
+                MaxSnapshotResponseChars,
+                timeout.Token,
+                cancellationToken,
+                "waiting for the ADT SimHub Bridge snapshot response");
+
+        BridgeResponse response;
+
         try
         {
-            await pipe.ConnectAsync(timeout.Token);
+            response =
+                JsonSerializer.Deserialize<BridgeResponse>(
+                    line,
+                    Json)
+                ?? throw new IOException(
+                    "ADT SimHub Bridge returned an empty snapshot object.");
         }
-        catch (UnauthorizedAccessException ex)
+        catch (JsonException ex)
         {
-            throw new UnauthorizedAccessException(
-                "Windows denied access to the Atomic AZOM bridge named pipe. " +
-                "This is usually caused by SimHub and Atomic Drift Tuner running at different privilege levels. " +
-                "Use the v0.5.2 bridge and restart SimHub, or temporarily run both applications at the same elevation level.",
+            throw new IOException(
+                "ADT SimHub Bridge returned invalid snapshot JSON.",
                 ex);
         }
 
-        using var writer = new StreamWriter(pipe, new UTF8Encoding(false), 1024, true) { AutoFlush = true };
-        using var reader = new StreamReader(pipe, Encoding.UTF8, true, 1024, true);
-        await writer.WriteLineAsync("{\"command\":\"snapshot\"}");
-        string? line;
-        try
+        if (!response.Ok)
         {
-            line = await reader.ReadLineAsync(timeout.Token);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                "The Atomic SimHub Bridge did not answer within 2.5 seconds. " +
-                "The live read was aborted; the tuner remains safe to use.");
+            throw new IOException(
+                CreateBridgeErrorMessage(
+                    "ADT SimHub Bridge reported a snapshot error.",
+                    response.Error));
         }
 
-        if (string.IsNullOrWhiteSpace(line))
-            throw new IOException("Atomic SimHub Bridge returned an empty response.");
-        if (line.Length > 256_000)
-            throw new IOException("Atomic SimHub Bridge returned an unexpectedly large response; the read was rejected.");
-
-        var response = JsonSerializer.Deserialize<BridgeResponse>(line, Json)
-            ?? throw new IOException("Atomic SimHub Bridge returned invalid JSON.");
-        if (!response.Ok) throw new IOException(response.Error ?? "Atomic SimHub Bridge reported an error.");
-        return response.Snapshot ?? throw new IOException("Atomic SimHub Bridge did not return an AZOM snapshot.");
+        return response.Snapshot
+            ?? throw new IOException(
+                "ADT SimHub Bridge did not return an AZOM snapshot.");
     }
 
     public async Task TriggerActionAsync(
         string actionName,
-        int timeoutMs = 4000,
+        int timeoutMs = DefaultActionTimeoutMs,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(actionName) ||
-            !actionName.StartsWith("AZOM.", StringComparison.Ordinal))
-            throw new ArgumentException(
-                "Only AZOM.* actions can be triggered.", nameof(actionName));
+        var normalizedAction =
+            ValidateAzomName(
+                actionName,
+                nameof(actionName),
+                "action");
 
-        using var pipe = new NamedPipeClientStream(
-            ".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        ValidateTimeout(
+            timeoutMs);
 
         using var timeout =
-            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(timeoutMs);
+            CreateTimeout(
+                timeoutMs,
+                cancellationToken);
+
+        using var pipe =
+            CreatePipe();
+
+        await ConnectAsync(
+            pipe,
+            timeout.Token,
+            cancellationToken,
+            $"connecting to the ADT SimHub Bridge for action {normalizedAction}");
+
+        using var writer =
+            CreateWriter(
+                pipe);
+
+        using var reader =
+            CreateReader(
+                pipe);
+
+        var request =
+            JsonSerializer.Serialize(
+                new
+                {
+                    command = "triggerAction",
+                    actionName = normalizedAction
+                });
+
+        await writer.WriteLineAsync(
+            request);
+
+        var line =
+            await ReadRequiredResponseLineAsync(
+                reader,
+                MaxActionResponseChars,
+                timeout.Token,
+                cancellationToken,
+                $"waiting for SimHub to execute {normalizedAction}");
+
+        BridgeActionResponse response;
 
         try
         {
-            await pipe.ConnectAsync(timeout.Token);
+            response =
+                JsonSerializer.Deserialize<BridgeActionResponse>(
+                    line,
+                    Json)
+                ?? throw new IOException(
+                    "ADT SimHub Bridge returned an empty action response.");
         }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
+        catch (JsonException ex)
         {
-            throw new TimeoutException(
-                "Timed out connecting to the Atomic SimHub Bridge.");
-        }
-
-        using var writer = new StreamWriter(
-            pipe, new UTF8Encoding(false), 1024, true)
-        { AutoFlush = true };
-
-        using var reader = new StreamReader(
-            pipe, Encoding.UTF8, true, 1024, true);
-
-        await writer.WriteLineAsync(JsonSerializer.Serialize(new
-        {
-            command = "triggerAction",
-            actionName
-        }));
-
-        string? line;
-        try
-        {
-            line = await reader.ReadLineAsync(timeout.Token);
-        }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                $"Timed out waiting for SimHub to execute {actionName}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(line))
             throw new IOException(
-                "Atomic SimHub Bridge returned an empty action response.");
-
-        var response =
-            JsonSerializer.Deserialize<BridgeActionResponse>(line, Json)
-            ?? throw new IOException(
-                "Atomic SimHub Bridge returned invalid action JSON.");
+                "ADT SimHub Bridge returned invalid action JSON.",
+                ex);
+        }
 
         if (!response.Ok)
+        {
             throw new IOException(
-                $"SimHub/AZOM could not trigger {actionName}: " +
-                (response.Error ?? "Unknown bridge error."));
+                CreateBridgeErrorMessage(
+                    $"SimHub/AZOM could not trigger {normalizedAction}.",
+                    response.Error));
+        }
+
+        if (
+            !string.IsNullOrWhiteSpace(response.Action) &&
+            !string.Equals(
+                response.Action,
+                normalizedAction,
+                StringComparison.Ordinal))
+        {
+            throw new IOException(
+                "ADT SimHub Bridge acknowledged a different action than the one ADT requested.");
+        }
     }
 
     public async Task<string?> SetSettingDirectAsync(
         string propertyName,
         int? targetInt = null,
         bool? targetBool = null,
-        int timeoutMs = 4500,
+        int timeoutMs = DefaultDirectWriteTimeoutMs,
         CancellationToken cancellationToken = default)
     {
-        await DirectWriteGate.WaitAsync(cancellationToken);
+        var normalizedProperty =
+            ValidateAzomName(
+                propertyName,
+                nameof(propertyName),
+                "property");
+
+        ValidateDirectTarget(
+            targetInt,
+            targetBool);
+
+        ValidateTimeout(
+            timeoutMs);
+
+        await DirectWriteGate.WaitAsync(
+            cancellationToken);
+
+        var attemptedWrite =
+            false;
 
         try
         {
-            int remaining;
-
-            lock (DirectWriteTimingLock)
-            {
-                long now = Environment.TickCount64;
-                long elapsed = now - _lastDirectWriteTick;
-
-                remaining =
-                    _lastDirectWriteTick == 0
-                        ? 0
-                        : Math.Max(
-                            0,
-                            DirectWriteMinGapMs - (int)Math.Min(elapsed, int.MaxValue));
-            }
+            var remaining =
+                GetRemainingDirectWriteDelay();
 
             if (remaining > 0)
-                await Task.Delay(remaining, cancellationToken);
-
-            var method =
-                await SetSettingDirectCoreAsync(
-                    propertyName,
-                    targetInt,
-                    targetBool,
-                    timeoutMs,
+            {
+                await Task.Delay(
+                    remaining,
                     cancellationToken);
+            }
 
-            lock (DirectWriteTimingLock)
-                _lastDirectWriteTick = Environment.TickCount64;
+            attemptedWrite =
+                true;
 
-            return method;
+            return await SetSettingDirectCoreAsync(
+                normalizedProperty,
+                targetInt,
+                targetBool,
+                timeoutMs,
+                cancellationToken);
         }
         finally
         {
+            // Space bridge write attempts, not only successful writes.
+            //
+            // If a write timed out or failed after reaching the bridge,
+            // immediately sending another write would be the unsafe case.
+            if (attemptedWrite)
+            {
+                lock (DirectWriteTimingLock)
+                {
+                    _lastDirectWriteTick =
+                        Environment.TickCount64;
+                }
+            }
+
             DirectWriteGate.Release();
         }
     }
 
     private async Task<string?> SetSettingDirectCoreAsync(
         string propertyName,
-        int? targetInt = null,
-        bool? targetBool = null,
-        int timeoutMs = 4500,
-        CancellationToken cancellationToken = default)
+        int? targetInt,
+        bool? targetBool,
+        int timeoutMs,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(propertyName) ||
-            !propertyName.StartsWith("AZOM.", StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                "Only AZOM.* properties can use the direct compatibility fallback.",
-                nameof(propertyName));
-        }
-
-        if (!targetInt.HasValue &&
-            !targetBool.HasValue)
-        {
-            throw new ArgumentException(
-                "A numeric or boolean target is required.");
-        }
-
-        using var pipe =
-            new NamedPipeClientStream(
-                ".",
-                _pipeName,
-                PipeDirection.InOut,
-                PipeOptions.Asynchronous);
-
         using var timeout =
-            CancellationTokenSource.CreateLinkedTokenSource(
+            CreateTimeout(
+                timeoutMs,
                 cancellationToken);
 
-        timeout.CancelAfter(timeoutMs);
+        using var pipe =
+            CreatePipe();
 
-        try
-        {
-            await pipe.ConnectAsync(timeout.Token);
-        }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                "Timed out connecting to the Atomic SimHub Bridge for a direct AZOM setting.");
-        }
+        await ConnectAsync(
+            pipe,
+            timeout.Token,
+            cancellationToken,
+            $"connecting to the ADT SimHub Bridge for direct AZOM write {propertyName}");
 
         using var writer =
-            new StreamWriter(
-                pipe,
-                new UTF8Encoding(false),
-                1024,
-                true)
-            {
-                AutoFlush = true
-            };
+            CreateWriter(
+                pipe);
 
         using var reader =
-            new StreamReader(
-                pipe,
-                Encoding.UTF8,
-                true,
-                1024,
-                true);
+            CreateReader(
+                pipe);
 
-        await writer.WriteLineAsync(
+        var request =
             JsonSerializer.Serialize(
                 new
                 {
@@ -252,68 +317,438 @@ public sealed class AzomBridgeClient
                     propertyName,
                     targetInt,
                     targetBool
-                }));
+                });
 
-        string? line;
+        await writer.WriteLineAsync(
+            request);
+
+        var line =
+            await ReadRequiredResponseLineAsync(
+                reader,
+                MaxDirectWriteResponseChars,
+                timeout.Token,
+                cancellationToken,
+                $"waiting for direct AZOM write of {propertyName}");
+
+        BridgeDirectResponse response;
 
         try
         {
-            line =
-                await reader.ReadLineAsync(
-                    timeout.Token);
+            response =
+                JsonSerializer.Deserialize<BridgeDirectResponse>(
+                    line,
+                    Json)
+                ?? throw new IOException(
+                    "ADT SimHub Bridge returned an empty direct-write response.");
         }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                $"Timed out waiting for direct AZOM write of {propertyName}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(line))
+        catch (JsonException ex)
         {
             throw new IOException(
-                "Atomic SimHub Bridge returned an empty direct-write response.");
+                "ADT SimHub Bridge returned invalid direct-write JSON.",
+                ex);
         }
-
-        var response =
-            JsonSerializer.Deserialize<BridgeDirectResponse>(
-                line,
-                Json)
-            ?? throw new IOException(
-                "Atomic SimHub Bridge returned invalid direct-write JSON.");
 
         if (!response.Ok)
         {
             throw new IOException(
-                $"AZOM direct compatibility write failed for {propertyName}: " +
-                (response.Error ?? "Unknown bridge error."));
+                CreateBridgeErrorMessage(
+                    $"AZOM direct compatibility write failed for {propertyName}.",
+                    response.Error));
+        }
+
+        if (
+            !string.IsNullOrWhiteSpace(response.PropertyName) &&
+            !string.Equals(
+                response.PropertyName,
+                propertyName,
+                StringComparison.Ordinal))
+        {
+            throw new IOException(
+                "ADT SimHub Bridge acknowledged a different AZOM property than the one ADT requested.");
+        }
+
+        if (response.Suppressed)
+        {
+            throw new IOException(
+                $"ADT SimHub Bridge suppressed the direct write for {propertyName}; no setting change was confirmed.");
         }
 
         return response.Method;
     }
 
+    private NamedPipeClientStream CreatePipe()
+    {
+        return new NamedPipeClientStream(
+            ".",
+            _pipeName,
+            PipeDirection.InOut,
+            PipeOptions.Asynchronous);
+    }
+
+    private static StreamWriter CreateWriter(
+        Stream stream)
+    {
+        return new StreamWriter(
+            stream,
+            new UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false),
+            1024,
+            leaveOpen: true)
+        {
+            AutoFlush = true
+        };
+    }
+
+    private static StreamReader CreateReader(
+        Stream stream)
+    {
+        return new StreamReader(
+            stream,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 1024,
+            leaveOpen: true);
+    }
+
+    private static async Task ConnectAsync(
+        NamedPipeClientStream pipe,
+        CancellationToken timeoutToken,
+        CancellationToken callerToken,
+        string operation)
+    {
+        try
+        {
+            await pipe.ConnectAsync(
+                timeoutToken);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new UnauthorizedAccessException(
+                "Windows denied access to the ADT SimHub Bridge named pipe. " +
+                "This can happen when SimHub and Atomic Drift Tuner are running at different Windows privilege levels. " +
+                "Restart SimHub and ADT at the same elevation level, then try again.",
+                ex);
+        }
+        catch (OperationCanceledException)
+            when (!callerToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Timed out while {operation}.");
+        }
+    }
+
+    private static async Task<string> ReadRequiredResponseLineAsync(
+        StreamReader reader,
+        int maxChars,
+        CancellationToken timeoutToken,
+        CancellationToken callerToken,
+        string operation)
+    {
+        string? line;
+
+        try
+        {
+            line =
+                await ReadBoundedLineAsync(
+                    reader,
+                    maxChars,
+                    timeoutToken);
+        }
+        catch (OperationCanceledException)
+            when (!callerToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Timed out while {operation}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            throw new IOException(
+                "ADT SimHub Bridge returned an empty response.");
+        }
+
+        return line;
+    }
+
+    private static async Task<string?> ReadBoundedLineAsync(
+        StreamReader reader,
+        int maxChars,
+        CancellationToken cancellationToken)
+    {
+        if (maxChars <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxChars));
+        }
+
+        var builder =
+            new StringBuilder(
+                Math.Min(
+                    maxChars,
+                    4096));
+
+        var buffer =
+            new char[1];
+
+        while (true)
+        {
+            var read =
+                await reader.ReadAsync(
+                    buffer.AsMemory(0, 1),
+                    cancellationToken);
+
+            if (read == 0)
+            {
+                return builder.Length == 0
+                    ? null
+                    : builder.ToString();
+            }
+
+            var character =
+                buffer[0];
+
+            if (character == '\n')
+            {
+                if (
+                    builder.Length > 0 &&
+                    builder[^1] == '\r')
+                {
+                    builder.Length--;
+                }
+
+                return builder.ToString();
+            }
+
+            if (builder.Length >= maxChars)
+            {
+                throw new IOException(
+                    $"ADT SimHub Bridge response exceeded the supported {maxChars:N0}-character limit.");
+            }
+
+            builder.Append(
+                character);
+        }
+    }
+
+    private static CancellationTokenSource CreateTimeout(
+        int timeoutMs,
+        CancellationToken cancellationToken)
+    {
+        var timeout =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+
+        timeout.CancelAfter(
+            timeoutMs);
+
+        return timeout;
+    }
+
+    private static int GetRemainingDirectWriteDelay()
+    {
+        lock (DirectWriteTimingLock)
+        {
+            if (_lastDirectWriteTick == 0)
+            {
+                return 0;
+            }
+
+            var now =
+                Environment.TickCount64;
+
+            var elapsed =
+                now -
+                _lastDirectWriteTick;
+
+            if (elapsed >= DirectWriteMinGapMs)
+            {
+                return 0;
+            }
+
+            if (elapsed < 0)
+            {
+                // Environment.TickCount64 should not realistically wrap
+                // during an ADT process lifetime, but fail safe if it does.
+                return DirectWriteMinGapMs;
+            }
+
+            return
+                DirectWriteMinGapMs -
+                (int)elapsed;
+        }
+    }
+
+    private static void ValidateDirectTarget(
+        int? targetInt,
+        bool? targetBool)
+    {
+        if (
+            !targetInt.HasValue &&
+            !targetBool.HasValue)
+        {
+            throw new ArgumentException(
+                "A numeric or boolean AZOM target is required.");
+        }
+
+        if (
+            targetInt.HasValue &&
+            targetBool.HasValue)
+        {
+            throw new ArgumentException(
+                "A direct AZOM write must specify either a numeric target or a boolean target, not both.");
+        }
+    }
+
+    private static string ValidateAzomName(
+        string value,
+        string parameterName,
+        string kind)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                $"AZOM {kind} name is required.",
+                parameterName);
+        }
+
+        var normalized =
+            value.Trim();
+
+        if (normalized.Length > MaxAzomNameLength)
+        {
+            throw new ArgumentException(
+                $"AZOM {kind} name is too long.",
+                parameterName);
+        }
+
+        if (!normalized.StartsWith(
+                "AZOM.",
+                StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"Only AZOM.* {kind} names are allowed.",
+                parameterName);
+        }
+
+        if (
+            normalized.Contains('\r') ||
+            normalized.Contains('\n') ||
+            normalized.Contains('\0'))
+        {
+            throw new ArgumentException(
+                $"AZOM {kind} name contains invalid characters.",
+                parameterName);
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizePipeName(
+        string pipeName)
+    {
+        if (string.IsNullOrWhiteSpace(pipeName))
+        {
+            throw new ArgumentException(
+                "ADT SimHub Bridge pipe name is required.",
+                nameof(pipeName));
+        }
+
+        var normalized =
+            pipeName.Trim();
+
+        if (
+            normalized.Length == 0 ||
+            normalized.Length > MaxPipeNameLength)
+        {
+            throw new ArgumentException(
+                $"ADT SimHub Bridge pipe name must be between 1 and {MaxPipeNameLength} characters.",
+                nameof(pipeName));
+        }
+
+        if (
+            normalized.Contains('\r') ||
+            normalized.Contains('\n') ||
+            normalized.Contains('\0'))
+        {
+            throw new ArgumentException(
+                "ADT SimHub Bridge pipe name contains invalid characters.",
+                nameof(pipeName));
+        }
+
+        return normalized;
+    }
+
+    private static void ValidateTimeout(
+        int timeoutMs)
+    {
+        if (timeoutMs is < 100 or > 60_000)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timeoutMs),
+                "Bridge timeout must be between 100 ms and 60 seconds.");
+        }
+    }
+
+    private static string CreateBridgeErrorMessage(
+        string prefix,
+        string? bridgeError)
+    {
+        if (string.IsNullOrWhiteSpace(bridgeError))
+        {
+            return prefix;
+        }
+
+        var cleaned =
+            bridgeError
+                .Replace('\r', ' ')
+                .Replace('\n', ' ')
+                .Trim();
+
+        if (cleaned.Length > 1000)
+        {
+            cleaned =
+                cleaned[..1000] +
+                "…";
+        }
+
+        return
+            prefix +
+            " " +
+            cleaned;
+    }
+
     private sealed class BridgeResponse
     {
         public bool Ok { get; set; }
+
         public string? Error { get; set; }
+
         public AzomLiveSnapshot? Snapshot { get; set; }
     }
 
     private sealed class BridgeActionResponse
     {
         public bool Ok { get; set; }
+
         public string? Error { get; set; }
+
         public string? Action { get; set; }
+
         public string? BridgeVersion { get; set; }
     }
 
     private sealed class BridgeDirectResponse
     {
         public bool Ok { get; set; }
+
         public string? Error { get; set; }
+
         public string? Method { get; set; }
+
         public string? PropertyName { get; set; }
+
         public bool Suppressed { get; set; }
+
         public string? BridgeVersion { get; set; }
     }
 }

@@ -1,182 +1,392 @@
-using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
 namespace AtomicDriftTuner.Services;
 
 /// <summary>
-/// Reads Assetto Corsa's static shared-memory page to identify the car/track
-/// loaded in the current session. This reader is intentionally read-only and
-/// independent from the high-rate physics telemetry stream.
+/// Reads Assetto Corsa's static shared-memory page to identify the car and
+/// track loaded in the current session.
+///
+/// This reader is intentionally read-only and independent from the high-rate
+/// physics telemetry stream.
 /// </summary>
 public sealed class AssettoCorsaSessionIdentityReader
 {
-    private const string StaticMapName = @"Local\acpmf_static";
+    private const string StaticMapName =
+        @"Local\acpmf_static";
+
+    private const int MaxIdentityLength =
+        128;
+
+    private const int MaxRaceIniBytes =
+        1024 * 1024;
 
     public AssettoCorsaSessionIdentity? TryRead()
     {
         try
         {
-            using var map = MemoryMappedFile.OpenExisting(StaticMapName);
-            using var stream = map.CreateViewStream(
-                0,
-                Marshal.SizeOf<AcStaticHeader>(),
-                MemoryMappedFileAccess.Read);
+            using var map =
+                MemoryMappedFile.OpenExisting(
+                    StaticMapName,
+                    MemoryMappedFileRights.Read);
 
-            byte[] bytes = new byte[Marshal.SizeOf<AcStaticHeader>()];
-            int offset = 0;
-            while (offset < bytes.Length)
+            var info =
+                ReadStruct<AcStaticHeader>(
+                    map);
+
+            var car =
+                NormalizeIdentityValue(
+                    info.CarModel);
+
+            // Some AC/CSP/Content Manager session combinations expose a
+            // numeric slot value, commonly "0", in the static shared-memory
+            // carModel field instead of the installed car-folder ID.
+            //
+            // In that case, use the launcher-generated race.ini as a
+            // read-only fallback. A valid shared-memory model ID always
+            // remains authoritative.
+            if (!LooksLikeCarModelId(car))
             {
-                int read = stream.Read(bytes, offset, bytes.Length - offset);
-                if (read <= 0)
-                    return null;
-                offset += read;
-            }
+                var raceIniCar =
+                    TryReadRaceIniCarModel();
 
-            var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            try
-            {
-                var info = Marshal.PtrToStructure<AcStaticHeader>(handle.AddrOfPinnedObject());
-                string car = Clean(info.CarModel);
-
-                // Some AC/CSP/Content Manager session combinations expose a numeric
-                // slot value (commonly "0") in the static shared-memory carModel
-                // field instead of the installed car folder id. In that case, use
-                // the launcher-generated race.ini as a read-only fallback.
-                //
-                // race.ini is written for the session that AC is currently running
-                // and [CAR_0] MODEL maps to content\cars\<folder>. We only use the
-                // fallback when shared memory is clearly not a usable model id so a
-                // valid shared-memory value always remains authoritative.
-                if (!LooksLikeCarModelId(car))
+                if (!string.IsNullOrWhiteSpace(
+                        raceIniCar))
                 {
-                    string? raceIniCar = TryReadRaceIniCarModel();
-                    if (!string.IsNullOrWhiteSpace(raceIniCar))
-                        car = raceIniCar;
+                    car =
+                        raceIniCar;
                 }
-
-                if (!LooksLikeCarModelId(car))
-                    return null;
-
-                return new AssettoCorsaSessionIdentity
-                {
-                    CarModel = car,
-                    Track = Clean(info.Track),
-                    SharedMemoryVersion = Clean(info.SmVersion),
-                    AssettoCorsaVersion = Clean(info.AcVersion)
-                };
             }
-            finally
+
+            if (!LooksLikeCarModelId(
+                    car))
             {
-                handle.Free();
+                return null;
             }
+
+            return new AssettoCorsaSessionIdentity
+            {
+                CarModel =
+                    car,
+
+                Track =
+                    NormalizeIdentityValue(
+                        info.Track),
+
+                SharedMemoryVersion =
+                    NormalizeIdentityValue(
+                        info.SmVersion),
+
+                AssettoCorsaVersion =
+                    NormalizeIdentityValue(
+                        info.AcVersion)
+            };
         }
-        catch (FileNotFoundException)
+        catch (
+            Exception ex)
+            when (
+                ex is FileNotFoundException ||
+                ex is UnauthorizedAccessException ||
+                ex is IOException ||
+                ex is ArgumentException ||
+                ex is MarshalDirectiveException)
         {
-            return null;
-        }
-        catch
-        {
-            // Auto detection is advisory. A malformed/unavailable static page
-            // must never interfere with tuning, telemetry, or the remote server.
+            // Identity detection is advisory. An unavailable or malformed
+            // static page must never interfere with telemetry, tuning, or
+            // ADT Remote.
             return null;
         }
     }
 
-    private static string Clean(string? value) =>
-        (value ?? string.Empty).Trim().TrimEnd('\0');
-
-    private static bool LooksLikeCarModelId(string? value)
+    private static T ReadStruct<T>(
+        MemoryMappedFile map)
+        where T : struct
     {
-        string model = Clean(value);
-        if (string.IsNullOrWhiteSpace(model) || model == "-")
-            return false;
+        ArgumentNullException.ThrowIfNull(
+            map);
 
-        // AC car folder ids contain letters. A bare numeric value is a car slot,
-        // not an installed-car folder name.
-        return model.Any(char.IsLetter);
+        var size =
+            Marshal.SizeOf<T>();
+
+        using var stream =
+            map.CreateViewStream(
+                0,
+                size,
+                MemoryMappedFileAccess.Read);
+
+        var bytes =
+            new byte[size];
+
+        var offset =
+            0;
+
+        while (offset < bytes.Length)
+        {
+            var read =
+                stream.Read(
+                    bytes,
+                    offset,
+                    bytes.Length - offset);
+
+            if (read == 0)
+            {
+                throw new EndOfStreamException(
+                    "Assetto Corsa static shared memory returned an incomplete frame.");
+            }
+
+            offset +=
+                read;
+        }
+
+        var handle =
+            GCHandle.Alloc(
+                bytes,
+                GCHandleType.Pinned);
+
+        try
+        {
+            return Marshal.PtrToStructure<T>(
+                handle.AddrOfPinnedObject());
+        }
+        finally
+        {
+            handle.Free();
+        }
+    }
+
+    private static string NormalizeIdentityValue(
+        string? value)
+    {
+        if (string.IsNullOrEmpty(
+                value))
+        {
+            return string.Empty;
+        }
+
+        var normalized =
+            value
+                .TrimEnd('\0')
+                .Trim();
+
+        if (normalized.Length > MaxIdentityLength)
+        {
+            normalized =
+                normalized[..MaxIdentityLength];
+        }
+
+        var filtered =
+            new string(
+                normalized
+                    .Where(
+                        character =>
+                            !char.IsControl(character))
+                    .ToArray());
+
+        return filtered.Trim();
+    }
+
+    private static bool LooksLikeCarModelId(
+        string? value)
+    {
+        var model =
+            NormalizeIdentityValue(
+                value);
+
+        if (
+            string.IsNullOrWhiteSpace(model) ||
+            model == "-")
+        {
+            return false;
+        }
+
+        if (
+            model.Contains('/') ||
+            model.Contains('\\') ||
+            model.Contains(':'))
+        {
+            return false;
+        }
+
+        // AC car-folder IDs normally contain at least one letter.
+        // A bare numeric value is generally a car slot rather than an
+        // installed-car folder identifier.
+        return model.Any(
+            char.IsLetter);
     }
 
     private static string? TryReadRaceIniCarModel()
     {
         try
         {
-            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            if (string.IsNullOrWhiteSpace(documents))
-                return null;
+            var documents =
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.MyDocuments);
 
-            string path = Path.Combine(documents, "Assetto Corsa", "cfg", "race.ini");
-            if (!File.Exists(path))
-                return null;
-
-            string section = string.Empty;
-            string? raceSectionModel = null;
-
-            foreach (string rawLine in File.ReadLines(path))
+            if (string.IsNullOrWhiteSpace(
+                    documents))
             {
-                string line = rawLine.Trim();
-                if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#'))
-                    continue;
+                return null;
+            }
 
-                if (line.StartsWith('[') && line.EndsWith(']'))
+            var path =
+                Path.Combine(
+                    documents,
+                    "Assetto Corsa",
+                    "cfg",
+                    "race.ini");
+
+            if (!File.Exists(
+                    path))
+            {
+                return null;
+            }
+
+            var info =
+                new FileInfo(
+                    path);
+
+            if (
+                info.Length <= 0 ||
+                info.Length > MaxRaceIniBytes)
+            {
+                return null;
+            }
+
+            var section =
+                string.Empty;
+
+            string? raceSectionModel =
+                null;
+
+            foreach (var rawLine in File.ReadLines(
+                         path))
+            {
+                var line =
+                    rawLine.Trim();
+
+                if (
+                    line.Length == 0 ||
+                    line.StartsWith(';') ||
+                    line.StartsWith('#'))
                 {
-                    section = line[1..^1].Trim();
                     continue;
                 }
 
-                int equals = line.IndexOf('=');
+                if (
+                    line.StartsWith('[') &&
+                    line.EndsWith(']'))
+                {
+                    section =
+                        line[1..^1]
+                            .Trim();
+
+                    continue;
+                }
+
+                var equals =
+                    line.IndexOf('=');
+
                 if (equals <= 0)
+                {
                     continue;
+                }
 
-                string key = line[..equals].Trim();
-                if (!key.Equals("MODEL", StringComparison.OrdinalIgnoreCase))
+                var key =
+                    line[..equals]
+                        .Trim();
+
+                if (!key.Equals(
+                        "MODEL",
+                        StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
-                string value = line[(equals + 1)..].Trim().Trim('\"');
-                if (!LooksLikeCarModelId(value))
+                var value =
+                    NormalizeIdentityValue(
+                        line[(equals + 1)..]
+                            .Trim()
+                            .Trim('"'));
+
+                if (!LooksLikeCarModelId(
+                        value))
+                {
                     continue;
+                }
 
-                if (section.Equals("CAR_0", StringComparison.OrdinalIgnoreCase))
+                if (section.Equals(
+                        "CAR_0",
+                        StringComparison.OrdinalIgnoreCase))
+                {
                     return value;
+                }
 
-                if (section.Equals("RACE", StringComparison.OrdinalIgnoreCase))
-                    raceSectionModel = value;
+                if (section.Equals(
+                        "RACE",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    raceSectionModel =
+                        value;
+                }
             }
 
             return raceSectionModel;
         }
-        catch
+        catch (
+            Exception ex)
+            when (
+                ex is IOException ||
+                ex is UnauthorizedAccessException ||
+                ex is ArgumentException)
         {
-            // Identity detection is advisory; an inaccessible race.ini must never
-            // interfere with the rest of ADT.
+            // The fallback is advisory. If race.ini is unavailable, ADT
+            // simply continues without automatic session identity.
             return null;
         }
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
+    [StructLayout(
+        LayoutKind.Sequential,
+        Pack = 4,
+        CharSet = CharSet.Unicode)]
     private struct AcStaticHeader
     {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
+        [MarshalAs(
+            UnmanagedType.ByValTStr,
+            SizeConst = 15)]
         public string SmVersion;
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
+        [MarshalAs(
+            UnmanagedType.ByValTStr,
+            SizeConst = 15)]
         public string AcVersion;
 
         public int NumberOfSessions;
         public int NumCars;
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 33)]
+        [MarshalAs(
+            UnmanagedType.ByValTStr,
+            SizeConst = 33)]
         public string CarModel;
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 33)]
+        [MarshalAs(
+            UnmanagedType.ByValTStr,
+            SizeConst = 33)]
         public string Track;
     }
 }
 
 public sealed class AssettoCorsaSessionIdentity
 {
-    public string CarModel { get; init; } = "";
-    public string Track { get; init; } = "";
-    public string SharedMemoryVersion { get; init; } = "";
-    public string AssettoCorsaVersion { get; init; } = "";
+    public string CarModel { get; init; } =
+        string.Empty;
+
+    public string Track { get; init; } =
+        string.Empty;
+
+    public string SharedMemoryVersion { get; init; } =
+        string.Empty;
+
+    public string AssettoCorsaVersion { get; init; } =
+        string.Empty;
 }

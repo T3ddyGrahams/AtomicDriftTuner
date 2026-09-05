@@ -4,246 +4,1021 @@ namespace AtomicDriftTuner.Engine;
 
 public sealed class TelemetryAnalyzer
 {
-    private const double DriftAngleThreshold = 10.0;
-    private const double DriftSpeedThreshold = 20.0;
+    private const double DriftAngleThresholdDeg =
+        10.0;
 
-    public TelemetryAnalysis Analyze(TelemetrySession session)
+    private const double DriftSpeedThresholdKmh =
+        20.0;
+
+    private const double TransitionStableAngleDeg =
+        14.0;
+
+    private const double TransitionCrossoverAngleDeg =
+        5.0;
+
+    private const double SpinAngleThresholdDeg =
+        72.0;
+
+    private const double SpinSpeedThresholdKmh =
+        15.0;
+
+    private const double OscillationSteeringRateThresholdDegPerSec =
+        140.0;
+
+    private const double FfbClipThreshold =
+        0.98;
+
+    private const double MaximumContinuousSampleGapSeconds =
+        0.25;
+
+    private const double MinimumDriftEvidenceSeconds =
+        2.0;
+
+    private const double StrongDriftEvidenceSeconds =
+        5.0;
+
+    private const double MinimumEntryDurationSeconds =
+        0.10;
+
+    private const double MinimumSpinDurationSeconds =
+        0.12;
+
+    private const double MinimumTransitionSeconds =
+        0.05;
+
+    private const double MaximumTransitionSeconds =
+        2.0;
+
+    private const double OscillationFlipWindowSeconds =
+        0.55;
+
+    private const double OscillationClusterResetSeconds =
+        1.2;
+
+    public TelemetryAnalysis Analyze(
+        TelemetrySession session)
     {
-        var result = new TelemetryAnalysis { SampleCount = session.Samples.Count };
-        if (session.Samples.Count < 3)
+        ArgumentNullException.ThrowIfNull(
+            session);
+
+        var result =
+            new TelemetryAnalysis();
+
+        var samples =
+            PrepareSamples(
+                session);
+
+        result.SampleCount =
+            samples.Count;
+
+        if (samples.Count < 3)
         {
-            result.Assessment = "Not enough telemetry was recorded to analyze the session.";
-            result.Findings.Add("Record at least several seconds of driving before analyzing.");
+            result.Assessment =
+                "Not enough valid telemetry was recorded to analyze the session.";
+
+            result.Findings.Add(
+                "Record at least several seconds of driving before analyzing.");
+
             return result;
         }
 
-        var s = session.Samples.OrderBy(x => x.TimeSeconds).ToList();
-        result.DurationSeconds = Math.Max(0, s[^1].TimeSeconds - s[0].TimeSeconds);
-        result.EffectiveSampleRateHz = result.DurationSeconds > 0 ? (s.Count - 1) / result.DurationSeconds : 0;
+        result.DurationSeconds =
+            CalculateRecordedDuration(
+                samples);
 
-        var drift = s.Where(IsDrifting).ToList();
-        result.DriftTimeSeconds = SumConditionTime(s, IsDrifting);
-        result.DriftTimePct = result.DurationSeconds > 0 ? result.DriftTimeSeconds / result.DurationSeconds * 100 : 0;
-        result.DriftEntries = CountEntries(s, IsDrifting);
+        result.EffectiveSampleRateHz =
+            CalculateEffectiveSampleRate(
+                samples);
 
-        if (drift.Count > 0)
+        result.DriftTimeSeconds =
+            SumConditionTime(
+                samples,
+                IsDrifting);
+
+        result.DriftTimePct =
+            result.DurationSeconds > 0
+                ? Math.Clamp(
+                    result.DriftTimeSeconds /
+                    result.DurationSeconds *
+                    100.0,
+                    0,
+                    100)
+                : 0;
+
+        result.DriftEntries =
+            CountQualifiedEvents(
+                samples,
+                IsDrifting,
+                MinimumEntryDurationSeconds);
+
+        var driftSamples =
+            samples
+                .Where(
+                    IsDrifting)
+                .ToList();
+
+        if (driftSamples.Count > 0)
         {
-            result.AverageDriftAngleDeg = drift.Average(x => Math.Abs(x.SlipAngleDeg));
-            result.PeakDriftAngleDeg = drift.Max(x => Math.Abs(x.SlipAngleDeg));
-            result.AverageSteeringRateDegPerSec = drift.Average(x => Math.Abs(x.SteeringRateDegPerSec));
-            result.PeakSteeringRateDegPerSec = drift.Max(x => Math.Abs(x.SteeringRateDegPerSec));
-            result.AverageYawRateDegPerSec = drift.Average(x => Math.Abs(x.YawRateDegPerSec));
-            result.PeakYawRateDegPerSec = drift.Max(x => Math.Abs(x.YawRateDegPerSec));
-            result.AverageSpeedWhileDriftingKmh = drift.Average(x => x.SpeedKmh);
-            result.AverageFrontWheelSlipWhileDrifting = drift.Average(x => x.FrontWheelSlipAvg);
-            result.AverageRearWheelSlipWhileDrifting = drift.Average(x => x.RearWheelSlipAvg);
-            result.AverageFfbAbsWhileDrifting = drift.Average(x => Math.Abs(x.FinalFfb));
+            result.AverageDriftAngleDeg =
+                Average(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.SlipAngleDeg)));
+
+            result.PeakDriftAngleDeg =
+                Maximum(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.SlipAngleDeg)));
+
+            result.AverageSteeringRateDegPerSec =
+                Average(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.SteeringRateDegPerSec)));
+
+            result.PeakSteeringRateDegPerSec =
+                Maximum(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.SteeringRateDegPerSec)));
+
+            result.AverageYawRateDegPerSec =
+                Average(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.YawRateDegPerSec)));
+
+            result.PeakYawRateDegPerSec =
+                Maximum(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.YawRateDegPerSec)));
+
+            result.AverageSpeedWhileDriftingKmh =
+                Average(
+                    driftSamples,
+                    x => FiniteOrZero(
+                        x.SpeedKmh));
+
+            result.AverageFrontWheelSlipWhileDrifting =
+                Average(
+                    driftSamples,
+                    x => FiniteOrZero(
+                        x.FrontWheelSlipAvg));
+
+            result.AverageRearWheelSlipWhileDrifting =
+                Average(
+                    driftSamples,
+                    x => FiniteOrZero(
+                        x.RearWheelSlipAvg));
+
+            result.AverageFfbAbsWhileDrifting =
+                Average(
+                    driftSamples,
+                    x => Math.Abs(
+                        FiniteOrZero(
+                            x.FinalFfb)));
+
+            var validFfbSamples =
+                driftSamples
+                    .Select(
+                        x => Math.Abs(
+                            FiniteOrZero(
+                                x.FinalFfb)))
+                    .ToList();
+
             result.FfbClippingPctWhileDrifting =
-                drift.Count == 0
-                    ? 0
-                    : drift.Count(x => Math.Abs(x.FinalFfb) >= 0.98) * 100.0 / drift.Count;
+                validFfbSamples.Count > 0
+                    ? validFfbSamples.Count(
+                          x =>
+                              x >=
+                              FfbClipThreshold) *
+                      100.0 /
+                      validFfbSamples.Count
+                    : 0;
         }
 
-        var transitions = FindTransitions(s);
-        result.TransitionCount = transitions.Count;
-        result.AverageTransitionSeconds = transitions.Count > 0 ? transitions.Average() : 0;
-        result.OscillationEvents = CountOscillations(s);
-        result.SpinEvents = CountEvents(s, x => x.SpeedKmh >= 15 && Math.Abs(x.SlipAngleDeg) >= 72);
+        var transitions =
+            FindTransitions(
+                samples);
 
-        BuildAssessment(result);
-        BuildSuggestion(result);
+        result.TransitionCount =
+            transitions.Count;
+
+        result.AverageTransitionSeconds =
+            transitions.Count > 0
+                ? transitions.Average()
+                : 0;
+
+        result.OscillationEvents =
+            CountOscillations(
+                samples);
+
+        result.SpinEvents =
+            CountQualifiedEvents(
+                samples,
+                IsExtremeAngleEvent,
+                MinimumSpinDurationSeconds);
+
+        BuildAssessment(
+            result);
+
+        BuildSuggestion(
+            result);
+
         return result;
     }
 
-    private static bool IsDrifting(TelemetrySample x) =>
-        x.SpeedKmh >= DriftSpeedThreshold && Math.Abs(x.SlipAngleDeg) >= DriftAngleThreshold;
-
-    private static double SumConditionTime(List<TelemetrySample> s, Func<TelemetrySample, bool> condition)
+    private static List<TelemetrySample> PrepareSamples(
+        TelemetrySession session)
     {
-        double total = 0;
-        for (int i = 1; i < s.Count; i++)
+        if (session.Samples is null)
         {
-            double dt = s[i].TimeSeconds - s[i - 1].TimeSeconds;
-            if (dt > 0 && dt < 0.25 && condition(s[i]) && condition(s[i - 1])) total += dt;
+            return [];
         }
+
+        return session.Samples
+            .Where(
+                sample =>
+                    sample is not null &&
+                    double.IsFinite(
+                        sample.TimeSeconds))
+            .OrderBy(
+                sample =>
+                    sample.TimeSeconds)
+            .ToList();
+    }
+
+    private static bool IsDrifting(
+        TelemetrySample sample)
+    {
+        var speed =
+            FiniteOrZero(
+                sample.SpeedKmh);
+
+        var slip =
+            FiniteOrZero(
+                sample.SlipAngleDeg);
+
+        return
+            speed >= DriftSpeedThresholdKmh &&
+            Math.Abs(slip) >= DriftAngleThresholdDeg;
+    }
+
+    private static bool IsExtremeAngleEvent(
+        TelemetrySample sample)
+    {
+        var speed =
+            FiniteOrZero(
+                sample.SpeedKmh);
+
+        var slip =
+            FiniteOrZero(
+                sample.SlipAngleDeg);
+
+        return
+            speed >= SpinSpeedThresholdKmh &&
+            Math.Abs(slip) >= SpinAngleThresholdDeg;
+    }
+
+    private static double CalculateRecordedDuration(
+        List<TelemetrySample> samples)
+    {
+        double total =
+            0;
+
+        for (
+            var i = 1;
+            i < samples.Count;
+            i++)
+        {
+            var dt =
+                samples[i].TimeSeconds -
+                samples[i - 1].TimeSeconds;
+
+            if (IsContinuousInterval(dt))
+            {
+                total +=
+                    dt;
+            }
+        }
+
+        return Math.Max(
+            0,
+            total);
+    }
+
+    private static double CalculateEffectiveSampleRate(
+        List<TelemetrySample> samples)
+    {
+        var intervals =
+            new List<double>();
+
+        for (
+            var i = 1;
+            i < samples.Count;
+            i++)
+        {
+            var dt =
+                samples[i].TimeSeconds -
+                samples[i - 1].TimeSeconds;
+
+            if (IsContinuousInterval(dt))
+            {
+                intervals.Add(
+                    dt);
+            }
+        }
+
+        if (intervals.Count == 0)
+        {
+            return 0;
+        }
+
+        // Median interval is much less sensitive than whole-session duration
+        // to a temporary telemetry disconnect or recording pause.
+        intervals.Sort();
+
+        double median;
+
+        var middle =
+            intervals.Count /
+            2;
+
+        if (intervals.Count % 2 == 0)
+        {
+            median =
+                (
+                    intervals[middle - 1] +
+                    intervals[middle]
+                ) /
+                2.0;
+        }
+        else
+        {
+            median =
+                intervals[middle];
+        }
+
+        return median > 0
+            ? 1.0 / median
+            : 0;
+    }
+
+    private static double SumConditionTime(
+        List<TelemetrySample> samples,
+        Func<TelemetrySample, bool> condition)
+    {
+        double total =
+            0;
+
+        for (
+            var i = 1;
+            i < samples.Count;
+            i++)
+        {
+            var previous =
+                samples[i - 1];
+
+            var current =
+                samples[i];
+
+            var dt =
+                current.TimeSeconds -
+                previous.TimeSeconds;
+
+            if (
+                IsContinuousInterval(dt) &&
+                condition(previous) &&
+                condition(current))
+            {
+                total +=
+                    dt;
+            }
+        }
+
         return total;
     }
 
-    private static int CountEntries(List<TelemetrySample> s, Func<TelemetrySample, bool> condition)
+    private static int CountQualifiedEvents(
+        List<TelemetrySample> samples,
+        Func<TelemetrySample, bool> condition,
+        double minimumDurationSeconds)
     {
-        int count = 0;
-        bool prev = false;
-        foreach (var sample in s)
+        var count =
+            0;
+
+        double? eventStart =
+            null;
+
+        double? lastQualifyingTime =
+            null;
+
+        for (
+            var i = 0;
+            i < samples.Count;
+            i++)
         {
-            bool now = condition(sample);
-            if (now && !prev) count++;
-            prev = now;
-        }
-        return count;
-    }
+            var sample =
+                samples[i];
 
-    private static int CountEvents(List<TelemetrySample> s, Func<TelemetrySample, bool> condition)
-    {
-        int count = 0;
-        bool active = false;
-        foreach (var x in s)
-        {
-            bool now = condition(x);
-            if (now && !active) count++;
-            active = now;
-        }
-        return count;
-    }
-
-    private static List<double> FindTransitions(List<TelemetrySample> s)
-    {
-        var times = new List<double>();
-        int stableSign = 0;
-        double? transitionStart = null;
-
-        foreach (var x in s)
-        {
-            if (x.SpeedKmh < 20) continue;
-            int sign = Math.Abs(x.SlipAngleDeg) >= 14 ? Math.Sign(x.SlipAngleDeg) : 0;
-            if (stableSign == 0 && sign != 0) { stableSign = sign; continue; }
-
-            if (stableSign != 0 && Math.Abs(x.SlipAngleDeg) <= 5 && transitionStart is null)
-                transitionStart = x.TimeSeconds;
-
-            if (transitionStart is double start && sign != 0 && sign != stableSign)
+            if (
+                i > 0 &&
+                !IsContinuousInterval(
+                    sample.TimeSeconds -
+                    samples[i - 1].TimeSeconds))
             {
-                double dt = x.TimeSeconds - start;
-                if (dt is >= 0.05 and <= 2.0) times.Add(dt);
-                stableSign = sign;
-                transitionStart = null;
+                FinalizeEvent();
+
+                eventStart =
+                    null;
+
+                lastQualifyingTime =
+                    null;
             }
-            else if (transitionStart is double old && x.TimeSeconds - old > 2.0)
+
+            if (condition(sample))
             {
-                transitionStart = null;
-                if (sign != 0) stableSign = sign;
+                eventStart ??=
+                    sample.TimeSeconds;
+
+                lastQualifyingTime =
+                    sample.TimeSeconds;
+            }
+            else
+            {
+                FinalizeEvent();
+
+                eventStart =
+                    null;
+
+                lastQualifyingTime =
+                    null;
             }
         }
-        return times;
+
+        FinalizeEvent();
+
+        return count;
+
+        void FinalizeEvent()
+        {
+            if (
+                eventStart is double start &&
+                lastQualifyingTime is double end &&
+                end - start >= minimumDurationSeconds)
+            {
+                count++;
+            }
+        }
     }
 
-    private static int CountOscillations(List<TelemetrySample> s)
+    private static List<double> FindTransitions(
+        List<TelemetrySample> samples)
     {
-        int events = 0;
-        int lastSign = 0;
-        double lastFlip = -10;
-        bool clusterActive = false;
-        double clusterLast = -10;
+        var transitionTimes =
+            new List<double>();
 
-        foreach (var x in s)
+        var stableSign =
+            0;
+
+        double? transitionStart =
+            null;
+
+        for (
+            var i = 0;
+            i < samples.Count;
+            i++)
         {
-            if (!IsDrifting(x) || Math.Abs(x.SteeringRateDegPerSec) < 140) continue;
-            int sign = Math.Sign(x.SteeringRateDegPerSec);
-            if (lastSign != 0 && sign != lastSign)
+            var sample =
+                samples[i];
+
+            if (
+                i > 0 &&
+                !IsContinuousInterval(
+                    sample.TimeSeconds -
+                    samples[i - 1].TimeSeconds))
             {
-                double gap = x.TimeSeconds - lastFlip;
-                if (gap <= 0.55)
+                stableSign =
+                    0;
+
+                transitionStart =
+                    null;
+            }
+
+            var speed =
+                FiniteOrZero(
+                    sample.SpeedKmh);
+
+            if (speed < DriftSpeedThresholdKmh)
+            {
+                continue;
+            }
+
+            var slip =
+                FiniteOrZero(
+                    sample.SlipAngleDeg);
+
+            var absoluteSlip =
+                Math.Abs(
+                    slip);
+
+            var sign =
+                absoluteSlip >= TransitionStableAngleDeg
+                    ? Math.Sign(slip)
+                    : 0;
+
+            if (
+                stableSign == 0 &&
+                sign != 0)
+            {
+                stableSign =
+                    sign;
+
+                continue;
+            }
+
+            if (
+                stableSign != 0 &&
+                absoluteSlip <= TransitionCrossoverAngleDeg &&
+                transitionStart is null)
+            {
+                transitionStart =
+                    sample.TimeSeconds;
+            }
+
+            if (
+                transitionStart is double start &&
+                sign != 0 &&
+                sign != stableSign)
+            {
+                var duration =
+                    sample.TimeSeconds -
+                    start;
+
+                if (
+                    duration >= MinimumTransitionSeconds &&
+                    duration <= MaximumTransitionSeconds)
                 {
-                    if (!clusterActive || x.TimeSeconds - clusterLast > 1.2) events++;
-                    clusterActive = true;
-                    clusterLast = x.TimeSeconds;
+                    transitionTimes.Add(
+                        duration);
                 }
-                else if (x.TimeSeconds - clusterLast > 1.2)
-                    clusterActive = false;
-                lastFlip = x.TimeSeconds;
+
+                stableSign =
+                    sign;
+
+                transitionStart =
+                    null;
             }
-            else if (lastSign == 0)
-                lastFlip = x.TimeSeconds;
-            lastSign = sign;
+            else if (
+                transitionStart is double old &&
+                sample.TimeSeconds -
+                old >
+                MaximumTransitionSeconds)
+            {
+                transitionStart =
+                    null;
+
+                if (sign != 0)
+                {
+                    stableSign =
+                        sign;
+                }
+            }
         }
+
+        return transitionTimes;
+    }
+
+    private static int CountOscillations(
+        List<TelemetrySample> samples)
+    {
+        var events =
+            0;
+
+        var previousRateSign =
+            0;
+
+        double? previousFlipTime =
+            null;
+
+        double? clusterLastFlipTime =
+            null;
+
+        var clusterActive =
+            false;
+
+        for (
+            var i = 0;
+            i < samples.Count;
+            i++)
+        {
+            var sample =
+                samples[i];
+
+            if (
+                i > 0 &&
+                !IsContinuousInterval(
+                    sample.TimeSeconds -
+                    samples[i - 1].TimeSeconds))
+            {
+                previousRateSign =
+                    0;
+
+                previousFlipTime =
+                    null;
+
+                clusterLastFlipTime =
+                    null;
+
+                clusterActive =
+                    false;
+            }
+
+            if (!IsDrifting(sample))
+            {
+                continue;
+            }
+
+            var steeringRate =
+                FiniteOrZero(
+                    sample.SteeringRateDegPerSec);
+
+            if (
+                Math.Abs(steeringRate) <
+                OscillationSteeringRateThresholdDegPerSec)
+            {
+                continue;
+            }
+
+            var sign =
+                Math.Sign(
+                    steeringRate);
+
+            if (sign == 0)
+            {
+                continue;
+            }
+
+            if (
+                previousRateSign != 0 &&
+                sign != previousRateSign)
+            {
+                var now =
+                    sample.TimeSeconds;
+
+                if (
+                    previousFlipTime is double previousFlip &&
+                    now - previousFlip <=
+                    OscillationFlipWindowSeconds)
+                {
+                    var startsNewCluster =
+                        !clusterActive ||
+                        clusterLastFlipTime is null ||
+                        now -
+                        clusterLastFlipTime.Value >
+                        OscillationClusterResetSeconds;
+
+                    if (startsNewCluster)
+                    {
+                        events++;
+                    }
+
+                    clusterActive =
+                        true;
+
+                    clusterLastFlipTime =
+                        now;
+                }
+                else if (
+                    clusterLastFlipTime is double clusterLast &&
+                    now - clusterLast >
+                    OscillationClusterResetSeconds)
+                {
+                    clusterActive =
+                        false;
+                }
+
+                previousFlipTime =
+                    now;
+            }
+
+            previousRateSign =
+                sign;
+        }
+
         return events;
     }
 
-    private static void BuildAssessment(TelemetryAnalysis r)
+    private static void BuildAssessment(
+        TelemetryAnalysis result)
     {
-        if (r.DriftTimeSeconds < 2)
+        if (
+            result.DriftTimeSeconds <
+            MinimumDriftEvidenceSeconds)
         {
-            r.Assessment = "Very little sustained drift was detected. Record a longer drift run before applying telemetry-based corrections.";
-            r.Findings.Add("Less than 2 seconds met the current drift threshold (20 km/h and 10° body slip angle)." );
+            result.Assessment =
+                "Very little sustained drift was detected. Record a longer drift run before applying telemetry-based corrections.";
+
+            result.Findings.Add(
+                "Less than 2 seconds met the current drift threshold (20 km/h and 10° body slip angle).");
+
             return;
         }
 
-        if (r.OscillationEvents >= 4)
-            r.Findings.Add("Repeated fast steering reversals suggest wheel oscillation or over-aggressive self-steer.");
-        else if (r.OscillationEvents == 0)
-            r.Findings.Add("No clear steering-oscillation clusters were detected.");
+        if (result.OscillationEvents >= 4)
+        {
+            result.Findings.Add(
+                "Repeated fast steering reversals suggest wheel oscillation or over-aggressive self-steer.");
+        }
+        else if (result.OscillationEvents == 0)
+        {
+            result.Findings.Add(
+                "No clear steering-oscillation clusters were detected.");
+        }
 
-        if (r.PeakSteeringRateDegPerSec > 900)
-            r.Findings.Add("Peak steering return speed is very high; watch for snap transitions or hands-off oscillation.");
-        else if (r.AverageSteeringRateDegPerSec < 80 && r.AverageDriftAngleDeg > 18)
-            r.Findings.Add("Steering movement is relatively slow during sustained angle; self-steer may be too damped for this setup.");
+        if (
+            result.PeakSteeringRateDegPerSec >
+            900)
+        {
+            result.Findings.Add(
+                "Peak steering return speed is very high; watch for snap transitions or hands-off oscillation.");
+        }
+        else if (
+            result.AverageSteeringRateDegPerSec <
+            80 &&
+            result.AverageDriftAngleDeg >
+            18)
+        {
+            result.Findings.Add(
+                "Steering movement is relatively slow during sustained angle; self-steer may be too damped for this setup.");
+        }
 
-        if (r.SpinEvents > 0)
-            r.Findings.Add($"Detected {r.SpinEvents} high-angle event(s) above 72° body slip. These can include spins or extreme entries.");
+        if (result.SpinEvents > 0)
+        {
+            result.Findings.Add(
+                $"Detected {result.SpinEvents} sustained high-angle event(s) above 72° body slip. These can include spins or extreme entries.");
+        }
 
-        if (r.TransitionCount > 0)
-            r.Findings.Add($"Detected {r.TransitionCount} direction change(s), averaging {r.AverageTransitionSeconds:0.00}s through the low-angle crossover.");
+        if (result.TransitionCount > 0)
+        {
+            result.Findings.Add(
+                $"Detected {result.TransitionCount} direction change(s), averaging {result.AverageTransitionSeconds:0.00}s through the low-angle crossover.");
+        }
         else
-            r.Findings.Add("No complete left-to-right/right-to-left transitions were confidently detected in this recording.");
+        {
+            result.Findings.Add(
+                "No complete left-to-right/right-to-left transitions were confidently detected in this recording.");
+        }
 
-        if (r.FfbClippingPctWhileDrifting >= 8)
-            r.Findings.Add($"FFB output was at or above 98% magnitude for {r.FfbClippingPctWhileDrifting:0.0}% of detected drift samples; AC gain may be clipping sustained detail.");
-        else if (r.DriftTimeSeconds >= 5)
-            r.Findings.Add($"FFB clipping heuristic: {r.FfbClippingPctWhileDrifting:0.0}% of detected drift samples were at or above 98% magnitude.");
+        if (
+            result.FfbClippingPctWhileDrifting >=
+            8)
+        {
+            result.Findings.Add(
+                $"FFB output was at or above 98% magnitude for {result.FfbClippingPctWhileDrifting:0.0}% of detected drift samples; AC gain may be clipping sustained detail.");
+        }
+        else if (
+            result.DriftTimeSeconds >=
+            StrongDriftEvidenceSeconds)
+        {
+            result.Findings.Add(
+                $"FFB clipping heuristic: {result.FfbClippingPctWhileDrifting:0.0}% of detected drift samples were at or above 98% magnitude.");
+        }
 
-        r.Assessment = r.OscillationEvents >= 4 ? "Self-steer looks aggressive/oscillatory. Add control before adding more wheel speed." :
-                       r.AverageSteeringRateDegPerSec < 80 && r.AverageDriftAngleDeg > 18 ? "Self-steer may be slower than ideal for the observed drift angle." :
-                       r.SpinEvents >= 3 ? "The session shows repeated extreme-angle losses; prioritize stability before speed." :
-                       "Telemetry looks reasonably controlled. Make small changes and compare another session rather than making a large correction.";
+        // Stability problems take priority over attempts to make the wheel
+        // faster. ADT should control a repeated-loss condition before
+        // recommending additional response speed.
+        if (result.SpinEvents >= 3)
+        {
+            result.Assessment =
+                "The session shows repeated extreme-angle losses; prioritize stability before speed.";
+        }
+        else if (result.OscillationEvents >= 4)
+        {
+            result.Assessment =
+                "Self-steer looks aggressive or oscillatory. Add control before adding more wheel speed.";
+        }
+        else if (
+            result.AverageSteeringRateDegPerSec <
+            80 &&
+            result.AverageDriftAngleDeg >
+            18)
+        {
+            result.Assessment =
+                "Self-steer may be slower than ideal for the observed drift angle.";
+        }
+        else
+        {
+            result.Assessment =
+                "Telemetry looks reasonably controlled. Make small changes and compare another session rather than making a large correction.";
+        }
     }
 
-    private static void BuildSuggestion(TelemetryAnalysis r)
+    private static void BuildSuggestion(
+        TelemetryAnalysis result)
     {
-        var q = r.CalibrationSuggestion;
-        if (r.DriftTimeSeconds < 2) return;
+        var suggestion =
+            result.CalibrationSuggestion;
 
-        if (r.OscillationEvents >= 4)
+        if (
+            result.DriftTimeSeconds <
+            MinimumDriftEvidenceSeconds)
         {
-            q.DampingDelta += 2;
-            q.SpeedDampingDelta += 2;
-            q.WheelSpeedDelta -= 5;
-            q.Reasons.Add("Oscillation clusters: add wheelbase damping/control and reduce wheel-speed target slightly.");
-        }
-        else if (r.OscillationEvents == 0 && r.AverageSteeringRateDegPerSec < 80 && r.AverageDriftAngleDeg > 18)
-        {
-            q.WheelSpeedDelta += 4;
-            q.DampingDelta -= 1;
-            q.Reasons.Add("Slow steering movement at sustained angle: allow slightly faster self-steer.");
+            return;
         }
 
-        if (r.PeakSteeringRateDegPerSec > 1000)
+        if (result.OscillationEvents >= 4)
         {
-            q.WheelSpeedDelta -= 3;
-            q.DampingDelta += 1;
-            q.Reasons.Add("Very high peak steering rate: soften the return peak.");
+            suggestion.DampingDelta +=
+                2;
+
+            suggestion.SpeedDampingDelta +=
+                2;
+
+            suggestion.WheelSpeedDelta -=
+                5;
+
+            suggestion.Reasons.Add(
+                "Oscillation clusters: add wheelbase damping/control and reduce wheel-speed target slightly.");
+        }
+        else if (
+            result.OscillationEvents == 0 &&
+            result.AverageSteeringRateDegPerSec <
+            80 &&
+            result.AverageDriftAngleDeg >
+            18)
+        {
+            suggestion.WheelSpeedDelta +=
+                4;
+
+            suggestion.DampingDelta -=
+                1;
+
+            suggestion.Reasons.Add(
+                "Slow steering movement at sustained angle: allow slightly faster self-steer.");
         }
 
-        if (r.SpinEvents >= 3)
+        if (
+            result.PeakSteeringRateDegPerSec >
+            1000)
         {
-            q.SpeedDampingDelta += 2;
-            q.FrictionDelta += 1;
-            q.Reasons.Add("Repeated extreme-angle events: add a small amount of stability.");
+            suggestion.WheelSpeedDelta -=
+                3;
+
+            suggestion.DampingDelta +=
+                1;
+
+            suggestion.Reasons.Add(
+                "Very high peak steering rate: soften the return peak.");
         }
 
-        if (r.FfbClippingPctWhileDrifting >= 8)
+        if (result.SpinEvents >= 3)
         {
-            q.AcGainDelta -= 3;
-            q.Reasons.Add("Sustained FFB saturation: reduce AC gain slightly to recover force detail/headroom.");
-        }
-        else if (r.FfbClippingPctWhileDrifting >= 4)
-        {
-            q.AcGainDelta -= 1;
-            q.Reasons.Add("Moderate FFB saturation: make a small AC gain reduction and compare another session.");
+            suggestion.SpeedDampingDelta +=
+                2;
+
+            suggestion.FrictionDelta +=
+                1;
+
+            suggestion.Reasons.Add(
+                "Repeated extreme-angle events: add a small amount of stability.");
         }
 
-        q.WheelSpeedDelta = Math.Clamp(q.WheelSpeedDelta, -10, 10);
-        q.DampingDelta = Math.Clamp(q.DampingDelta, -4, 5);
-        q.FrictionDelta = Math.Clamp(q.FrictionDelta, -3, 3);
-        q.SpeedDampingDelta = Math.Clamp(q.SpeedDampingDelta, -3, 5);
-        q.AcGainDelta = Math.Clamp(q.AcGainDelta, -5, 2);
+        if (
+            result.FfbClippingPctWhileDrifting >=
+            8)
+        {
+            suggestion.AcGainDelta -=
+                3;
+
+            suggestion.Reasons.Add(
+                "Sustained FFB saturation: reduce AC gain slightly to recover force detail/headroom.");
+        }
+        else if (
+            result.FfbClippingPctWhileDrifting >=
+            4)
+        {
+            suggestion.AcGainDelta -=
+                1;
+
+            suggestion.Reasons.Add(
+                "Moderate FFB saturation: make a small AC gain reduction and compare another session.");
+        }
+
+        suggestion.WheelSpeedDelta =
+            Math.Clamp(
+                suggestion.WheelSpeedDelta,
+                -10,
+                10);
+
+        suggestion.DampingDelta =
+            Math.Clamp(
+                suggestion.DampingDelta,
+                -4,
+                5);
+
+        suggestion.FrictionDelta =
+            Math.Clamp(
+                suggestion.FrictionDelta,
+                -3,
+                3);
+
+        suggestion.SpeedDampingDelta =
+            Math.Clamp(
+                suggestion.SpeedDampingDelta,
+                -3,
+                5);
+
+        suggestion.AcGainDelta =
+            Math.Clamp(
+                suggestion.AcGainDelta,
+                -5,
+                2);
+    }
+
+    private static bool IsContinuousInterval(
+        double deltaSeconds)
+    {
+        return
+            double.IsFinite(deltaSeconds) &&
+            deltaSeconds > 0 &&
+            deltaSeconds <
+            MaximumContinuousSampleGapSeconds;
+    }
+
+    private static double Average(
+        IEnumerable<TelemetrySample> samples,
+        Func<TelemetrySample, double> selector)
+    {
+        double total =
+            0;
+
+        var count =
+            0;
+
+        foreach (var sample in samples)
+        {
+            var value =
+                selector(
+                    sample);
+
+            if (!double.IsFinite(value))
+            {
+                continue;
+            }
+
+            total +=
+                value;
+
+            count++;
+        }
+
+        return count > 0
+            ? total / count
+            : 0;
+    }
+
+    private static double Maximum(
+        IEnumerable<TelemetrySample> samples,
+        Func<TelemetrySample, double> selector)
+    {
+        var maximum =
+            0.0;
+
+        foreach (var sample in samples)
+        {
+            var value =
+                selector(
+                    sample);
+
+            if (!double.IsFinite(value))
+            {
+                continue;
+            }
+
+            if (value > maximum)
+            {
+                maximum =
+                    value;
+            }
+        }
+
+        return maximum;
+    }
+
+    private static double FiniteOrZero(
+        double value)
+    {
+        return double.IsFinite(value)
+            ? value
+            : 0;
     }
 }

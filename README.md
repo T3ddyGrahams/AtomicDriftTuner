@@ -494,6 +494,18 @@ Atomic does **not** automatically upload the support package.
 
 ---
 
+🗺️ Roadmap
+
+ADT is actively evolving during the public beta. Current development priorities include improving tuning intelligence, expanding hardware and car validation, refining the tuning workflow, and making ADT easier to use from setup through final tune.
+
+Future plans include deeper telemetry analysis, automatic Assetto Corsa setup application, a modernized UI, SimHub touchscreen controls, tune sharing, and more.
+
+➡️ View the full ADT Development Roadmap
+
+Have an idea that isn’t on the roadmap? Feature requests and feedback are welcome through GitHub and the ADT Discord community.
+
+- - -
+
 # Requirements
 
 ## For normal beta users

@@ -12,7 +12,11 @@ publish/
 release/
 *.msi
 
-# Local Atomic/test data
+# Compiled binaries should be distributed through GitHub Releases, not source
+*.exe
+*.dll
+
+# Local ADT/test data
 *.log
 AtomicSupport_*.zip
 TelemetrySessions/
@@ -20,16 +24,32 @@ settings.json
 calibrations.json
 car-behavior-targets.json
 
+# Node / JavaScript runtime
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+secrets.json
+credentials.json
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Local runtime/state files
+*.pid
+*.sqlite
+*.sqlite3
+shares.json
+
 # OS/editor
 Thumbs.db
 .DS_Store
 .idea/
 .vscode/
-# Compiled binaries should be distributed through GitHub Releases, not source
-*.exe
-*.dll
-# Local environment / secrets
-.env
-.env.*
-secrets.json
-credentials.json

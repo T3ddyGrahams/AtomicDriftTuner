@@ -294,21 +294,22 @@ public sealed class AssettoCorsaTelemetryReader : IDisposable
             return 0;
         }
 
-        // Local velocity is the correct basis for vehicle slip angle:
+        // ADT derives a drift-oriented body slip angle from local velocity:
         // X = lateral velocity
         // Z = longitudinal velocity.
         //
-        // Preserve the sign of longitudinal velocity so reversing does not
-        // accidentally look identical to forward travel.
+        // Do not feed signed reverse/rollback longitudinal velocity directly
+        // into Atan2. A negative Z value can otherwise wrap an ordinary
+        // reverse movement toward +/-180 degrees and be mistaken for an
+        // extreme drift/spin event.
+        //
+        // Folding the longitudinal direction keeps the derived ADT slip
+        // metric in the useful -90..+90 degree range while preserving the
+        // lateral sign used to distinguish left/right slip.
         var denominator =
-            Math.Abs(longitudinalVelocity) <
-            MinimumSlipLongitudinalSpeed
-                ? Math.CopySign(
-                    MinimumSlipLongitudinalSpeed,
-                    longitudinalVelocity == 0
-                        ? 1
-                        : longitudinalVelocity)
-                : longitudinalVelocity;
+            Math.Max(
+                Math.Abs(longitudinalVelocity),
+                MinimumSlipLongitudinalSpeed);
 
         return ToFinite(
             Math.Atan2(

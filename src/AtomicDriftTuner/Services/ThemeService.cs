@@ -166,22 +166,26 @@ public static class ThemeService
             ParseThemeColor(
                 background);
 
-        // WCAG contrast is defined for displayed colors. If the foreground is
-        // translucent, composite it over the supplied background first.
-        var effectiveForeground =
-            Composite(
-                foregroundColor,
-                backgroundColor);
-
-        // There is no lower layer supplied for a translucent background.
-        // Treat it as composited over opaque black so the calculation remains
-        // deterministic rather than silently discarding alpha.
+        // WCAG contrast is defined for the colors that are actually displayed.
+        //
+        // If the supplied background is translucent, first resolve it against
+        // a deterministic opaque lower layer. Then composite the foreground
+        // over that effective background. Compositing the foreground over the
+        // original translucent background would produce a different partially
+        // transparent color than the one ultimately displayed on screen.
         var effectiveBackground =
             backgroundColor.A == 255
                 ? backgroundColor
                 : Composite(
                     backgroundColor,
                     Colors.Black);
+
+        var effectiveForeground =
+            foregroundColor.A == 255
+                ? foregroundColor
+                : Composite(
+                    foregroundColor,
+                    effectiveBackground);
 
         var foregroundLuminance =
             RelativeLuminance(

@@ -60,7 +60,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "SimHub bridge build failed with exit code $LASTEXITCODE."
 }
 
-$bridgeDll = Join-Path $repo "bridge\AtomicDriftTuner.SimHubBridge\bin\Release\AtomicDriftTuner.SimHubBridge.dll"
+$bridgeDll = Join-Path `
+    $repo `
+    "bridge\AtomicDriftTuner.SimHubBridge\bin\Release\AtomicDriftTuner.SimHubBridge.dll"
 
 if (-not (Test-Path $bridgeDll)) {
     throw "Bridge build completed without producing '$bridgeDll'."
@@ -123,8 +125,29 @@ if (
 ) {
     Write-Host "`n[5/5] Building installer..." -ForegroundColor Cyan
 
+    if ($Version -match '^(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z]+(?:\.(\d+))?)?$') {
+        $major = [int]$Matches[1]
+        $minor = [int]$Matches[2]
+        $patch = [int]$Matches[3]
+
+        if ($Matches[4]) {
+            $revision = [int]$Matches[4]
+        }
+        else {
+            $revision = 0
+        }
+
+        $versionInfoVersion = "$major.$minor.$patch.$revision"
+    }
+    else {
+        throw "Version '$Version' is not in a supported format such as '0.8.2-beta.1' or '0.8.2'."
+    }
+
+    Write-Host "Windows installer version: $versionInfoVersion"
+
     & $InnoSetupPath `
         "/DMyAppVersion=$Version" `
+        "/DMyVersionInfoVersion=$versionInfoVersion" `
         "/DRepoRoot=$repo" `
         (Join-Path $PSScriptRoot "AtomicDriftTuner.iss")
 
@@ -134,13 +157,11 @@ if (
 
     $installer = Join-Path $output "AtomicDriftTuner-$Version-setup.exe"
 
-    if (Test-Path $installer) {
-        Write-Host "Installer package: $installer" -ForegroundColor Green
+    if (-not (Test-Path $installer)) {
+        throw "Installer build completed without producing '$installer'."
     }
-    else {
-        Write-Host "Installer build completed, but the expected output was not found at:" -ForegroundColor Yellow
-        Write-Host $installer -ForegroundColor Yellow
-    }
+
+    Write-Host "Installer package: $installer" -ForegroundColor Green
 }
 else {
     Write-Host "`n[5/5] Inno Setup not found; installer skipped." -ForegroundColor Yellow

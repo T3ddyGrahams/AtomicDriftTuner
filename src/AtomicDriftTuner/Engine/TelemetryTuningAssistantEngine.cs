@@ -4,112 +4,211 @@ namespace AtomicDriftTuner.Engine;
 
 public sealed class TelemetryTuningAssistantEngine
 {
+    private const double MinimumGeneralDriftSeconds =
+        5.0;
+
+    private const double MinimumAngleStabilityDriftSeconds =
+        8.0;
+
+    private const double StrongSelfSteerEvidenceSeconds =
+        20.0;
+
+    private const double StrongFfbEvidenceSeconds =
+        15.0;
+
+    private const double ExtremeSteeringRateDegPerSec =
+        1000.0;
+
+    private const double HighSteeringRateDegPerSec =
+        900.0;
+
     public TuningAssistantReport Build(
         TuneInput input,
         CarBehaviorTarget behavior,
         SavedTelemetrySession selected,
         SavedTelemetrySession? previous = null)
     {
-        behavior.Normalize();
+        ArgumentNullException.ThrowIfNull(
+            input);
 
-        var analysis = selected.Analysis;
-        var report = new TuningAssistantReport
+        ArgumentNullException.ThrowIfNull(
+            behavior);
+
+        ArgumentNullException.ThrowIfNull(
+            selected);
+
+        if (selected.Analysis is null)
         {
-            OverallConfidence = SessionConfidence(analysis),
-            ConfidenceReason = ConfidenceReason(analysis),
-            ProposedCalibration = CloneSuggestion(analysis.CalibrationSuggestion),
-            SuggestedBehaviorTarget = CloneBehavior(behavior)
-        };
+            throw new InvalidDataException(
+                "ADT cannot build a tuning-assistant report because the selected telemetry session has no analysis.");
+        }
 
-        BuildTransitionAssessment(report, behavior, analysis);
-        BuildSelfSteerAssessment(report, behavior, analysis);
-        BuildAngleStabilityAssessment(report, behavior, analysis);
-        BuildOscillationAssessment(report, behavior, analysis);
-        BuildFfbAssessment(report, analysis);
+        // Never normalize or otherwise mutate the caller-owned Desired
+        // Behavior profile merely because a report was requested.
+        var desiredBehavior =
+            CloneBehavior(
+                behavior);
+
+        desiredBehavior.Normalize();
+
+        var analysis =
+            selected.Analysis;
+
+        var report =
+            new TuningAssistantReport
+            {
+                OverallConfidence =
+                    SessionConfidence(
+                        analysis),
+
+                ConfidenceReason =
+                    ConfidenceReason(
+                        analysis),
+
+                ProposedCalibration =
+                    CloneSuggestion(
+                        analysis.CalibrationSuggestion),
+
+                SuggestedBehaviorTarget =
+                    CloneBehavior(
+                        desiredBehavior)
+            };
+
+        BuildTransitionAssessment(
+            report,
+            desiredBehavior,
+            analysis);
+
+        BuildSelfSteerAssessment(
+            report,
+            desiredBehavior,
+            analysis);
+
+        BuildAngleStabilityAssessment(
+            report,
+            desiredBehavior,
+            analysis);
+
+        BuildOscillationAssessment(
+            report,
+            analysis);
+
+        BuildFfbAssessment(
+            report,
+            analysis);
 
         AddTargetOnlyAssessment(
             report,
             "Front-end bite",
             BehaviorLabel(
-                behavior.FrontEndBite,
+                desiredBehavior.FrontEndBite,
                 "calmer",
                 "neutral",
                 "more aggressive"),
-            "Telemetry v0.7.0 does not yet isolate front tire response from driver steering input strongly enough to auto-correct this axis.");
+            "Current telemetry does not yet isolate front-tire response from driver steering input strongly enough for ADT to auto-correct this axis.");
 
         AddTargetOnlyAssessment(
             report,
             "Rear grip",
             BehaviorLabel(
-                behavior.RearGrip,
+                desiredBehavior.RearGrip,
                 "looser",
                 "neutral",
                 "more planted"),
-            "Rear wheel-slip data is recorded, but absolute slip varies too much by car/tyre model to treat it as a reliable standalone grip target yet.");
+            "Rear wheel-slip data is recorded, but absolute slip varies substantially by car and tyre model. ADT does not yet treat it as a reliable standalone grip target.");
 
         AddTargetOnlyAssessment(
             report,
             "Throttle steering",
             BehaviorLabel(
-                behavior.ThrottleSteering,
+                desiredBehavior.ThrottleSteering,
                 "less rotation",
                 "neutral",
                 "more rotation"),
-            "Throttle-to-yaw causality is not isolated strongly enough in this telemetry revision for automatic setup changes.");
+            "Throttle-to-yaw causality is not yet isolated strongly enough for ADT to make automatic setup corrections from this axis.");
 
         AddTargetOnlyAssessment(
             report,
             "Initiation",
             BehaviorLabel(
-                behavior.InitiationSharpness,
+                desiredBehavior.InitiationSharpness,
                 "progressive",
                 "neutral",
                 "sharper"),
-            "Drift entries are counted, but entry rise-time/driver technique separation is not yet strong enough for automatic initiation corrections.");
+            "Drift entries are detected, but entry rise-time and driver-technique effects are not yet separated strongly enough for automatic initiation corrections.");
 
-        ClampSuggestion(report.ProposedCalibration);
+        // Evidence indicating instability must always win over a target that
+        // asks for more wheel response.
+        ApplyCalibrationSafetyGuards(
+            report.ProposedCalibration,
+            analysis);
 
-        AddCalibrationRecommendations(report);
-        AddCarSetupRecommendation(report, behavior);
-        AddPreserveRecommendation(report);
+        ClampSuggestion(
+            report.ProposedCalibration);
 
-        if (previous is not null)
-            BuildComparison(report, previous.Analysis, analysis);
+        DeduplicateReasons(
+            report.ProposedCalibration);
 
-        int needsWork =
+        AddCalibrationRecommendations(
+            report);
+
+        AddCarSetupRecommendation(
+            report,
+            desiredBehavior);
+
+        AddPreserveRecommendation(
+            report);
+
+        if (
+            previous is not null &&
+            previous.Analysis is not null)
+        {
+            BuildComparison(
+                report,
+                previous.Analysis,
+                analysis);
+        }
+
+        var needsWork =
             report.Assessments.Count(
-                x => x.Status == "NEEDS WORK");
+                assessment =>
+                    assessment.Status ==
+                    "NEEDS WORK");
 
-        int onTarget =
+        var onTarget =
             report.Assessments.Count(
-                x => x.Status == "ON TARGET");
+                assessment =>
+                    assessment.Status ==
+                    "ON TARGET");
 
-        if (analysis.DriftTimeSeconds < 5)
+        if (
+            analysis.DriftTimeSeconds <
+            MinimumGeneralDriftSeconds)
         {
             report.OverallAssessment =
-                "The session is too short for strong tuning conclusions. Atomic will preserve the current tune and recommends recording a longer drift run before applying changes.";
+                "The session is too short for strong tuning conclusions. ADT will preserve the current tune and recommends recording a longer drift run before applying telemetry-based changes.";
         }
         else if (needsWork == 0)
         {
             report.OverallAssessment =
-                $"The measured areas are controlled for the current target. {onTarget} telemetry check(s) are on target; preserve those settings and make only small changes to unmeasured behavior axes.";
+                $"The measured areas are controlled for the current target. {onTarget} telemetry check(s) are on target; preserve those settings and make only small changes to behavior axes that are not yet measured reliably.";
         }
         else
         {
             report.OverallAssessment =
-                $"Atomic found {needsWork} measured area(s) that do not currently match the desired behavior closely. Recommendations are deliberately small and preserve areas that already look controlled.";
+                $"ADT found {needsWork} measured area(s) that do not closely match the desired behavior. Recommendations are deliberately small and preserve areas that already look controlled.";
         }
 
         report.HasSuggestedBehaviorChange =
             !SameBehavior(
-                behavior,
+                desiredBehavior,
                 report.SuggestedBehaviorTarget);
 
         if (report.HasSuggestedBehaviorChange)
         {
             report.SuggestedBehaviorSummary =
                 BuildBehaviorChangeSummary(
-                    behavior,
+                    desiredBehavior,
                     report.SuggestedBehaviorTarget);
         }
         else
@@ -124,16 +223,16 @@ public sealed class TelemetryTuningAssistantEngine
     private static void BuildTransitionAssessment(
         TuningAssistantReport report,
         CarBehaviorTarget behavior,
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        string desired =
+        var desired =
             BehaviorLabel(
                 behavior.TransitionSpeed,
                 "smooth / slower",
                 "balanced",
                 "quick");
 
-        if (a.TransitionCount < 2)
+        if (analysis.TransitionCount < 2)
         {
             AddAssessment(
                 report,
@@ -142,38 +241,36 @@ public sealed class TelemetryTuningAssistantEngine
                 "Not enough complete transitions",
                 AssistantFindingStatus.InsufficientData,
                 AssistantConfidence.Low,
-                $"Only {a.TransitionCount} complete transition(s) were detected. Two or more are required before Atomic biases the car setup from transition telemetry.");
+                $"Only {analysis.TransitionCount} complete transition(s) were detected. Two or more are required before ADT biases the car setup from transition telemetry.");
+
             return;
         }
 
-        int observedLevel =
+        var observedLevel =
             TransitionLevel(
-                a.AverageTransitionSeconds);
+                analysis.AverageTransitionSeconds);
 
         var confidence =
-            a.TransitionCount >= 6
+            analysis.TransitionCount >= 6
                 ? AssistantConfidence.High
                 : AssistantConfidence.Medium;
 
-        int difference =
+        var difference =
             behavior.TransitionSpeed -
             observedLevel;
 
         var status =
-            Math.Abs(difference) == 0
-                ? AssistantFindingStatus.OnTarget
-                : Math.Abs(difference) == 1
-                    ? AssistantFindingStatus.NearTarget
-                    : AssistantFindingStatus.NeedsWork;
+            DifferenceStatus(
+                difference);
 
         AddAssessment(
             report,
             "Transition speed",
             desired,
-            $"{TransitionObservedLabel(observedLevel)} ({a.AverageTransitionSeconds:0.00}s crossover)",
+            $"{TransitionObservedLabel(observedLevel)} ({analysis.AverageTransitionSeconds:0.00}s crossover)",
             status,
             confidence,
-            $"{a.TransitionCount} complete direction changes were detected. Lower crossover time is treated as quicker transition response.");
+            $"{analysis.TransitionCount} complete direction changes were detected. Lower low-angle crossover time is treated as quicker transition response.");
 
         if (difference >= 1)
         {
@@ -186,11 +283,24 @@ public sealed class TelemetryTuningAssistantEngine
             report.Recommendations.Add(
                 new AssistantRecommendation
                 {
-                    Domain = "AC CAR SETUP",
-                    Priority = difference >= 2 ? "HIGH" : "MEDIUM",
-                    Change = "Bias the AC setup one step toward quicker transitions.",
-                    Why = $"Observed transition crossover ({a.AverageTransitionSeconds:0.00}s) is slower than the saved Desired Behavior target. Atomic will hand this to the existing behavior-blending/range-safe setup tuner rather than writing raw setup values directly.",
-                    Confidence = confidence.ToString().ToUpperInvariant()
+                    Domain =
+                        "AC CAR SETUP",
+
+                    Priority =
+                        difference >= 2
+                            ? "HIGH"
+                            : "MEDIUM",
+
+                    Change =
+                        "Bias the AC setup one step toward quicker transitions.",
+
+                    Why =
+                        $"Observed transition crossover ({analysis.AverageTransitionSeconds:0.00}s) is slower than the saved Desired Behavior target. ADT will hand this to the behavior-blending and range-safe setup tuner rather than writing raw setup values directly.",
+
+                    Confidence =
+                        confidence
+                            .ToString()
+                            .ToUpperInvariant()
                 });
         }
         else if (difference <= -2)
@@ -204,33 +314,48 @@ public sealed class TelemetryTuningAssistantEngine
             report.Recommendations.Add(
                 new AssistantRecommendation
                 {
-                    Domain = "AC CAR SETUP",
-                    Priority = "MEDIUM",
-                    Change = "Bias the AC setup one step toward smoother transitions.",
-                    Why = "The car is transitioning materially quicker than the saved Desired Behavior target.",
-                    Confidence = confidence.ToString().ToUpperInvariant()
+                    Domain =
+                        "AC CAR SETUP",
+
+                    Priority =
+                        "MEDIUM",
+
+                    Change =
+                        "Bias the AC setup one step toward smoother transitions.",
+
+                    Why =
+                        "The car is transitioning materially quicker than the saved Desired Behavior target.",
+
+                    Confidence =
+                        confidence
+                            .ToString()
+                            .ToUpperInvariant()
                 });
         }
-        else if (status == AssistantFindingStatus.OnTarget)
+        else if (
+            status ==
+            AssistantFindingStatus.OnTarget)
         {
             report.PreserveNotes.Add(
-                "Transition response is on target; preserve transition-oriented rear platform settings.");
+                "Transition response is on target; preserve transition-oriented rear-platform settings.");
         }
     }
 
     private static void BuildSelfSteerAssessment(
         TuningAssistantReport report,
         CarBehaviorTarget behavior,
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        string desired =
+        var desired =
             BehaviorLabel(
                 behavior.SelfSteerSpeed,
                 "slower",
                 "balanced",
                 "faster");
 
-        if (a.DriftTimeSeconds < 5)
+        if (
+            analysis.DriftTimeSeconds <
+            MinimumGeneralDriftSeconds)
         {
             AddAssessment(
                 report,
@@ -239,83 +364,138 @@ public sealed class TelemetryTuningAssistantEngine
                 "Not enough sustained drift",
                 AssistantFindingStatus.InsufficientData,
                 AssistantConfidence.Low,
-                "At least several seconds of sustained drift are needed before average steering-return speed is useful.");
+                "At least several seconds of sustained drift are needed before the steering-return heuristic is useful.");
+
             return;
         }
 
-        int observedLevel =
+        var observedLevel =
             SelfSteerLevel(
-                a.AverageSteeringRateDegPerSec);
+                analysis.AverageSteeringRateDegPerSec);
 
-        int difference =
+        var difference =
             behavior.SelfSteerSpeed -
             observedLevel;
 
+        // Steering rate is influenced by the driver's hands and corrections,
+        // so this metric deliberately remains capped at MEDIUM confidence.
         var confidence =
-            a.DriftTimeSeconds >= 20
+            analysis.DriftTimeSeconds >=
+            StrongSelfSteerEvidenceSeconds
                 ? AssistantConfidence.Medium
                 : AssistantConfidence.Low;
 
         var status =
-            Math.Abs(difference) == 0
-                ? AssistantFindingStatus.OnTarget
-                : Math.Abs(difference) == 1
-                    ? AssistantFindingStatus.NearTarget
-                    : AssistantFindingStatus.NeedsWork;
+            DifferenceStatus(
+                difference);
 
         AddAssessment(
             report,
             "Self-steer speed",
             desired,
-            $"{SelfSteerObservedLabel(observedLevel)} ({a.AverageSteeringRateDegPerSec:0}°/s average)",
+            $"{SelfSteerObservedLabel(observedLevel)} ({analysis.AverageSteeringRateDegPerSec:0}°/s average)",
             status,
             confidence,
-            $"Average and peak steering rate ({a.PeakSteeringRateDegPerSec:0}°/s) are used as a heuristic. Driver corrections can influence this metric, so confidence is intentionally capped.");
+            $"Average and peak steering rate ({analysis.PeakSteeringRateDegPerSec:0}°/s) are used as a heuristic. Driver corrections can influence this metric, so confidence is intentionally capped.");
 
-        if (difference >= 1 && a.OscillationEvents <= 1)
+        var unsafeFastSteering =
+            analysis.OscillationEvents >= 4 ||
+            analysis.PeakSteeringRateDegPerSec >
+            ExtremeSteeringRateDegPerSec;
+
+        if (unsafeFastSteering)
         {
-            if (report.ProposedCalibration.WheelSpeedDelta <= 0)
+            // Safety evidence wins over a Desired Behavior target asking for
+            // more self-steer speed.
+            if (
+                report.ProposedCalibration.WheelSpeedDelta >
+                -3)
+            {
+                report.ProposedCalibration.WheelSpeedDelta =
+                    -3;
+            }
+
+            if (
+                report.ProposedCalibration.DampingDelta <
+                1)
+            {
+                report.ProposedCalibration.DampingDelta =
+                    1;
+            }
+
+            report.ProposedCalibration.Reasons.Add(
+                "Peak steering speed or oscillation evidence is already high, so ADT will not recommend additional wheel speed even if the saved self-steer target asks for faster response.");
+        }
+        else if (difference >= 1)
+        {
+            if (
+                report.ProposedCalibration.WheelSpeedDelta <=
+                0)
+            {
                 report.ProposedCalibration.WheelSpeedDelta +=
-                    difference >= 2 ? 3 : 2;
+                    difference >= 2
+                        ? 3
+                        : 2;
+            }
 
-            if (report.ProposedCalibration.DampingDelta >= 0)
-                report.ProposedCalibration.DampingDelta -= 1;
+            if (
+                report.ProposedCalibration.DampingDelta >=
+                0)
+            {
+                report.ProposedCalibration.DampingDelta -=
+                    1;
+            }
 
             report.ProposedCalibration.Reasons.Add(
-                "Desired self-steer is faster than the measured steering-return heuristic and oscillation is low: allow a small wheel-speed increase with slightly less damping.");
+                "Desired self-steer is faster than the measured steering-return heuristic and no strong instability evidence is present: allow a small wheel-speed increase with slightly less damping.");
         }
-        else if (difference <= -1 || a.PeakSteeringRateDegPerSec > 1000)
+        else if (difference <= -1)
         {
-            if (report.ProposedCalibration.WheelSpeedDelta >= 0)
+            if (
+                report.ProposedCalibration.WheelSpeedDelta >=
+                0)
+            {
                 report.ProposedCalibration.WheelSpeedDelta -=
-                    difference <= -2 ? 3 : 2;
+                    difference <= -2
+                        ? 3
+                        : 2;
+            }
 
-            if (report.ProposedCalibration.DampingDelta <= 0)
-                report.ProposedCalibration.DampingDelta += 1;
+            if (
+                report.ProposedCalibration.DampingDelta <=
+                0)
+            {
+                report.ProposedCalibration.DampingDelta +=
+                    1;
+            }
 
             report.ProposedCalibration.Reasons.Add(
-                "Measured steering return is faster than the desired target or has a very high peak: add a small amount of control.");
+                "Measured steering return is faster than the saved self-steer target: add a small amount of control.");
         }
-        else if (status == AssistantFindingStatus.OnTarget)
+        else if (
+            status ==
+            AssistantFindingStatus.OnTarget)
         {
             report.PreserveNotes.Add(
-                "Self-steer rate is near the saved target; preserve wheel-speed/damping balance unless another problem requires a change.");
+                "Self-steer rate is near the saved target; preserve wheel-speed and damping balance unless stronger stability evidence requires a change.");
         }
     }
 
     private static void BuildAngleStabilityAssessment(
         TuningAssistantReport report,
         CarBehaviorTarget behavior,
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        string desired =
+        var desired =
             BehaviorLabel(
                 behavior.AngleStability,
                 "lively",
                 "balanced",
                 "stable");
 
-        if (a.DriftTimeSeconds < 8)
+        if (
+            analysis.DriftTimeSeconds <
+            MinimumAngleStabilityDriftSeconds)
         {
             AddAssessment(
                 report,
@@ -325,18 +505,16 @@ public sealed class TelemetryTuningAssistantEngine
                 AssistantFindingStatus.InsufficientData,
                 AssistantConfidence.Low,
                 "Extreme-angle event rate becomes too noisy in very short sessions.");
+
             return;
         }
 
-        double driftMinutes =
-            Math.Max(
-                a.DriftTimeSeconds / 60.0,
-                0.15);
+        var extremePerMinute =
+            EventRate(
+                analysis.SpinEvents,
+                analysis.DriftTimeSeconds);
 
-        double extremePerMinute =
-            a.SpinEvents / driftMinutes;
-
-        int observedLevel =
+        var observedLevel =
             extremePerMinute switch
             {
                 <= 0.30 => 2,
@@ -346,25 +524,22 @@ public sealed class TelemetryTuningAssistantEngine
                 _ => -2
             };
 
-        int difference =
+        var difference =
             behavior.AngleStability -
             observedLevel;
 
         var status =
-            Math.Abs(difference) == 0
-                ? AssistantFindingStatus.OnTarget
-                : Math.Abs(difference) == 1
-                    ? AssistantFindingStatus.NearTarget
-                    : AssistantFindingStatus.NeedsWork;
+            DifferenceStatus(
+                difference);
 
         AddAssessment(
             report,
             "Angle stability",
             desired,
-            $"{AngleObservedLabel(observedLevel)} ({extremePerMinute:0.0} extreme-angle events/min)",
+            $"{AngleObservedLabel(observedLevel)} ({extremePerMinute:0.0} sustained extreme-angle events/min)",
             status,
             AssistantConfidence.Medium,
-            $"Atomic saw {a.SpinEvents} event(s) above 72° body slip during {a.DriftTimeSeconds:0}s of detected drift. These can include intentional extreme entries, so confidence is capped at MEDIUM.");
+            $"ADT saw {analysis.SpinEvents} sustained event(s) above 72° body slip during {analysis.DriftTimeSeconds:0}s of detected drift. These can include intentional extreme entries, so they are not treated as confirmed spins and confidence is capped at MEDIUM.");
 
         if (difference >= 1)
         {
@@ -374,7 +549,8 @@ public sealed class TelemetryTuningAssistantEngine
                     -2,
                     2);
 
-            if (report.SuggestedBehaviorTarget.RearGrip < 2 &&
+            if (
+                report.SuggestedBehaviorTarget.RearGrip < 2 &&
                 extremePerMinute >= 1.5)
             {
                 report.SuggestedBehaviorTarget.RearGrip++;
@@ -383,33 +559,52 @@ public sealed class TelemetryTuningAssistantEngine
             report.Recommendations.Add(
                 new AssistantRecommendation
                 {
-                    Domain = "AC CAR SETUP",
-                    Priority = difference >= 2 ? "HIGH" : "MEDIUM",
-                    Change = "Bias the setup one step toward more high-angle stability.",
-                    Why = "Extreme-angle event rate is higher than the saved stability target. The temporary behavior guidance may also add one rear-grip step when the event rate is high.",
-                    Confidence = "MEDIUM"
+                    Domain =
+                        "AC CAR SETUP",
+
+                    Priority =
+                        difference >= 2
+                            ? "HIGH"
+                            : "MEDIUM",
+
+                    Change =
+                        "Bias the setup one step toward more high-angle stability.",
+
+                    Why =
+                        "The sustained extreme-angle event rate is higher than the saved stability target. Temporary behavior guidance may also add one rear-grip step when the event rate is high.",
+
+                    Confidence =
+                        "MEDIUM"
                 });
 
-            if (a.OscillationEvents > 0 || a.PeakSteeringRateDegPerSec > 900)
+            if (
+                analysis.OscillationEvents > 0 ||
+                analysis.PeakSteeringRateDegPerSec >
+                HighSteeringRateDegPerSec)
             {
-                report.ProposedCalibration.SpeedDampingDelta += 1;
+                report.ProposedCalibration.SpeedDampingDelta +=
+                    1;
+
                 report.ProposedCalibration.Reasons.Add(
-                    "Angle stability is below target and steering has fast/oscillatory evidence: add a small high-speed damping increment.");
+                    "Angle stability is below target and steering also has fast or oscillatory evidence: add a small high-speed damping increment.");
             }
         }
-        else if (status == AssistantFindingStatus.OnTarget)
+        else if (
+            status ==
+            AssistantFindingStatus.OnTarget)
         {
             report.PreserveNotes.Add(
-                "High-angle stability evidence is on target; preserve stability-oriented car setup settings.");
+                "High-angle stability evidence is on target; preserve stability-oriented car-setup settings.");
         }
     }
 
     private static void BuildOscillationAssessment(
         TuningAssistantReport report,
-        CarBehaviorTarget behavior,
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        if (a.DriftTimeSeconds < 5)
+        if (
+            analysis.DriftTimeSeconds <
+            MinimumGeneralDriftSeconds)
         {
             AddAssessment(
                 report,
@@ -419,16 +614,14 @@ public sealed class TelemetryTuningAssistantEngine
                 AssistantFindingStatus.InsufficientData,
                 AssistantConfidence.Low,
                 "Oscillation clustering requires sustained drift steering activity.");
+
             return;
         }
 
-        double driftMinutes =
-            Math.Max(
-                a.DriftTimeSeconds / 60.0,
-                0.15);
-
-        double perMinute =
-            a.OscillationEvents / driftMinutes;
+        var perMinute =
+            EventRate(
+                analysis.OscillationEvents,
+                analysis.DriftTimeSeconds);
 
         var status =
             perMinute <= 0.5
@@ -437,43 +630,71 @@ public sealed class TelemetryTuningAssistantEngine
                     ? AssistantFindingStatus.NearTarget
                     : AssistantFindingStatus.NeedsWork;
 
+        // Fast steering reversals can still contain deliberate driver input,
+        // so do not claim HIGH confidence until ADT can better separate
+        // hands-off oscillation from manual correction.
+        var confidence =
+            analysis.DriftTimeSeconds >=
+            StrongSelfSteerEvidenceSeconds
+                ? AssistantConfidence.Medium
+                : AssistantConfidence.Low;
+
         AddAssessment(
             report,
             "Oscillation control",
             "Low / controlled",
-            $"{a.OscillationEvents} cluster(s), {perMinute:0.0}/min",
+            $"{analysis.OscillationEvents} cluster(s), {perMinute:0.0}/min",
             status,
-            a.DriftTimeSeconds >= 20
-                ? AssistantConfidence.High
-                : AssistantConfidence.Medium,
-            "Fast steering-direction reversals inside short time windows are grouped as oscillation evidence.");
+            confidence,
+            "Fast steering-direction reversals inside short time windows are grouped as oscillation evidence. Driver corrections can also contribute to this metric.");
 
-        if (status == AssistantFindingStatus.NeedsWork)
+        if (
+            status ==
+            AssistantFindingStatus.NeedsWork)
         {
-            if (report.ProposedCalibration.DampingDelta < 2)
-                report.ProposedCalibration.DampingDelta = 2;
+            if (
+                report.ProposedCalibration.DampingDelta <
+                2)
+            {
+                report.ProposedCalibration.DampingDelta =
+                    2;
+            }
 
-            if (report.ProposedCalibration.SpeedDampingDelta < 2)
-                report.ProposedCalibration.SpeedDampingDelta = 2;
+            if (
+                report.ProposedCalibration.SpeedDampingDelta <
+                2)
+            {
+                report.ProposedCalibration.SpeedDampingDelta =
+                    2;
+            }
 
-            if (report.ProposedCalibration.WheelSpeedDelta > -4)
-                report.ProposedCalibration.WheelSpeedDelta = -4;
+            if (
+                report.ProposedCalibration.WheelSpeedDelta >
+                -4)
+            {
+                report.ProposedCalibration.WheelSpeedDelta =
+                    -4;
+            }
 
             report.ProposedCalibration.Reasons.Add(
                 "Oscillation rate is high: add wheelbase control and reduce maximum wheel speed slightly before chasing faster self-steer.");
         }
-        else if (status == AssistantFindingStatus.OnTarget)
+        else if (
+            status ==
+            AssistantFindingStatus.OnTarget)
         {
             report.PreserveNotes.Add(
-                "Oscillation control is good; do not add damping solely for stability if the car already meets the target.");
+                "Oscillation evidence is controlled; do not add damping solely for stability if the car already meets the target.");
         }
     }
 
     private static void BuildFfbAssessment(
         TuningAssistantReport report,
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        if (a.DriftTimeSeconds < 5)
+        if (
+            analysis.DriftTimeSeconds <
+            MinimumGeneralDriftSeconds)
         {
             AddAssessment(
                 report,
@@ -483,72 +704,157 @@ public sealed class TelemetryTuningAssistantEngine
                 AssistantFindingStatus.InsufficientData,
                 AssistantConfidence.Low,
                 "FFB saturation is only meaningful during a representative drift load.");
+
             return;
         }
 
         var status =
-            a.FfbClippingPctWhileDrifting < 4
+            analysis.FfbClippingPctWhileDrifting < 4
                 ? AssistantFindingStatus.OnTarget
-                : a.FfbClippingPctWhileDrifting < 8
+                : analysis.FfbClippingPctWhileDrifting < 8
                     ? AssistantFindingStatus.NearTarget
                     : AssistantFindingStatus.NeedsWork;
+
+        var confidence =
+            analysis.DriftTimeSeconds >=
+            StrongFfbEvidenceSeconds
+                ? AssistantConfidence.High
+                : AssistantConfidence.Medium;
 
         AddAssessment(
             report,
             "FFB headroom",
             "Low sustained clipping",
-            $"{a.FfbClippingPctWhileDrifting:0.0}% of drift samples ≥ 98% |FFB|",
+            $"{analysis.FfbClippingPctWhileDrifting:0.0}% of drift samples ≥ 98% |FFB|",
             status,
-            a.DriftTimeSeconds >= 15
-                ? AssistantConfidence.High
-                : AssistantConfidence.Medium,
-            $"Average absolute FFB during detected drift was {a.AverageFfbAbsWhileDrifting:0.000}. This is a clipping/headroom heuristic, not a force-quality score.");
+            confidence,
+            $"Average absolute FFB during detected drift was {analysis.AverageFfbAbsWhileDrifting:0.000}. This is a clipping/headroom heuristic, not a force-quality score.");
 
-        if (status == AssistantFindingStatus.OnTarget)
+        if (
+            status ==
+            AssistantFindingStatus.OnTarget)
         {
             report.PreserveNotes.Add(
-                "FFB headroom looks healthy; preserve AC gain unless the driver reports the wheel is too weak/strong.");
+                "FFB headroom looks healthy; preserve AC gain unless the driver reports that overall force is too weak or too strong.");
+        }
+    }
+
+    private static void ApplyCalibrationSafetyGuards(
+        TelemetryCalibrationSuggestion suggestion,
+        TelemetryAnalysis analysis)
+    {
+        if (analysis.OscillationEvents >= 4)
+        {
+            suggestion.WheelSpeedDelta =
+                Math.Min(
+                    suggestion.WheelSpeedDelta,
+                    -4);
+
+            suggestion.DampingDelta =
+                Math.Max(
+                    suggestion.DampingDelta,
+                    2);
+
+            suggestion.SpeedDampingDelta =
+                Math.Max(
+                    suggestion.SpeedDampingDelta,
+                    2);
+        }
+
+        if (
+            analysis.PeakSteeringRateDegPerSec >
+            ExtremeSteeringRateDegPerSec)
+        {
+            suggestion.WheelSpeedDelta =
+                Math.Min(
+                    suggestion.WheelSpeedDelta,
+                    -3);
+
+            suggestion.DampingDelta =
+                Math.Max(
+                    suggestion.DampingDelta,
+                    1);
+        }
+
+        if (analysis.SpinEvents >= 3)
+        {
+            suggestion.SpeedDampingDelta =
+                Math.Max(
+                    suggestion.SpeedDampingDelta,
+                    2);
+
+            suggestion.FrictionDelta =
+                Math.Max(
+                    suggestion.FrictionDelta,
+                    1);
         }
     }
 
     private static void AddCalibrationRecommendations(
         TuningAssistantReport report)
     {
-        var q = report.ProposedCalibration;
+        var suggestion =
+            report.ProposedCalibration;
 
-        if (q.WheelSpeedDelta != 0 ||
-            q.DampingDelta != 0 ||
-            q.FrictionDelta != 0 ||
-            q.SpeedDampingDelta != 0 ||
-            q.TorqueLimitDelta != 0 ||
-            q.InterpolationDelta != 0)
+        if (
+            suggestion.WheelSpeedDelta != 0 ||
+            suggestion.DampingDelta != 0 ||
+            suggestion.FrictionDelta != 0 ||
+            suggestion.SpeedDampingDelta != 0 ||
+            suggestion.TorqueLimitDelta != 0 ||
+            suggestion.InterpolationDelta != 0)
         {
             report.Recommendations.Add(
                 new AssistantRecommendation
                 {
-                    Domain = "AZOM / CALIBRATION",
+                    Domain =
+                        "AZOM / CALIBRATION",
+
                     Priority =
-                        Math.Abs(q.WheelSpeedDelta) >= 5 ||
-                        Math.Abs(q.DampingDelta) >= 3
+                        Math.Abs(
+                            suggestion.WheelSpeedDelta) >= 5 ||
+                        Math.Abs(
+                            suggestion.DampingDelta) >= 3
                             ? "HIGH"
                             : "MEDIUM",
+
                     Change =
-                        $"Wheel speed {Signed(q.WheelSpeedDelta)}, damper {Signed(q.DampingDelta)}, friction {Signed(q.FrictionDelta)}, high-speed damping {Signed(q.SpeedDampingDelta)}, torque {Signed(q.TorqueLimitDelta)}, interpolation {Signed(q.InterpolationDelta)}.",
-                    Why = "Telemetry evidence is converted into the same bounded Atomic calibration layer already used by the main tuning engine. Applying this does not directly write the wheelbase.",
-                    Confidence = report.OverallConfidence.ToString().ToUpperInvariant()
+                        $"Wheel speed {Signed(suggestion.WheelSpeedDelta)}, damper {Signed(suggestion.DampingDelta)}, friction {Signed(suggestion.FrictionDelta)}, high-speed damping {Signed(suggestion.SpeedDampingDelta)}, torque {Signed(suggestion.TorqueLimitDelta)}, interpolation {Signed(suggestion.InterpolationDelta)}.",
+
+                    Why =
+                        "Telemetry evidence is converted into the same bounded ADT calibration layer used by the main tuning engine. Applying this recommendation does not directly write the wheelbase.",
+
+                    Confidence =
+                        report.OverallConfidence
+                            .ToString()
+                            .ToUpperInvariant()
                 });
         }
 
-        if (q.AcGainDelta != 0)
+        if (suggestion.AcGainDelta != 0)
         {
             report.Recommendations.Add(
                 new AssistantRecommendation
                 {
-                    Domain = "AC FFB",
-                    Priority = Math.Abs(q.AcGainDelta) >= 3 ? "HIGH" : "MEDIUM",
-                    Change = $"AC Gain calibration {Signed(q.AcGainDelta)}.",
-                    Why = "The telemetry FFB headroom heuristic found sustained output saturation. Atomic adjusts its generated AC gain rather than hiding clipping with unrelated wheelbase settings.",
-                    Confidence = report.OverallConfidence.ToString().ToUpperInvariant()
+                    Domain =
+                        "AC FFB",
+
+                    Priority =
+                        Math.Abs(
+                            suggestion.AcGainDelta) >= 3
+                            ? "HIGH"
+                            : "MEDIUM",
+
+                    Change =
+                        $"AC Gain calibration {Signed(suggestion.AcGainDelta)}.",
+
+                    Why =
+                        "The telemetry FFB-headroom heuristic found sustained output saturation. ADT adjusts its generated AC gain rather than hiding clipping with unrelated wheelbase settings.",
+
+                    Confidence =
+                        report.OverallConfidence
+                            .ToString()
+                            .ToUpperInvariant()
                 });
         }
     }
@@ -557,17 +863,33 @@ public sealed class TelemetryTuningAssistantEngine
         TuningAssistantReport report,
         CarBehaviorTarget original)
     {
-        if (SameBehavior(original, report.SuggestedBehaviorTarget))
+        if (
+            SameBehavior(
+                original,
+                report.SuggestedBehaviorTarget))
+        {
             return;
+        }
 
         report.Recommendations.Add(
             new AssistantRecommendation
             {
-                Domain = "AC CAR SETUP",
-                Priority = "REVIEW",
-                Change = "Open the AC Car Setup Tuner with temporary telemetry guidance.",
-                Why = "The assistant changes Desired Behavior targets only one step at a time, then lets the existing v0.6.2 behavior-blending and setup.ini range safeguards convert those goals into car-specific setup values. Nothing is saved automatically.",
-                Confidence = report.OverallConfidence.ToString().ToUpperInvariant()
+                Domain =
+                    "AC CAR SETUP",
+
+                Priority =
+                    "REVIEW",
+
+                Change =
+                    "Open the AC Car Setup Tuner with temporary telemetry guidance.",
+
+                Why =
+                    "The assistant changes temporary Desired Behavior guidance only one step at a time, then lets ADT's behavior-blending and setup-range safeguards convert those goals into car-specific values. Nothing is saved automatically.",
+
+                Confidence =
+                    report.OverallConfidence
+                        .ToString()
+                        .ToUpperInvariant()
             });
     }
 
@@ -575,16 +897,33 @@ public sealed class TelemetryTuningAssistantEngine
         TuningAssistantReport report)
     {
         if (report.PreserveNotes.Count == 0)
+        {
             return;
+        }
 
         report.Recommendations.Add(
             new AssistantRecommendation
             {
-                Domain = "PRESERVE",
-                Priority = "KEEP",
-                Change = "Keep settings associated with areas that are already on target.",
-                Why = string.Join(" ", report.PreserveNotes.Distinct()),
-                Confidence = report.OverallConfidence.ToString().ToUpperInvariant()
+                Domain =
+                    "PRESERVE",
+
+                Priority =
+                    "KEEP",
+
+                Change =
+                    "Keep settings associated with areas that are already on target.",
+
+                Why =
+                    string.Join(
+                        " ",
+                        report.PreserveNotes
+                            .Distinct(
+                                StringComparer.OrdinalIgnoreCase)),
+
+                Confidence =
+                    report.OverallConfidence
+                        .ToString()
+                        .ToUpperInvariant()
             });
     }
 
@@ -594,56 +933,69 @@ public sealed class TelemetryTuningAssistantEngine
         TelemetryAnalysis current)
     {
         report.Comparison.Add(
-            Compare(
+            CompareContext(
                 "Drift time",
                 previous.DriftTimePct,
                 current.DriftTimePct,
                 "%",
-                higherIsBetter: true,
-                "More sustained detected drift is usually useful context, but it can also reflect track/session differences."));
+                "Drift-time percentage is context, not a score. A higher value can simply reflect a different track section or driving objective."));
 
-        if (previous.TransitionCount > 0 &&
+        if (
+            previous.TransitionCount > 0 &&
             current.TransitionCount > 0)
         {
             report.Comparison.Add(
-                Compare(
+                CompareDirectional(
                     "Avg transition",
                     previous.AverageTransitionSeconds,
                     current.AverageTransitionSeconds,
                     "s",
                     higherIsBetter: false,
-                    "Lower is a quicker low-angle crossover; compare only similar driving/track sections."));
+                    "Lower is a quicker low-angle crossover. Compare only similar driving and track sections."));
+        }
+
+        if (
+            previous.DriftTimeSeconds > 0 &&
+            current.DriftTimeSeconds > 0)
+        {
+            report.Comparison.Add(
+                CompareDirectional(
+                    "Oscillation rate",
+                    EventRate(
+                        previous.OscillationEvents,
+                        previous.DriftTimeSeconds),
+                    EventRate(
+                        current.OscillationEvents,
+                        current.DriftTimeSeconds),
+                    "/min",
+                    higherIsBetter: false,
+                    "Lower fast steering-reversal clustering is generally preferable, but driver corrections can affect this metric."));
+
+            report.Comparison.Add(
+                CompareDirectional(
+                    "Extreme-angle rate",
+                    EventRate(
+                        previous.SpinEvents,
+                        previous.DriftTimeSeconds),
+                    EventRate(
+                        current.SpinEvents,
+                        current.DriftTimeSeconds),
+                    "/min",
+                    higherIsBetter: false,
+                    "Lower can indicate greater stability, but intentional extreme entries can affect this metric."));
         }
 
         report.Comparison.Add(
-            CompareRate(
-                "Oscillation rate",
-                EventRate(previous.OscillationEvents, previous.DriftTimeSeconds),
-                EventRate(current.OscillationEvents, current.DriftTimeSeconds),
-                "/min",
-                higherIsBetter: false,
-                "Lower fast steering-reversal clustering is generally better."));
-
-        report.Comparison.Add(
-            CompareRate(
-                "Extreme-angle rate",
-                EventRate(previous.SpinEvents, previous.DriftTimeSeconds),
-                EventRate(current.SpinEvents, current.DriftTimeSeconds),
-                "/min",
-                higherIsBetter: false,
-                "Lower can indicate more stability, but intentional extreme entries can affect this metric."));
-
-        report.Comparison.Add(
-            Compare(
+            CompareDirectional(
                 "FFB clipping",
                 previous.FfbClippingPctWhileDrifting,
                 current.FfbClippingPctWhileDrifting,
                 "%",
                 higherIsBetter: false,
-                "Lower sustained saturation usually preserves more FFB headroom/detail."));
+                "Lower sustained saturation usually preserves more FFB headroom and detail."));
     }
 
-    private static AssistantComparisonRow Compare(
+    private static AssistantComparisonRow CompareDirectional(
         string metric,
         double previous,
         double current,
@@ -651,70 +1003,157 @@ public sealed class TelemetryTuningAssistantEngine
         bool higherIsBetter,
         string note)
     {
-        double delta = current - previous;
-        bool improved =
-            Math.Abs(delta) < 0.0001 ||
-            (higherIsBetter
-                ? delta > 0
-                : delta < 0);
+        previous =
+            FiniteOrZero(
+                previous);
 
-        string interpretation =
-            Math.Abs(delta) < 0.01
+        current =
+            FiniteOrZero(
+                current);
+
+        var delta =
+            current -
+            previous;
+
+        var unchanged =
+            Math.Abs(delta) <
+            0.01;
+
+        var improved =
+            !unchanged &&
+            (
+                higherIsBetter
+                    ? delta > 0
+                    : delta < 0
+            );
+
+        var interpretation =
+            unchanged
                 ? "Essentially unchanged. " + note
-                : (improved
-                    ? "Moved in the generally favorable direction. "
-                    : "Moved in the generally unfavorable direction. ") + note;
+                : improved
+                    ? "Moved in the generally favorable direction. " + note
+                    : "Moved in the generally unfavorable direction. " + note;
 
         return new AssistantComparisonRow
         {
-            Metric = metric,
-            Previous = $"{previous:0.00}{unit}",
-            Current = $"{current:0.00}{unit}",
+            Metric =
+                metric,
+
+            Previous =
+                $"{previous:0.00}{unit}",
+
+            Current =
+                $"{current:0.00}{unit}",
+
             Change =
-                delta >= 0
-                    ? $"+{delta:0.00}{unit}"
-                    : $"{delta:0.00}{unit}",
-            Interpretation = interpretation
+                SignedDouble(
+                    delta,
+                    unit),
+
+            Interpretation =
+                interpretation
         };
     }
 
-    private static AssistantComparisonRow CompareRate(
+    private static AssistantComparisonRow CompareContext(
         string metric,
         double previous,
         double current,
         string unit,
-        bool higherIsBetter,
-        string note) =>
-        Compare(
-            metric,
-            previous,
-            current,
-            unit,
-            higherIsBetter,
-            note);
+        string note)
+    {
+        previous =
+            FiniteOrZero(
+                previous);
+
+        current =
+            FiniteOrZero(
+                current);
+
+        var delta =
+            current -
+            previous;
+
+        return new AssistantComparisonRow
+        {
+            Metric =
+                metric,
+
+            Previous =
+                $"{previous:0.00}{unit}",
+
+            Current =
+                $"{current:0.00}{unit}",
+
+            Change =
+                SignedDouble(
+                    delta,
+                    unit),
+
+            Interpretation =
+                "Context only. " + note
+        };
+    }
 
     private static double EventRate(
         int events,
-        double driftSeconds) =>
-        driftSeconds <= 0
-            ? 0
-            : events / Math.Max(
-                driftSeconds / 60.0,
-                0.15);
+        double driftSeconds)
+    {
+        if (
+            events <= 0 ||
+            !double.IsFinite(driftSeconds) ||
+            driftSeconds <= 0)
+        {
+            return 0;
+        }
+
+        return
+            events *
+            60.0 /
+            driftSeconds;
+    }
 
     private static AssistantConfidence SessionConfidence(
-        TelemetryAnalysis a)
+        TelemetryAnalysis analysis)
     {
-        int score = 0;
+        var score =
+            0;
 
-        if (a.DriftTimeSeconds >= 45) score += 2;
-        else if (a.DriftTimeSeconds >= 15) score += 1;
+        if (analysis.DriftTimeSeconds >= 45)
+        {
+            score +=
+                2;
+        }
+        else if (analysis.DriftTimeSeconds >= 15)
+        {
+            score +=
+                1;
+        }
 
-        if (a.TransitionCount >= 6) score += 2;
-        else if (a.TransitionCount >= 2) score += 1;
+        if (analysis.TransitionCount >= 6)
+        {
+            score +=
+                2;
+        }
+        else if (analysis.TransitionCount >= 2)
+        {
+            score +=
+                1;
+        }
 
-        if (a.EffectiveSampleRateHz >= 35) score += 1;
-        if (a.DriftEntries >= 3) score += 1;
+        if (
+            analysis.EffectiveSampleRateHz >= 35 &&
+            analysis.EffectiveSampleRateHz <= 200)
+        {
+            score +=
+                1;
+        }
+
+        if (analysis.DriftEntries >= 3)
+        {
+            score +=
+                1;
+        }
 
         return score >= 5
             ? AssistantConfidence.High
@@ -724,11 +1163,35 @@ public sealed class TelemetryTuningAssistantEngine
     }
 
     private static string ConfidenceReason(
-        TelemetryAnalysis a) =>
-        $"{a.DriftTimeSeconds:0}s detected drift • {a.TransitionCount} transition(s) • {a.DriftEntries} drift entr{(a.DriftEntries == 1 ? "y" : "ies")} • {a.EffectiveSampleRateHz:0.0} Hz effective sample rate.";
+        TelemetryAnalysis analysis)
+    {
+        return
+            $"{analysis.DriftTimeSeconds:0}s detected drift • " +
+            $"{analysis.TransitionCount} transition(s) • " +
+            $"{analysis.DriftEntries} drift entr{(analysis.DriftEntries == 1 ? "y" : "ies")} • " +
+            $"{analysis.EffectiveSampleRateHz:0.0} Hz effective sample rate.";
+    }
 
-    private static int TransitionLevel(double seconds) =>
-        seconds switch
+    private static AssistantFindingStatus DifferenceStatus(
+        int difference)
+    {
+        return Math.Abs(difference) switch
+        {
+            0 =>
+                AssistantFindingStatus.OnTarget,
+
+            1 =>
+                AssistantFindingStatus.NearTarget,
+
+            _ =>
+                AssistantFindingStatus.NeedsWork
+        };
+    }
+
+    private static int TransitionLevel(
+        double seconds)
+    {
+        return seconds switch
         {
             <= 0.45 => 2,
             <= 0.65 => 1,
@@ -736,9 +1199,12 @@ public sealed class TelemetryTuningAssistantEngine
             <= 1.20 => -1,
             _ => -2
         };
+    }
 
-    private static string TransitionObservedLabel(int level) =>
-        level switch
+    private static string TransitionObservedLabel(
+        int level)
+    {
+        return level switch
         {
             2 => "very quick",
             1 => "quick",
@@ -746,9 +1212,12 @@ public sealed class TelemetryTuningAssistantEngine
             -1 => "smooth / slower",
             _ => "very slow"
         };
+    }
 
-    private static int SelfSteerLevel(double rate) =>
-        rate switch
+    private static int SelfSteerLevel(
+        double rate)
+    {
+        return rate switch
         {
             >= 350 => 2,
             >= 220 => 1,
@@ -756,9 +1225,12 @@ public sealed class TelemetryTuningAssistantEngine
             >= 80 => -1,
             _ => -2
         };
+    }
 
-    private static string SelfSteerObservedLabel(int level) =>
-        level switch
+    private static string SelfSteerObservedLabel(
+        int level)
+    {
+        return level switch
         {
             2 => "very fast",
             1 => "fast",
@@ -766,9 +1238,12 @@ public sealed class TelemetryTuningAssistantEngine
             -1 => "slow",
             _ => "very slow"
         };
+    }
 
-    private static string AngleObservedLabel(int level) =>
-        level switch
+    private static string AngleObservedLabel(
+        int level)
+    {
+        return level switch
         {
             2 => "very stable evidence",
             1 => "stable evidence",
@@ -776,26 +1251,39 @@ public sealed class TelemetryTuningAssistantEngine
             -1 => "lively / loss-prone evidence",
             _ => "unstable evidence"
         };
+    }
 
     private static string BehaviorLabel(
         int value,
         string negative,
         string neutral,
-        string positive) =>
-        value switch
+        string positive)
+    {
+        return value switch
         {
-            <= -2 => $"strongly {negative}",
-            -1 => negative,
-            0 => neutral,
-            1 => positive,
-            _ => $"strongly {positive}"
+            <= -2 =>
+                $"strongly {negative}",
+
+            -1 =>
+                negative,
+
+            0 =>
+                neutral,
+
+            1 =>
+                positive,
+
+            _ =>
+                $"strongly {positive}"
         };
+    }
 
     private static void AddTargetOnlyAssessment(
         TuningAssistantReport report,
         string behavior,
         string desired,
-        string evidence) =>
+        string evidence)
+    {
         AddAssessment(
             report,
             behavior,
@@ -804,6 +1292,7 @@ public sealed class TelemetryTuningAssistantEngine
             AssistantFindingStatus.TargetOnly,
             AssistantConfidence.Low,
             evidence);
+    }
 
     private static void AddAssessment(
         TuningAssistantReport report,
@@ -817,72 +1306,161 @@ public sealed class TelemetryTuningAssistantEngine
         report.Assessments.Add(
             new AssistantBehaviorAssessment
             {
-                Behavior = behavior,
-                Desired = desired,
-                Observed = observed,
-                Status = StatusText(status),
-                Confidence = confidence.ToString().ToUpperInvariant(),
-                Evidence = evidence
+                Behavior =
+                    behavior,
+
+                Desired =
+                    desired,
+
+                Observed =
+                    observed,
+
+                Status =
+                    StatusText(
+                        status),
+
+                Confidence =
+                    confidence
+                        .ToString()
+                        .ToUpperInvariant(),
+
+                Evidence =
+                    evidence
             });
     }
 
     private static string StatusText(
-        AssistantFindingStatus status) =>
-        status switch
+        AssistantFindingStatus status)
+    {
+        return status switch
         {
-            AssistantFindingStatus.OnTarget => "ON TARGET",
-            AssistantFindingStatus.NearTarget => "NEAR TARGET",
-            AssistantFindingStatus.NeedsWork => "NEEDS WORK",
-            AssistantFindingStatus.TargetOnly => "TARGET SAVED",
-            _ => "INSUFFICIENT"
+            AssistantFindingStatus.OnTarget =>
+                "ON TARGET",
+
+            AssistantFindingStatus.NearTarget =>
+                "NEAR TARGET",
+
+            AssistantFindingStatus.NeedsWork =>
+                "NEEDS WORK",
+
+            AssistantFindingStatus.TargetOnly =>
+                "TARGET SAVED",
+
+            _ =>
+                "INSUFFICIENT"
         };
+    }
 
     private static TelemetryCalibrationSuggestion CloneSuggestion(
-        TelemetryCalibrationSuggestion source) =>
-        new()
+        TelemetryCalibrationSuggestion source)
+    {
+        ArgumentNullException.ThrowIfNull(
+            source);
+
+        return new TelemetryCalibrationSuggestion
         {
-            TorqueLimitDelta = source.TorqueLimitDelta,
-            WheelSpeedDelta = source.WheelSpeedDelta,
-            DampingDelta = source.DampingDelta,
-            FrictionDelta = source.FrictionDelta,
-            SpeedDampingDelta = source.SpeedDampingDelta,
-            InterpolationDelta = source.InterpolationDelta,
-            AcGainDelta = source.AcGainDelta,
-            Reasons = new List<string>(source.Reasons)
+            TorqueLimitDelta =
+                source.TorqueLimitDelta,
+
+            WheelSpeedDelta =
+                source.WheelSpeedDelta,
+
+            DampingDelta =
+                source.DampingDelta,
+
+            FrictionDelta =
+                source.FrictionDelta,
+
+            SpeedDampingDelta =
+                source.SpeedDampingDelta,
+
+            InterpolationDelta =
+                source.InterpolationDelta,
+
+            AcGainDelta =
+                source.AcGainDelta,
+
+            Reasons =
+                source.Reasons is null
+                    ? []
+                    : new List<string>(
+                        source.Reasons)
         };
+    }
 
     private static CarBehaviorTarget CloneBehavior(
-        CarBehaviorTarget source) =>
-        new()
+        CarBehaviorTarget source)
+    {
+        ArgumentNullException.ThrowIfNull(
+            source);
+
+        return new CarBehaviorTarget
         {
-            Key = source.Key,
-            DisplayName = source.DisplayName,
-            UpdatedUtc = source.UpdatedUtc,
-            FrontEndBite = source.FrontEndBite,
-            RearGrip = source.RearGrip,
-            SelfSteerSpeed = source.SelfSteerSpeed,
-            TransitionSpeed = source.TransitionSpeed,
-            AngleStability = source.AngleStability,
-            ThrottleSteering = source.ThrottleSteering,
-            InitiationSharpness = source.InitiationSharpness
+            Key =
+                source.Key,
+
+            DisplayName =
+                source.DisplayName,
+
+            UpdatedUtc =
+                source.UpdatedUtc,
+
+            FrontEndBite =
+                source.FrontEndBite,
+
+            RearGrip =
+                source.RearGrip,
+
+            SelfSteerSpeed =
+                source.SelfSteerSpeed,
+
+            TransitionSpeed =
+                source.TransitionSpeed,
+
+            AngleStability =
+                source.AngleStability,
+
+            ThrottleSteering =
+                source.ThrottleSteering,
+
+            InitiationSharpness =
+                source.InitiationSharpness
         };
+    }
 
     private static bool SameBehavior(
-        CarBehaviorTarget a,
-        CarBehaviorTarget b) =>
-        a.FrontEndBite == b.FrontEndBite &&
-        a.RearGrip == b.RearGrip &&
-        a.SelfSteerSpeed == b.SelfSteerSpeed &&
-        a.TransitionSpeed == b.TransitionSpeed &&
-        a.AngleStability == b.AngleStability &&
-        a.ThrottleSteering == b.ThrottleSteering &&
-        a.InitiationSharpness == b.InitiationSharpness;
+        CarBehaviorTarget first,
+        CarBehaviorTarget second)
+    {
+        return
+            first.FrontEndBite ==
+            second.FrontEndBite &&
+
+            first.RearGrip ==
+            second.RearGrip &&
+
+            first.SelfSteerSpeed ==
+            second.SelfSteerSpeed &&
+
+            first.TransitionSpeed ==
+            second.TransitionSpeed &&
+
+            first.AngleStability ==
+            second.AngleStability &&
+
+            first.ThrottleSteering ==
+            second.ThrottleSteering &&
+
+            first.InitiationSharpness ==
+            second.InitiationSharpness;
+    }
 
     private static string BuildBehaviorChangeSummary(
         CarBehaviorTarget before,
         CarBehaviorTarget after)
     {
-        var changes = new List<string>();
+        var changes =
+            new List<string>();
 
         AddBehaviorChange(
             changes,
@@ -924,60 +1502,103 @@ public sealed class TelemetryTuningAssistantEngine
         int after)
     {
         if (before == after)
+        {
             return;
+        }
 
         changes.Add(
             $"{name} {Signed(before)} → {Signed(after)}");
     }
 
     private static void ClampSuggestion(
-        TelemetryCalibrationSuggestion q)
+        TelemetryCalibrationSuggestion suggestion)
     {
-        q.TorqueLimitDelta =
+        suggestion.TorqueLimitDelta =
             Math.Clamp(
-                q.TorqueLimitDelta,
+                suggestion.TorqueLimitDelta,
                 -10,
                 10);
 
-        q.WheelSpeedDelta =
+        suggestion.WheelSpeedDelta =
             Math.Clamp(
-                q.WheelSpeedDelta,
+                suggestion.WheelSpeedDelta,
                 -10,
                 10);
 
-        q.DampingDelta =
+        suggestion.DampingDelta =
             Math.Clamp(
-                q.DampingDelta,
+                suggestion.DampingDelta,
                 -5,
                 5);
 
-        q.FrictionDelta =
+        suggestion.FrictionDelta =
             Math.Clamp(
-                q.FrictionDelta,
+                suggestion.FrictionDelta,
                 -3,
                 3);
 
-        q.SpeedDampingDelta =
+        suggestion.SpeedDampingDelta =
             Math.Clamp(
-                q.SpeedDampingDelta,
+                suggestion.SpeedDampingDelta,
                 -5,
                 5);
 
-        q.InterpolationDelta =
+        suggestion.InterpolationDelta =
             Math.Clamp(
-                q.InterpolationDelta,
+                suggestion.InterpolationDelta,
                 -2,
                 2);
 
-        q.AcGainDelta =
+        suggestion.AcGainDelta =
             Math.Clamp(
-                q.AcGainDelta,
+                suggestion.AcGainDelta,
                 -5,
                 2);
     }
 
-    private static string Signed(int value) =>
-        value >= 0
+    private static void DeduplicateReasons(
+        TelemetryCalibrationSuggestion suggestion)
+    {
+        if (
+            suggestion.Reasons is null ||
+            suggestion.Reasons.Count <= 1)
+        {
+            return;
+        }
+
+        suggestion.Reasons =
+            suggestion.Reasons
+                .Where(
+                    reason =>
+                        !string.IsNullOrWhiteSpace(
+                            reason))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
+    }
+
+    private static double FiniteOrZero(
+        double value)
+    {
+        return double.IsFinite(value)
+            ? value
+            : 0;
+    }
+
+    private static string Signed(
+        int value)
+    {
+        return value >= 0
             ? $"+{value}"
             : value.ToString();
+    }
+
+    private static string SignedDouble(
+        double value,
+        string unit)
+    {
+        return value >= 0
+            ? $"+{value:0.00}{unit}"
+            : $"{value:0.00}{unit}";
+    }
 }

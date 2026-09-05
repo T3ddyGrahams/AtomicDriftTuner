@@ -6,15 +6,18 @@ namespace AtomicDriftTuner.Services;
 /// <summary>
 /// Debounce safety layer for interactive AZOM editing.
 ///
-/// This is intentionally separate from explicit Apply batches.
+/// Interactive requests remain debounce-controlled, but their physical writes
+/// share AzomLiveController's process-wide AZOM write gate with explicit
+/// Apply/Revert batches.
 ///
-/// Interactive requests must remain unchanged for a minimum quiet period
-/// before they are handed to the guarded bridge write path. If a newer value
-/// for the same scoped property arrives during that period, the older request
-/// is superseded and never reaches the bridge.
+/// A request must remain unchanged for a minimum quiet period before it may
+/// enter the guarded bridge write path. A newer value for the same scoped
+/// property supersedes the older request. An explicit Apply/Revert batch that
+/// starts after the request was queued also supersedes that pending request.
 ///
-/// Once a request has been handed to AzomBridgeClient, it is considered an
-/// active guarded write attempt and is allowed to complete normally.
+/// Once an interactive request has acquired the shared write gate and passed
+/// its final supersession checks, it is considered an active guarded write
+/// attempt and is allowed to complete normally.
 /// </summary>
 public sealed class AzomInteractiveWriteService
 {
@@ -73,6 +76,13 @@ public sealed class AzomInteractiveWriteService
                 MinimumDebounceMs,
                 MaximumDebounceMs);
 
+        // Capture the explicit-batch generation before registering this
+        // interactive request. If an Apply/Revert batch begins after this
+        // point, the pending request must not run afterward and overwrite it.
+        var batchGeneration =
+            AzomLiveController
+                .CaptureExplicitBatchGeneration();
+
         var key =
             CreateVersionKey(
                 _scopeKey,
@@ -100,9 +110,17 @@ public sealed class AzomInteractiveWriteService
                 $"ADT {debounceMs} ms debounce: superseded by a newer target");
         }
 
-        // Yield once before the final handoff check. This gives a value
+        if (!IsCurrentBatchGeneration(
+                batchGeneration))
+        {
+            return Superseded(
+                normalizedProperty,
+                "ADT debounce: superseded by a newer explicit Apply/Revert operation");
+        }
+
+        // Yield once before the first handoff check. This gives a value
         // arriving on the same synchronization turn an opportunity to
-        // supersede this request before it enters the bridge write path.
+        // supersede this request before it waits for the physical write gate.
         await Task.Yield();
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -113,41 +131,82 @@ public sealed class AzomInteractiveWriteService
         {
             return Superseded(
                 normalizedProperty,
-                "ADT debounce: superseded immediately before bridge handoff");
+                "ADT debounce: superseded immediately before write-gate handoff");
         }
 
-        // From this point onward the request has entered the guarded bridge
-        // write path. A later interactive value should queue behind/supersede
-        // future pending work rather than trying to interrupt an in-flight
-        // wheelbase operation.
-        var method =
-            await _bridge.SetSettingDirectAsync(
+        if (!IsCurrentBatchGeneration(
+                batchGeneration))
+        {
+            return Superseded(
                 normalizedProperty,
-                targetInt,
-                targetBool,
-                cancellationToken:
+                "ADT debounce: explicit Apply/Revert took priority before write-gate handoff");
+        }
+
+        var writeGate =
+            await AzomLiveController
+                .AcquireLiveWriteGateAsync(
                     cancellationToken);
 
-        var wasWritten =
-            !IndicatesNoPhysicalWrite(
-                method);
-
-        return new AzomInteractiveWriteResult
+        try
         {
-            PropertyName =
-                normalizedProperty,
+            cancellationToken.ThrowIfCancellationRequested();
 
-            WasSuperseded =
-                false,
+            // Re-check after acquiring the shared gate. This closes the race
+            // where this request was current when it started waiting, but a
+            // newer interactive value or explicit batch won the gate first.
+            if (!IsCurrentRequest(
+                    key,
+                    version))
+            {
+                return Superseded(
+                    normalizedProperty,
+                    "ADT debounce: superseded while waiting for the live AZOM write gate");
+            }
 
-            WasWritten =
-                wasWritten,
+            if (!IsCurrentBatchGeneration(
+                    batchGeneration))
+            {
+                return Superseded(
+                    normalizedProperty,
+                    "ADT debounce: explicit Apply/Revert took priority while this request waited");
+            }
 
-            Method =
-                string.IsNullOrWhiteSpace(method)
-                    ? "AZOM guarded direct write"
-                    : method
-        };
+            // From this point onward the request owns the process-wide live
+            // write gate. A later request may supersede future pending work,
+            // but it cannot interrupt this in-flight wheelbase operation.
+            var method =
+                await _bridge.SetSettingDirectAsync(
+                    normalizedProperty,
+                    targetInt,
+                    targetBool,
+                    cancellationToken:
+                        cancellationToken);
+
+            var wasWritten =
+                !IndicatesNoPhysicalWrite(
+                    method);
+
+            return new AzomInteractiveWriteResult
+            {
+                PropertyName =
+                    normalizedProperty,
+
+                WasSuperseded =
+                    false,
+
+                WasWritten =
+                    wasWritten,
+
+                Method =
+                    string.IsNullOrWhiteSpace(method)
+                        ? "AZOM guarded direct write"
+                        : method
+            };
+        }
+        finally
+        {
+            writeGate.Dispose();
+        }
     }
 
     private static bool IsCurrentRequest(
@@ -159,6 +218,15 @@ public sealed class AzomInteractiveWriteService
                 key,
                 out var latest) &&
             latest == version;
+    }
+
+    private static bool IsCurrentBatchGeneration(
+        long generation)
+    {
+        return
+            AzomLiveController
+                .CaptureExplicitBatchGeneration() ==
+            generation;
     }
 
     private static AzomInteractiveWriteResult Superseded(

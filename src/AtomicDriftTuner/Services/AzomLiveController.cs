@@ -10,13 +10,18 @@ public sealed class AzomLiveController
 
     private const int ReadbackDelayMs = 350;
 
-    // One explicit Apply/Revert batch at a time across the ADT process.
+    // One live AZOM write operation at a time across the ADT process.
     //
-    // The gate remains held while each selected setting is written and its
-    // resulting live value is verified. A second Apply/Revert batch cannot
-    // begin until the first batch has either completed or stopped.
-    private static readonly SemaphoreSlim LiveBatchGate =
+    // Explicit Apply/Revert batches and debounced interactive writes share
+    // this gate so they cannot issue overlapping wheelbase operations.
+    private static readonly SemaphoreSlim LiveWriteGate =
         new(1, 1);
+
+    // Incremented whenever an explicit Apply/Revert batch acquires the write
+    // gate. Interactive requests capture this generation when queued so an
+    // older pending slider/edit request cannot run after a newer explicit
+    // Apply/Revert operation and overwrite its verified result.
+    private static long _explicitBatchGeneration;
 
     private readonly AzomBridgeClient _bridge;
     private readonly SimHubActionInvoker? _cliFallback;
@@ -41,6 +46,21 @@ public sealed class AzomLiveController
 
         _cliFallback =
             cliFallback;
+    }
+
+    internal static long CaptureExplicitBatchGeneration()
+    {
+        return Volatile.Read(
+            ref _explicitBatchGeneration);
+    }
+
+    internal static async Task<IDisposable> AcquireLiveWriteGateAsync(
+        CancellationToken cancellationToken)
+    {
+        await LiveWriteGate.WaitAsync(
+            cancellationToken);
+
+        return new LiveWriteGateLease();
     }
 
     public Task<AzomLiveSnapshot> ReadAsync(
@@ -1121,12 +1141,18 @@ public sealed class AzomLiveController
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(before);
 
-        await LiveBatchGate.WaitAsync(
-            cancellationToken);
+        var writeGate =
+            await AcquireLiveWriteGateAsync(
+                cancellationToken);
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // An explicit Apply/Revert batch wins over any interactive request
+            // that was queued before this batch acquired the shared write gate.
+            Interlocked.Increment(
+                ref _explicitBatchGeneration);
 
             // The snapshot supplied by the caller may have been captured before
             // this batch waited behind another Apply/Revert operation.
@@ -1292,7 +1318,23 @@ public sealed class AzomLiveController
         }
         finally
         {
-            LiveBatchGate.Release();
+            writeGate.Dispose();
+        }
+    }
+
+    private sealed class LiveWriteGateLease : IDisposable
+    {
+        private int _released;
+
+        public void Dispose()
+        {
+            if (
+                Interlocked.Exchange(
+                    ref _released,
+                    1) == 0)
+            {
+                LiveWriteGate.Release();
+            }
         }
     }
 

@@ -326,23 +326,33 @@ public sealed class CalibrationEngine
         CalibrationProfile? existing,
         string expectedKey)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            expectedKey);
+
         CalibrationProfile profile;
 
-        if (existing is null)
+        if (
+            existing is not null &&
+            string.Equals(
+                existing.Key?.Trim(),
+                expectedKey,
+                StringComparison.OrdinalIgnoreCase))
         {
-            profile =
-                new CalibrationProfile();
-        }
-        else
-        {
+            // Only carry learned calibration forward when the persisted
+            // identity exactly matches the current wheelbase/wheel/pack/car.
             profile =
                 Clone(
                     existing);
         }
+        else
+        {
+            // A missing or mismatched key means the supplied calibration
+            // belongs to an unknown or different identity. Start clean rather
+            // than transferring learned deltas between cars or hardware.
+            profile =
+                new CalibrationProfile();
+        }
 
-        // The caller may accidentally supply a calibration loaded for another
-        // hardware/car combination. Never allow that profile's old identity
-        // to propagate into the current calibration.
         profile.Key =
             expectedKey;
 

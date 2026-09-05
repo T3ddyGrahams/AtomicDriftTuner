@@ -4,66 +4,178 @@ namespace AtomicDriftTuner.Services;
 
 public sealed class MachineConfigurationService
 {
-    private readonly AssettoCorsaScanner _scanner = new();
+    private const string SimHubExecutableName =
+        "SimHubWPF.exe";
 
-    public MachineDetectionResult Detect(AppSettings? saved = null)
+    private const string AssettoCorsaDirectoryName =
+        "Assetto Corsa";
+
+    private readonly AssettoCorsaScanner _scanner;
+
+    public MachineConfigurationService()
+        : this(new AssettoCorsaScanner())
     {
-        saved ??= new AppSettings();
+    }
 
-        string? simHub =
-            SimHubLocator.FindSimHubRoot(
-                saved.SimHubRoot ??
-                saved.AzomLive?.SimHubExePath);
+    internal MachineConfigurationService(
+        AssettoCorsaScanner scanner)
+    {
+        _scanner =
+            scanner ??
+            throw new ArgumentNullException(
+                nameof(scanner));
+    }
 
-        string? acRoot =
-            ValidateAssettoCorsaRoot(saved.AssettoCorsaRoot)
-                ? Path.GetFullPath(saved.AssettoCorsaRoot!)
-                : _scanner.TryFindInstall();
+    public MachineDetectionResult Detect(
+        AppSettings? saved = null)
+    {
+        saved ??=
+            new AppSettings();
 
-        string? acDocuments =
-            ValidateAssettoCorsaDocumentsRoot(saved.AssettoCorsaDocumentsRoot)
-                ? Path.GetFullPath(saved.AssettoCorsaDocumentsRoot!)
+        var savedSimHubCandidate =
+            FirstNonEmpty(
+                saved.SimHubRoot,
+                GetSimHubRootFromExecutable(
+                    saved.AzomLive?.SimHubExePath));
+
+        var simHub =
+            NormalizeExistingDirectory(
+                SimHubLocator.FindSimHubRoot(
+                    savedSimHubCandidate));
+
+        var savedAcRoot =
+            NormalizeDirectory(
+                saved.AssettoCorsaRoot);
+
+        var acRoot =
+            ValidateAssettoCorsaRoot(
+                savedAcRoot)
+                ? savedAcRoot
+                : NormalizeExistingDirectory(
+                    _scanner.TryFindInstall());
+
+        var savedAcDocuments =
+            NormalizeDirectory(
+                saved.AssettoCorsaDocumentsRoot);
+
+        var acDocuments =
+            ValidateAssettoCorsaDocumentsRoot(
+                savedAcDocuments)
+                ? savedAcDocuments
                 : FindAssettoCorsaDocumentsRoot();
 
         return new MachineDetectionResult
         {
-            SimHubRoot = simHub,
-            AssettoCorsaRoot = acRoot,
-            AssettoCorsaDocumentsRoot = acDocuments,
-            SimHubValid = SimHubLocator.IsValidRoot(simHub),
-            AssettoCorsaValid = ValidateAssettoCorsaRoot(acRoot),
-            AssettoCorsaDocumentsValid = ValidateAssettoCorsaDocumentsRoot(acDocuments)
+            SimHubRoot =
+                simHub,
+
+            AssettoCorsaRoot =
+                acRoot,
+
+            AssettoCorsaDocumentsRoot =
+                acDocuments,
+
+            SimHubValid =
+                SimHubLocator.IsValidRoot(
+                    simHub),
+
+            AssettoCorsaValid =
+                ValidateAssettoCorsaRoot(
+                    acRoot),
+
+            AssettoCorsaDocumentsValid =
+                ValidateAssettoCorsaDocumentsRoot(
+                    acDocuments)
         };
     }
 
     public string? FindAssettoCorsaDocumentsRoot()
     {
         // Environment.SpecialFolder.MyDocuments uses the Windows known-folder
-        // location, so redirected/OneDrive Documents folders are respected.
+        // location and therefore respects redirected Documents locations,
+        // including common OneDrive-backed configurations.
         var documents =
             Environment.GetFolderPath(
                 Environment.SpecialFolder.MyDocuments);
 
-        if (string.IsNullOrWhiteSpace(documents))
+        var normalizedDocuments =
+            NormalizeDirectory(
+                documents);
+
+        if (normalizedDocuments is null)
+        {
             return null;
+        }
 
-        var candidate =
+        // Return the expected AC Documents location even if Assetto Corsa has
+        // not created it yet. The caller separately receives a validity flag.
+        return NormalizeDirectory(
             Path.Combine(
-                documents,
-                "Assetto Corsa");
-
-        return Directory.Exists(candidate)
-            ? candidate
-            : candidate; // Return the expected location even before AC creates it.
+                normalizedDocuments,
+                AssettoCorsaDirectoryName));
     }
 
-    public bool ValidateAssettoCorsaRoot(string? root) =>
-        !string.IsNullOrWhiteSpace(root) &&
-        Directory.Exists(Path.Combine(root, "content", "cars"));
+    public bool ValidateAssettoCorsaRoot(
+        string? root)
+    {
+        var normalized =
+            NormalizeDirectory(
+                root);
 
-    public bool ValidateAssettoCorsaDocumentsRoot(string? root) =>
-        !string.IsNullOrWhiteSpace(root) &&
-        Directory.Exists(root);
+        if (normalized is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!Directory.Exists(normalized))
+            {
+                return false;
+            }
+
+            var contentDirectory =
+                Path.Combine(
+                    normalized,
+                    "content");
+
+            var carsDirectory =
+                Path.Combine(
+                    contentDirectory,
+                    "cars");
+
+            return
+                Directory.Exists(contentDirectory) &&
+                Directory.Exists(carsDirectory);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool ValidateAssettoCorsaDocumentsRoot(
+        string? root)
+    {
+        var normalized =
+            NormalizeDirectory(
+                root);
+
+        if (normalized is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Directory.Exists(
+                normalized);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public void ApplyToSettings(
         AppSettings settings,
@@ -72,34 +184,148 @@ public sealed class MachineConfigurationService
         string? acDocumentsRoot,
         bool markFirstRunComplete)
     {
-        settings.SimHubRoot = CleanDirectory(simHubRoot);
-        settings.AssettoCorsaRoot = CleanDirectory(acRoot);
-        settings.AssettoCorsaDocumentsRoot = CleanDirectory(acDocumentsRoot);
+        ArgumentNullException.ThrowIfNull(
+            settings);
 
-        settings.AzomLive ??= new AzomLiveConnectionSettings();
+        var normalizedSimHubRoot =
+            NormalizeDirectory(
+                simHubRoot);
+
+        var normalizedAcRoot =
+            NormalizeDirectory(
+                acRoot);
+
+        var normalizedAcDocumentsRoot =
+            NormalizeDirectory(
+                acDocumentsRoot);
+
+        settings.SimHubRoot =
+            normalizedSimHubRoot;
+
+        settings.AssettoCorsaRoot =
+            normalizedAcRoot;
+
+        settings.AssettoCorsaDocumentsRoot =
+            normalizedAcDocumentsRoot;
+
+        settings.AzomLive ??=
+            new AzomLiveConnectionSettings();
+
         settings.AzomLive.SimHubExePath =
-            !string.IsNullOrWhiteSpace(settings.SimHubRoot)
-                ? Path.Combine(settings.SimHubRoot, "SimHubWPF.exe")
+            normalizedSimHubRoot is not null
+                ? Path.Combine(
+                    normalizedSimHubRoot,
+                    SimHubExecutableName)
                 : null;
 
         if (markFirstRunComplete)
-            settings.FirstRunCompleted = true;
+        {
+            settings.FirstRunCompleted =
+                true;
+        }
     }
 
-    private static string? CleanDirectory(string? path)
+    private static string? NormalizeDirectory(
+        string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
+        {
             return null;
+        }
 
         try
         {
-            return Path.GetFullPath(
+            var expanded =
                 Environment.ExpandEnvironmentVariables(
-                    path.Trim().Trim('"')));
+                    path.Trim().Trim('"'));
+
+            if (string.IsNullOrWhiteSpace(expanded))
+            {
+                return null;
+            }
+
+            return Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(
+                    expanded));
         }
         catch
         {
-            return path.Trim().Trim('"');
+            // Invalid paths are never persisted back into ADT settings.
+            return null;
         }
+    }
+
+    private static string? NormalizeExistingDirectory(
+        string? path)
+    {
+        var normalized =
+            NormalizeDirectory(
+                path);
+
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Directory.Exists(
+                normalized)
+                ? normalized
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? GetSimHubRootFromExecutable(
+        string? executablePath)
+    {
+        var normalized =
+            NormalizeDirectory(
+                executablePath);
+
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var fileName =
+                Path.GetFileName(
+                    normalized);
+
+            if (!string.Equals(
+                    fileName,
+                    SimHubExecutableName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return Path.GetDirectoryName(
+                normalized);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? FirstNonEmpty(
+        params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }

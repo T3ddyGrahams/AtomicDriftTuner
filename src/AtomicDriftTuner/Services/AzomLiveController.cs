@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AtomicDriftTuner.Models;
 
 namespace AtomicDriftTuner.Services;
@@ -10,23 +16,106 @@ public sealed class AzomLiveController
 
     private const int ReadbackDelayMs = 350;
 
-    // One live AZOM write operation at a time across the ADT process.
+    // One explicit live AZOM write operation at a time across the ADT process.
     //
-    // Explicit Apply/Revert batches and debounced interactive writes share
-    // this gate so they cannot issue overlapping wheelbase operations.
+    // The gate is exposed internally so the debounced interactive-write layer
+    // can participate in the same serialization boundary before it hands a
+    // request to the bridge. Apply/Revert always acquires this gate here.
     private static readonly SemaphoreSlim LiveWriteGate =
         new(1, 1);
 
     // Incremented whenever an explicit Apply/Revert batch acquires the write
-    // gate. Interactive requests capture this generation when queued so an
-    // older pending slider/edit request cannot run after a newer explicit
-    // Apply/Revert operation and overwrite its verified result.
+    // gate. Interactive callers can capture/check this generation so an older
+    // pending slider/edit request cannot run after a newer explicit batch.
     private static long _explicitBatchGeneration;
 
     private readonly AzomBridgeClient _bridge;
     private readonly SimHubActionInvoker? _cliFallback;
     private readonly int _actionDelayMs;
     private readonly AzomRevertStore _revertStore = new();
+
+    private sealed record NumericWriteRule(
+        int Minimum,
+        int Maximum,
+        int FineStep,
+        int CoarseStep)
+    {
+        public bool Contains(
+            int value) =>
+            value >= Minimum &&
+            value <= Maximum;
+    }
+
+    private sealed record ToggleWriteRule(
+        string TrueAction,
+        string FalseAction);
+
+    // Controller-side write contract. These ranges mirror ADT's AZOM model
+    // ranges and are intentionally enforced again at the final live-write
+    // boundary. Invalid targets are rejected; they are never silently clamped.
+    private static readonly IReadOnlyDictionary<string, NumericWriteRule>
+        NumericWriteRules =
+        new Dictionary<string, NumericWriteRule>(StringComparer.Ordinal)
+        {
+            ["AZOM.FfbStrength"] = new(0, 100, 5, 10),
+            ["AZOM.Torque"] = new(50, 100, 5, 10),
+            ["AZOM.Rotation"] = new(60, 2700, 90, 180),
+            ["AZOM.WheelSpeedLimit"] = new(0, 200, 5, 10),
+            ["AZOM.Interpolation"] = new(0, 10, 1, 2),
+            ["AZOM.GearshiftVibration"] = new(0, 5, 1, 2),
+            ["AZOM.Damper"] = new(0, 100, 5, 10),
+            ["AZOM.Friction"] = new(0, 100, 5, 10),
+            ["AZOM.Inertia"] = new(100, 500, 10, 50),
+            ["AZOM.Spring"] = new(0, 100, 5, 10),
+            ["AZOM.GameDamper"] = new(0, 100, 5, 10),
+            ["AZOM.GameFriction"] = new(0, 100, 5, 10),
+            ["AZOM.GameInertia"] = new(0, 100, 5, 10),
+            ["AZOM.GameSpring"] = new(0, 100, 5, 10),
+            ["AZOM.NaturalInertia"] = new(100, 4000, 50, 200),
+            ["AZOM.SoftLimitStiffness"] = new(1, 10, 1, 2),
+            ["AZOM.SpeedDamping"] = new(0, 100, 5, 10),
+            ["AZOM.SpeedDampingPoint"] = new(0, 400, 10, 50),
+            ["AZOM.RoadSensitivity"] = new(0, 10, 1, 2),
+            ["AZOM.Equalizer1"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer2"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer3"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer4"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer5"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer6"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer7"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer8"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer9"] = new(0, 400, 5, 25),
+            ["AZOM.Equalizer10"] = new(0, 400, 5, 25),
+            ["AZOM.FfbCurveX1"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveX2"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveX3"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveX4"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveY1"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveY2"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveY3"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveY4"] = new(0, 100, 5, 10),
+            ["AZOM.FfbCurveY5"] = new(0, 100, 5, 10)
+        };
+
+    private static readonly IReadOnlyDictionary<string, ToggleWriteRule>
+        ToggleWriteRules =
+        new Dictionary<string, ToggleWriteRule>(StringComparer.Ordinal)
+        {
+            ["AZOM.Protection"] =
+                new("AZOM.ProtectionOn", "AZOM.ProtectionOff"),
+            ["AZOM.SoftLimitRetain"] =
+                new("AZOM.SoftLimitRetainOn", "AZOM.SoftLimitRetainOff"),
+            ["AZOM.FfbReverse"] =
+                new("AZOM.FfbReverseOn", "AZOM.FfbReverseOff"),
+            ["AZOM.BaseStatusLed"] =
+                new("AZOM.BaseStatusLedOn", "AZOM.BaseStatusLedOff"),
+            ["AZOM.Bluetooth"] =
+                new("AZOM.BluetoothOn", "AZOM.BluetoothOff"),
+            // Preserve AZOM's existing WorkMode action semantics: ADT's
+            // StandbyMode=true maps to WorkModeOff in the public action surface.
+            ["AZOM.WorkMode"] =
+                new("AZOM.WorkModeOff", "AZOM.WorkModeOn")
+        };
 
     public AzomLiveController(
         AzomBridgeClient bridge,
@@ -114,6 +203,16 @@ public sealed class AzomLiveController
                     Note =
                         "Live writes are disabled for legacy property namespaces. Update AZOM before using Apply/Revert."
                 });
+
+            return rows;
+        }
+
+        if (!current.SettingsReadable)
+        {
+            rows.Add(
+                CreateCompatibilityRow(
+                    "Live write support",
+                    "Current AZOM base settings are not safely readable. ADT will not build a writable Apply plan."));
 
             return rows;
         }
@@ -727,6 +826,26 @@ public sealed class AzomLiveController
         var rows =
             new List<AzomApplyPlanItem>();
 
+        if (!IsSupportedAzomNamespace(current))
+        {
+            rows.Add(
+                CreateCompatibilityRow(
+                    "Revert support",
+                    "The current bridge snapshot is not using the supported AZOM.* property namespace. ADT will not build a writable Revert plan."));
+
+            return rows;
+        }
+
+        if (!current.SettingsReadable)
+        {
+            rows.Add(
+                CreateCompatibilityRow(
+                    "Revert support",
+                    "Current AZOM base settings are not safely readable. ADT will not build a writable Revert plan."));
+
+            return rows;
+        }
+
         var wanted =
             new HashSet<string>(
                 changedProperties.Where(
@@ -1183,6 +1302,35 @@ public sealed class AzomLiveController
                             x.CanApply &&
                             x.IsDifferent &&
                             x.IsSelectedForApply)
+                    .Select(
+                        ClonePlanItem)
+                    .ToList();
+
+            // Plan rows are mutable UI models. Freeze them into private copies
+            // and validate the complete selected batch before saving a revert
+            // record or issuing any hardware-facing write.
+            ValidateSelectedPlan(
+                selected);
+
+            // The authoritative snapshot may have changed while this batch
+            // waited for the shared write gate. If a selected property no
+            // longer equals the source value shown by the plan, refuse to
+            // overwrite that newer live change. Reaching the requested target
+            // already is allowed as an idempotent no-op.
+            ValidateAuthoritativeSourceState(
+                selected,
+                authoritativeBefore);
+
+            // The authoritative snapshot may have changed after the UI built its
+            // comparison rows. Do not claim/revert a property this batch no
+            // longer needs to touch.
+            selected =
+                selected
+                    .Where(
+                        item =>
+                            !IsItemAtTarget(
+                                item,
+                                authoritativeBefore))
                     .ToList();
 
             if (selected.Count == 0)
@@ -1219,6 +1367,16 @@ public sealed class AzomLiveController
             foreach (var item in selected)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // Re-check immediately before each individual write as well.
+                // A previous AZOM write in this same batch could have changed
+                // another setting as a side effect.
+                ValidateAuthoritativeSourceState(
+                    new[]
+                    {
+                        item
+                    },
+                    live);
 
                 var beforeDisplay =
                     DisplayCurrent(
@@ -1365,6 +1523,17 @@ public sealed class AzomLiveController
         // exact AZOM internal commit through the bridge.
         //
         // This can represent values that the public step actions cannot.
+        // Validate again immediately before the primary transport so a future
+        // refactor cannot accidentally bypass the batch-level checks.
+        ValidateDirectWriteTarget(
+            item.PropertyName,
+            item.Kind == AzomApplyItemKind.Numeric
+                ? item.TargetInt
+                : null,
+            item.Kind == AzomApplyItemKind.Toggle
+                ? item.TargetBool
+                : null);
+
         try
         {
             var method =
@@ -1417,6 +1586,18 @@ public sealed class AzomLiveController
             // Cancellation is never interpreted as transport failure.
             // Do not continue into another write mechanism.
             throw;
+        }
+        catch (AzomBridgeUncertainOperationException ex)
+        {
+            result.Warnings.Add(
+                $"{item.DisplayName}: {ex.Message}");
+
+            // The bridge may still have this exact request queued. Do not send
+            // public-action or CLI fallbacks that could race a late commit.
+            return FailedUnknownState(
+                item,
+                before,
+                "Exact bridge write ended with an uncertain transport/queue state; ADT stopped this batch without fallback");
         }
         catch (Exception ex)
         {
@@ -1508,6 +1689,19 @@ public sealed class AzomLiveController
                 {
                     throw;
                 }
+                catch (AzomBridgeUncertainOperationException ex)
+                {
+                    result.Warnings.Add(
+                        $"{item.DisplayName}: {ex.Message}");
+
+                    // A relative AZOM action that may still execute later cannot
+                    // be made safe by immediately sending another action/CLI
+                    // fallback. Stop the batch and preserve the last known state.
+                    return FailedUnknownState(
+                        item,
+                        live,
+                        "SimHub action ended with an uncertain transport/queue state; ADT stopped this batch without further fallback");
+                }
                 catch (Exception ex)
                 {
                     bridgeActionFailure =
@@ -1516,8 +1710,9 @@ public sealed class AzomLiveController
                     result.Warnings.Add(
                         $"{item.DisplayName}: SimHub action {action} reported an error: {ex.Message}");
 
-                    // Do not continue sending the remaining stale sequence.
-                    // The failed action may actually have executed.
+                    // This response was a definite bridge rejection/error rather
+                    // than an uncertain transport/queue outcome. Re-read before
+                    // considering a documented fallback.
                     break;
                 }
             }
@@ -1732,19 +1927,52 @@ public sealed class AzomLiveController
         if (item.Kind == AzomApplyItemKind.Toggle)
         {
             if (
-                IsItemAtTarget(item, snapshot) ||
-                string.IsNullOrWhiteSpace(item.ToggleAction))
+                !item.TargetBool.HasValue ||
+                !ToggleWriteRules.TryGetValue(
+                    item.PropertyName,
+                    out var toggleRule) ||
+                IsItemAtTarget(
+                    item,
+                    snapshot))
+            {
+                return [];
+            }
+
+            var expectedAction =
+                item.TargetBool.Value
+                    ? toggleRule.TrueAction
+                    : toggleRule.FalseAction;
+
+            if (!string.Equals(
+                    item.ToggleAction,
+                    expectedAction,
+                    StringComparison.Ordinal))
             {
                 return [];
             }
 
             return
             [
-                item.ToggleAction!
+                expectedAction
             ];
         }
 
-        if (item.Kind != AzomApplyItemKind.Numeric)
+        if (
+            item.Kind != AzomApplyItemKind.Numeric ||
+            !item.TargetInt.HasValue ||
+            !NumericWriteRules.TryGetValue(
+                item.PropertyName,
+                out var numericRule) ||
+            !numericRule.Contains(
+                item.TargetInt.Value) ||
+            !string.Equals(
+                item.ActionBase,
+                item.PropertyName,
+                StringComparison.Ordinal) ||
+            item.FineStep !=
+                numericRule.FineStep ||
+            item.CoarseStep !=
+                numericRule.CoarseStep)
         {
             return [];
         }
@@ -1754,10 +1982,14 @@ public sealed class AzomLiveController
                 snapshot,
                 item.PropertyName);
 
+        // Step actions are allowed only when the live starting value is itself
+        // inside the known display-unit range. An abnormal live value may still
+        // be recovered by the exact direct-commit path, but ADT will not derive
+        // a sequence of relative actions from an untrusted starting point.
         if (
             !current.HasValue ||
-            !item.TargetInt.HasValue ||
-            string.IsNullOrWhiteSpace(item.ActionBase))
+            !numericRule.Contains(
+                current.Value))
         {
             return [];
         }
@@ -1765,9 +1997,9 @@ public sealed class AzomLiveController
         return TryBuildExactStepSequence(
             current.Value,
             item.TargetInt.Value,
-            item.FineStep,
-            item.CoarseStep,
-            item.ActionBase,
+            numericRule.FineStep,
+            numericRule.CoarseStep,
+            item.PropertyName,
             out var actions)
             ? actions
             : [];
@@ -2000,6 +2232,297 @@ public sealed class AzomLiveController
         };
     }
 
+    internal static void ValidateDirectWriteTarget(
+        string propertyName,
+        int? targetInt,
+        bool? targetBool)
+    {
+        if (string.IsNullOrWhiteSpace(
+                propertyName))
+        {
+            throw new InvalidDataException(
+                "ADT refused a live AZOM write with no property name.");
+        }
+
+        var property =
+            propertyName.Trim();
+
+        if (NumericWriteRules.TryGetValue(
+                property,
+                out var numericRule))
+        {
+            if (
+                !targetInt.HasValue ||
+                targetBool.HasValue)
+            {
+                throw new InvalidDataException(
+                    $"ADT live write {property} requires exactly one numeric target.");
+            }
+
+            if (!numericRule.Contains(
+                    targetInt.Value))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(targetInt),
+                    targetInt.Value,
+                    $"ADT refused {property}={targetInt.Value}. Supported live-write range is {numericRule.Minimum}..{numericRule.Maximum}.");
+            }
+
+            return;
+        }
+
+        if (ToggleWriteRules.ContainsKey(
+                property))
+        {
+            if (
+                !targetBool.HasValue ||
+                targetInt.HasValue)
+            {
+                throw new InvalidDataException(
+                    $"ADT live write {property} requires exactly one boolean target.");
+            }
+
+            return;
+        }
+
+        throw new InvalidDataException(
+            $"ADT does not allow live writes for AZOM property '{property}'.");
+    }
+
+    private static void ValidateAuthoritativeSourceState(
+        IReadOnlyCollection<AzomApplyPlanItem> selected,
+        AzomLiveSnapshot authoritative)
+    {
+        foreach (var item in selected)
+        {
+            if (IsItemAtTarget(
+                    item,
+                    authoritative))
+            {
+                continue;
+            }
+
+            if (item.Kind ==
+                AzomApplyItemKind.Numeric)
+            {
+                var current =
+                    GetNumeric(
+                        authoritative,
+                        item.PropertyName);
+
+                if (
+                    !item.CurrentInt.HasValue ||
+                    !current.HasValue ||
+                    current.Value !=
+                        item.CurrentInt.Value)
+                {
+                    throw new InvalidOperationException(
+                        $"ADT refused the live write for {item.PropertyName} because its current value changed after the plan was created. Refresh live AZOM state and review the change again.");
+                }
+
+                continue;
+            }
+
+            if (item.Kind ==
+                AzomApplyItemKind.Toggle)
+            {
+                var current =
+                    GetToggle(
+                        authoritative,
+                        item.PropertyName);
+
+                if (
+                    !item.CurrentBool.HasValue ||
+                    !current.HasValue ||
+                    current.Value !=
+                        item.CurrentBool.Value)
+                {
+                    throw new InvalidOperationException(
+                        $"ADT refused the live write for {item.PropertyName} because its current state changed after the plan was created. Refresh live AZOM state and review the change again.");
+                }
+
+                continue;
+            }
+
+            throw new InvalidDataException(
+                $"ADT refused {item.PropertyName} because its live-write plan kind is unsupported.");
+        }
+    }
+
+    private static void ValidateSelectedPlan(
+        IReadOnlyCollection<AzomApplyPlanItem> selected)
+    {
+        var properties =
+            new HashSet<string>(
+                StringComparer.Ordinal);
+
+        foreach (var item in selected)
+        {
+            if (item is null)
+            {
+                throw new InvalidDataException(
+                    "ADT refused a live-write plan containing a null row.");
+            }
+
+            var property =
+                item.PropertyName?.Trim() ??
+                string.Empty;
+
+            if (
+                property.Length == 0 ||
+                !string.Equals(
+                    property,
+                    item.PropertyName,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "ADT refused a live-write plan containing an invalid AZOM property name.");
+            }
+
+            if (!properties.Add(
+                    property))
+            {
+                throw new InvalidDataException(
+                    $"ADT refused a live-write plan containing duplicate property '{property}'.");
+            }
+
+            ValidateDirectWriteTarget(
+                property,
+                item.Kind ==
+                    AzomApplyItemKind.Numeric
+                    ? item.TargetInt
+                    : null,
+                item.Kind ==
+                    AzomApplyItemKind.Toggle
+                    ? item.TargetBool
+                    : null);
+
+            if (NumericWriteRules.TryGetValue(
+                    property,
+                    out var numericRule))
+            {
+                if (item.Kind !=
+                    AzomApplyItemKind.Numeric)
+                {
+                    throw new InvalidDataException(
+                        $"ADT refused {property} because its plan row is not numeric.");
+                }
+
+                if (
+                    item.TargetBool.HasValue ||
+                    !string.Equals(
+                        item.ActionBase,
+                        property,
+                        StringComparison.Ordinal) ||
+                    item.FineStep !=
+                        numericRule.FineStep ||
+                    item.CoarseStep !=
+                        numericRule.CoarseStep)
+                {
+                    throw new InvalidDataException(
+                        $"ADT refused {property} because its live-write action metadata does not match the approved rule.");
+                }
+
+                continue;
+            }
+
+            if (!ToggleWriteRules.TryGetValue(
+                    property,
+                    out var toggleRule) ||
+                item.Kind !=
+                    AzomApplyItemKind.Toggle ||
+                item.TargetInt.HasValue ||
+                !item.TargetBool.HasValue)
+            {
+                throw new InvalidDataException(
+                    $"ADT refused {property} because its toggle plan metadata is invalid.");
+            }
+
+            var expectedAction =
+                item.TargetBool.Value
+                    ? toggleRule.TrueAction
+                    : toggleRule.FalseAction;
+
+            if (!string.Equals(
+                    item.ToggleAction,
+                    expectedAction,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"ADT refused {property} because its toggle action does not match the requested target.");
+            }
+        }
+    }
+
+    private static AzomApplyPlanItem ClonePlanItem(
+        AzomApplyPlanItem source)
+    {
+        return new AzomApplyPlanItem
+        {
+            Group =
+                source.Group,
+            DisplayName =
+                source.DisplayName,
+            PropertyName =
+                source.PropertyName,
+            Kind =
+                source.Kind,
+            CurrentDisplay =
+                source.CurrentDisplay,
+            TargetDisplay =
+                source.TargetDisplay,
+            CurrentInt =
+                source.CurrentInt,
+            TargetInt =
+                source.TargetInt,
+            CurrentBool =
+                source.CurrentBool,
+            TargetBool =
+                source.TargetBool,
+            ActionBase =
+                source.ActionBase,
+            ToggleAction =
+                source.ToggleAction,
+            FineStep =
+                source.FineStep,
+            CoarseStep =
+                source.CoarseStep,
+            CanApply =
+                source.CanApply,
+            Note =
+                source.Note,
+            EstimatedActions =
+                source.EstimatedActions,
+            IsSelectedForApply =
+                source.IsSelectedForApply
+        };
+    }
+
+    private static AzomApplyPlanItem CreateCompatibilityRow(
+        string displayName,
+        string note)
+    {
+        return new AzomApplyPlanItem
+        {
+            Group =
+                "Compatibility",
+            DisplayName =
+                displayName,
+            PropertyName =
+                "AZOM",
+            Kind =
+                AzomApplyItemKind.Unsupported,
+            CanApply =
+                false,
+            CurrentDisplay =
+                "Unavailable",
+            TargetDisplay =
+                "No write",
+            Note =
+                note
+        };
+    }
+
     public AzomRevertRecord? LoadRevertRecord()
     {
         return _revertStore.Load();
@@ -2017,6 +2540,16 @@ public sealed class AzomLiveController
         int coarse,
         string suffix)
     {
+        NumericWriteRules.TryGetValue(
+            property,
+            out var rule);
+
+        var targetValid =
+            target.HasValue &&
+            rule is not null &&
+            rule.Contains(
+                target.Value);
+
         var row =
             new AzomApplyPlanItem
             {
@@ -2061,8 +2594,67 @@ public sealed class AzomLiveController
                 CanApply =
                     current.HasValue &&
                     current.Value >= 0 &&
-                    target.HasValue
+                    targetValid
             };
+
+        if (rule is null)
+        {
+            row.CanApply =
+                false;
+
+            row.Note =
+                "ADT has no approved live-write rule for this AZOM property.";
+        }
+        else if (!target.HasValue)
+        {
+            row.CanApply =
+                false;
+
+            row.Note =
+                "No numeric target is available; ADT will not write this setting.";
+        }
+        else if (!targetValid)
+        {
+            row.CanApply =
+                false;
+
+            row.Note =
+                $"Target {target.Value}{suffix} is outside ADT's supported live-write range " +
+                $"{rule.Minimum}..{rule.Maximum}{suffix}. The value was rejected, not clamped.";
+        }
+        else if (
+            !current.HasValue ||
+            current.Value < 0)
+        {
+            row.Note =
+                "The current live value is unavailable, so ADT cannot safely apply this setting.";
+        }
+        else if (!rule.Contains(
+                     current.Value))
+        {
+            // A valid exact target may be used to recover an abnormal live value.
+            // Relative action fallbacks remain disabled because their starting
+            // point cannot be trusted.
+            row.Note =
+                $"Current live value {current.Value}{suffix} is outside the expected " +
+                $"{rule.Minimum}..{rule.Maximum}{suffix} range. ADT will allow only an exact verified commit; relative action fallbacks are disabled.";
+        }
+        else if (
+            !string.Equals(
+                actionBase,
+                property,
+                StringComparison.Ordinal) ||
+            fine !=
+                rule.FineStep ||
+            coarse !=
+                rule.CoarseStep)
+        {
+            row.CanApply =
+                false;
+
+            row.Note =
+                "ADT detected an internal live-write rule mismatch and disabled this row.";
+        }
 
         if (
             row.CanApply &&
@@ -2071,12 +2663,16 @@ public sealed class AzomLiveController
             row.IsSelectedForApply =
                 true;
 
-            if (TryBuildExactStepSequence(
-                    current!.Value,
+            if (
+                rule is not null &&
+                rule.Contains(
+                    current!.Value) &&
+                TryBuildExactStepSequence(
+                    current.Value,
                     target!.Value,
-                    fine,
-                    coarse,
-                    actionBase,
+                    rule.FineStep,
+                    rule.CoarseStep,
+                    property,
                     out var actions))
             {
                 row.EstimatedActions =
@@ -2087,8 +2683,12 @@ public sealed class AzomLiveController
                 row.EstimatedActions =
                     0;
 
-                row.Note =
-                    "Exact AZOM commit required for this target; public action steps cannot reach it exactly.";
+                if (string.IsNullOrWhiteSpace(
+                        row.Note))
+                {
+                    row.Note =
+                        "Exact AZOM commit required for this target; public action steps cannot reach it exactly.";
+                }
             }
         }
 
@@ -2105,12 +2705,32 @@ public sealed class AzomLiveController
         bool? target,
         string targetAction)
     {
+        ToggleWriteRules.TryGetValue(
+            property,
+            out var rule);
+
+        var expectedAction =
+            target.HasValue &&
+            rule is not null
+                ? target.Value
+                    ? rule.TrueAction
+                    : rule.FalseAction
+                : null;
+
+        var actionValid =
+            expectedAction is not null &&
+            string.Equals(
+                targetAction,
+                expectedAction,
+                StringComparison.Ordinal);
+
         var different =
             current.HasValue &&
             target.HasValue &&
-            current.Value != target.Value;
+            current.Value !=
+            target.Value;
 
-        rows.Add(
+        var row =
             new AzomApplyPlanItem
             {
                 Group =
@@ -2150,16 +2770,56 @@ public sealed class AzomLiveController
 
                 CanApply =
                     current.HasValue &&
-                    target.HasValue,
+                    target.HasValue &&
+                    actionValid,
 
                 EstimatedActions =
-                    different
+                    different &&
+                    actionValid
                         ? 1
                         : 0,
 
                 IsSelectedForApply =
-                    different
-            });
+                    different &&
+                    actionValid
+            };
+
+        if (rule is null)
+        {
+            row.CanApply =
+                false;
+
+            row.IsSelectedForApply =
+                false;
+
+            row.Note =
+                "ADT has no approved live-write rule for this AZOM toggle.";
+        }
+        else if (!target.HasValue)
+        {
+            row.CanApply =
+                false;
+
+            row.IsSelectedForApply =
+                false;
+
+            row.Note =
+                "No toggle target is available; ADT will not write this setting.";
+        }
+        else if (!actionValid)
+        {
+            row.CanApply =
+                false;
+
+            row.IsSelectedForApply =
+                false;
+
+            row.Note =
+                "ADT detected an internal toggle-action mismatch and disabled this row.";
+        }
+
+        rows.Add(
+            row);
     }
 
     private static bool TryBuildExactStepSequence(

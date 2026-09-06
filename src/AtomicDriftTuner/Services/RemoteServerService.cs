@@ -43,22 +43,42 @@ public sealed class RemoteServerService : IAsyncDisposable
 
     private readonly object _stateGate = new();
     private readonly object _pairGate = new();
+    private readonly object _remoteRevertGate = new();
+
+    private readonly SemaphoreSlim _lifecycleGate =
+        new(1, 1);
+
+    private readonly SemaphoreSlim _remoteMutationGate =
+        new(1, 1);
 
     private WebApplication? _app;
+
+    private volatile bool _remoteWritesEnabled;
 
     private RemoteTuneContext _tune = new();
     private TuneInput? _currentInput;
 
     private string _lastActivity = "Remote server is stopped.";
 
-    private AzomLiveSnapshot? _remoteBeforeSnapshot;
-    private string? _remoteChangedProperty;
+    private RemoteRevertState? _remoteRevertState;
 
     private int _failedPairAttempts;
     private DateTime _pairBlockedUntilUtc;
 
     private string _pairingCode = "000000";
     private string _pairToken = "";
+
+    private sealed class RemoteRevertState
+    {
+        public required AzomLiveSnapshot BeforeSnapshot { get; init; }
+
+        public required string PropertyName { get; init; }
+
+        // The live value ADT expects to still be present before a remote revert.
+        // This prevents a stale mobile undo from overwriting a newer desktop or
+        // interactive change to the same setting.
+        public required int ExpectedPostValue { get; init; }
+    }
 
     public event EventHandler? StateChanged;
     public event EventHandler<RemoteAzomChangedEventArgs>? AzomChanged;
@@ -72,9 +92,11 @@ public sealed class RemoteServerService : IAsyncDisposable
         GenerateTuneHandler { get; set; }
 
     public bool IsRunning =>
-        _app is not null;
+        Volatile.Read(
+            ref _app) is not null;
 
-    public bool RemoteWritesEnabled { get; private set; }
+    public bool RemoteWritesEnabled =>
+        _remoteWritesEnabled;
 
     public int Port { get; private set; } =
         DefaultPort;
@@ -182,7 +204,7 @@ public sealed class RemoteServerService : IAsyncDisposable
     public void SetRemoteWritesEnabled(
         bool enabled)
     {
-        RemoteWritesEnabled =
+        _remoteWritesEnabled =
             enabled &&
             IsRunning;
 
@@ -281,10 +303,15 @@ public sealed class RemoteServerService : IAsyncDisposable
         int port = DefaultPort,
         CancellationToken cancellationToken = default)
     {
-        if (IsRunning)
+        await _lifecycleGate.WaitAsync(
+            cancellationToken);
+
+        try
         {
-            return;
-        }
+            if (IsRunning)
+            {
+                return;
+            }
 
         if (port is < 1024 or > 65535)
         {
@@ -295,10 +322,9 @@ public sealed class RemoteServerService : IAsyncDisposable
 
         Port = port;
 
-        RemoteWritesEnabled = false;
+        _remoteWritesEnabled = false;
 
-        _remoteBeforeSnapshot = null;
-        _remoteChangedProperty = null;
+        ClearRemoteRevertState();
 
         RegeneratePairing();
 
@@ -789,9 +815,7 @@ public sealed class RemoteServerService : IAsyncDisposable
                 {
                     SetActivity(
                         "Remote telemetry endpoint failed: " +
-                        ex.GetType().Name +
-                        ": " +
-                        ex.Message);
+                        ex.GetType().Name);
 
                     return Results.Json(
                         new
@@ -892,7 +916,9 @@ public sealed class RemoteServerService : IAsyncDisposable
             await app.StartAsync(
                 cancellationToken);
 
-            _app = app;
+            Volatile.Write(
+                ref _app,
+                app);
         }
         catch
         {
@@ -904,27 +930,36 @@ public sealed class RemoteServerService : IAsyncDisposable
         // TelemetryHubService retries when clients request data.
         _telemetryHub.GetSnapshot();
 
-        SetActivity(
-            $"ADT Remote started on port {Port}. Remote writes are OFF.");
+            SetActivity(
+                $"ADT Remote started on port {Port}. Remote writes are OFF.");
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     public async Task StopAsync(
         CancellationToken cancellationToken = default)
     {
-        var app =
-            _app;
+        await _lifecycleGate.WaitAsync(
+            cancellationToken);
 
-        if (app is null)
+        try
         {
-            return;
-        }
+            var app =
+                Interlocked.Exchange(
+                    ref _app,
+                    null);
 
-        _app = null;
+            if (app is null)
+            {
+                return;
+            }
 
-        RemoteWritesEnabled = false;
+        _remoteWritesEnabled = false;
 
-        _remoteBeforeSnapshot = null;
-        _remoteChangedProperty = null;
+        ClearRemoteRevertState();
 
         try
         {
@@ -935,8 +970,13 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             await app.DisposeAsync();
 
-            SetActivity(
-                "ADT Remote stopped. Remote writes are OFF.");
+                SetActivity(
+                    "ADT Remote stopped. Remote writes are OFF.");
+            }
+        }
+        finally
+        {
+            _lifecycleGate.Release();
         }
     }
 
@@ -1025,9 +1065,7 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             SetActivity(
                 "Remote Desired Behavior read failed: " +
-                ex.GetType().Name +
-                ": " +
-                ex.Message);
+                ex.GetType().Name);
 
             return new RemoteBehaviorView
             {
@@ -1110,9 +1148,7 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             SetActivity(
                 "Remote Desired Behavior save failed: " +
-                ex.GetType().Name +
-                ": " +
-                ex.Message);
+                ex.GetType().Name);
 
             return new RemoteActionResponse
             {
@@ -1323,9 +1359,7 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             SetActivity(
                 "Remote AZOM read failed: " +
-                ex.GetType().Name +
-                ": " +
-                ex.Message);
+                ex.GetType().Name);
 
             return new
             {
@@ -1381,8 +1415,36 @@ public sealed class RemoteServerService : IAsyncDisposable
                 $"Requested value is outside ADT's known range {definition.Range.Display}.");
         }
 
+        // Enforce the controller's centralized property/type/range contract too.
+        // The remote surface is intentionally a smaller subset of that contract.
         try
         {
+            AzomLiveController.ValidateDirectWriteTarget(
+                definition.PropertyName,
+                request.Value,
+                null);
+        }
+        catch (Exception)
+        {
+            return Failure(
+                request,
+                "ADT refused the requested AZOM property/value at the live-write safety boundary.");
+        }
+
+        await _remoteMutationGate.WaitAsync(
+            cancellationToken);
+
+        try
+        {
+            // A user may disable remote writes while this request is waiting
+            // behind another remote mutation. Re-check only after serialization.
+            if (!RemoteWritesEnabled)
+            {
+                return Failure(
+                    request,
+                    "Remote AZOM writes were disabled before this request could run.");
+            }
+
             var controller =
                 CreateLiveController();
 
@@ -1395,23 +1457,29 @@ public sealed class RemoteServerService : IAsyncDisposable
                 !string.Equals(
                     before.PropertyNamespace,
                     "AZOM",
-                    StringComparison.OrdinalIgnoreCase))
+                    StringComparison.OrdinalIgnoreCase) ||
+                before.BaseConnected ==
+                    false)
             {
                 return Failure(
                     request,
-                    "Current AZOM Base settings are not safely readable through the ADT bridge.");
+                    "Current AZOM Base settings are not safely writable through the ADT bridge.");
             }
 
             var current =
-                definition.Getter(before);
+                definition.Getter(
+                    before);
 
             if (
                 !current.HasValue ||
-                current.Value < 0)
+                current.Value <
+                    definition.Range.Min ||
+                current.Value >
+                    definition.Range.Max)
             {
                 return Failure(
                     request,
-                    "The requested live AZOM setting is not readable on this AZOM/base combination.");
+                    "The requested live AZOM setting is not safely readable on this AZOM/base combination.");
             }
 
             if (
@@ -1441,15 +1509,22 @@ public sealed class RemoteServerService : IAsyncDisposable
                 };
             }
 
-            // Preserve the live pre-change snapshot before attempting
-            // the guarded write. This is intentionally retained even
-            // if verification later fails, because a partially changed
-            // live state may still need to be reverted.
-            _remoteBeforeSnapshot =
-                before;
+            // Install the recovery record before handing the request to the
+            // controller. If cancellation/transport ambiguity happens after
+            // handoff, a later remote revert can only proceed when the live
+            // value still matches this exact requested value.
+            SetRemoteRevertState(
+                new RemoteRevertState
+                {
+                    BeforeSnapshot =
+                        before,
 
-            _remoteChangedProperty =
-                definition.PropertyName;
+                    PropertyName =
+                        definition.PropertyName,
+
+                    ExpectedPostValue =
+                        request.Value
+                });
 
             var plan =
                 new List<AzomApplyPlanItem>
@@ -1511,12 +1586,48 @@ public sealed class RemoteServerService : IAsyncDisposable
                     cancellationToken);
 
             var live =
-                definition.Getter(after);
+                definition.Getter(
+                    after);
 
             var verified =
                 live.HasValue &&
-                live.Value == request.Value &&
-                result.VerifiedSettingsChanged == 1;
+                live.Value ==
+                    request.Value &&
+                result.VerifiedSettingsChanged ==
+                    1;
+
+            if (
+                !verified &&
+                live.HasValue &&
+                live.Value !=
+                    current.Value)
+            {
+                // The guarded batch observed a changed but non-target value.
+                // Bind recovery to the exact last observed post-write state so
+                // remote undo still cannot overwrite an unrelated later change.
+                SetRemoteRevertState(
+                    new RemoteRevertState
+                    {
+                        BeforeSnapshot =
+                            before,
+
+                        PropertyName =
+                            definition.PropertyName,
+
+                        ExpectedPostValue =
+                            live.Value
+                    });
+            }
+            else if (
+                !verified &&
+                live.HasValue &&
+                live.Value ==
+                    current.Value)
+            {
+                // Nothing changed; preserve no stale "undo" for this failed
+                // request.
+                ClearRemoteRevertState();
+            }
 
             var response =
                 new RemoteAzomWriteResponse
@@ -1575,13 +1686,15 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             SetActivity(
                 "Remote AZOM write failed: " +
-                ex.GetType().Name +
-                ": " +
-                ex.Message);
+                ex.GetType().Name);
 
             return Failure(
                 request,
                 "ADT could not complete the requested AZOM write.");
+        }
+        finally
+        {
+            _remoteMutationGate.Release();
         }
     }
 
@@ -1600,28 +1713,85 @@ public sealed class RemoteServerService : IAsyncDisposable
             };
         }
 
-        var beforeSnapshot =
-            _remoteBeforeSnapshot;
-
-        var changedProperty =
-            _remoteChangedProperty;
-
-        if (
-            beforeSnapshot is null ||
-            string.IsNullOrWhiteSpace(
-                changedProperty))
-        {
-            return new RemoteAzomWriteResponse
-            {
-                Ok = false,
-
-                Message =
-                    "No remote-change snapshot is available to revert in this ADT run."
-            };
-        }
+        await _remoteMutationGate.WaitAsync(
+            cancellationToken);
 
         try
         {
+            if (!RemoteWritesEnabled)
+            {
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    Message =
+                        "Remote AZOM writes were disabled before this revert could run."
+                };
+            }
+
+            var revertState =
+                GetRemoteRevertState();
+
+            if (revertState is null)
+            {
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    Message =
+                        "No remote-change snapshot is available to revert in this ADT run."
+                };
+            }
+
+            var definition =
+                SettingDefinitions.FirstOrDefault(
+                    x =>
+                        string.Equals(
+                            x.PropertyName,
+                            revertState.PropertyName,
+                            StringComparison.Ordinal));
+
+            if (definition is null)
+            {
+                ClearRemoteRevertState();
+
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    Message =
+                        "The saved remote revert property is no longer supported by this ADT build."
+                };
+            }
+
+            var desired =
+                definition.Getter(
+                    revertState.BeforeSnapshot);
+
+            if (
+                !desired.HasValue ||
+                desired.Value <
+                    definition.Range.Min ||
+                desired.Value >
+                    definition.Range.Max)
+            {
+                ClearRemoteRevertState();
+
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    Message =
+                        "The saved pre-change AZOM value is no longer a safe revert target."
+                };
+            }
+
             var controller =
                 CreateLiveController();
 
@@ -1629,27 +1799,50 @@ public sealed class RemoteServerService : IAsyncDisposable
                 await controller.ReadAsync(
                     cancellationToken);
 
-            var plan =
-                controller.BuildRevertPlan(
-                    beforeSnapshot,
-                    current,
-                    new[]
-                    {
-                        changedProperty
-                    });
-
-            var changed =
-                plan
-                    .Where(
-                        x =>
-                            x.CanApply &&
-                            x.IsDifferent)
-                    .ToList();
-
-            if (changed.Count == 0)
+            if (
+                !current.SettingsReadable ||
+                !string.Equals(
+                    current.PropertyNamespace,
+                    "AZOM",
+                    StringComparison.OrdinalIgnoreCase) ||
+                current.BaseConnected ==
+                    false)
             {
-                _remoteBeforeSnapshot = null;
-                _remoteChangedProperty = null;
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    Message =
+                        "Current AZOM Base settings are not safely readable for remote revert."
+                };
+            }
+
+            var currentValue =
+                definition.Getter(
+                    current);
+
+            if (!currentValue.HasValue)
+            {
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    Message =
+                        "The live AZOM value required for remote revert is not readable."
+                };
+            }
+
+            if (currentValue.Value ==
+                desired.Value)
+            {
+                ClearRemoteRevertStateIfSame(
+                    revertState);
 
                 SetActivity(
                     "Remote Revert: the live setting already matches the saved pre-change snapshot.");
@@ -1660,13 +1853,89 @@ public sealed class RemoteServerService : IAsyncDisposable
                     Verified = true,
 
                     PropertyName =
-                        changedProperty,
+                        revertState.PropertyName,
+
+                    RequestedValue =
+                        desired.Value,
+
+                    LiveValue =
+                        currentValue.Value,
 
                     Message =
                         "Already reverted."
                 };
             }
 
+            if (currentValue.Value !=
+                revertState.ExpectedPostValue)
+            {
+                ClearRemoteRevertStateIfSame(
+                    revertState);
+
+                SetActivity(
+                    $"Remote Revert refused for {definition.DisplayName}: live value changed after the remote operation.");
+
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+                    Verified = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    RequestedValue =
+                        desired.Value,
+
+                    LiveValue =
+                        currentValue.Value,
+
+                    Message =
+                        "ADT refused this stale remote revert because the live setting changed after the remote operation."
+                };
+            }
+
+            var plan =
+                controller.BuildRevertPlan(
+                    revertState.BeforeSnapshot,
+                    current,
+                    new[]
+                    {
+                        revertState.PropertyName
+                    });
+
+            var changed =
+                plan
+                    .Where(
+                        x =>
+                            x.CanApply &&
+                            x.IsDifferent)
+                    .ToList();
+
+            if (changed.Count !=
+                1)
+            {
+                return new RemoteAzomWriteResponse
+                {
+                    Ok = false,
+
+                    PropertyName =
+                        revertState.PropertyName,
+
+                    RequestedValue =
+                        desired.Value,
+
+                    LiveValue =
+                        currentValue.Value,
+
+                    Message =
+                        "ADT could not build one safe remote revert operation for the saved setting."
+                };
+            }
+
+            // AzomLiveController v3 verifies that the authoritative live source
+            // still equals this plan's CurrentInt after it acquires the global
+            // live-write gate. That closes the final desktop-vs-remote stale
+            // revert race between the read above and the actual commit.
             var result =
                 await controller.ApplyAsync(
                     plan,
@@ -1678,31 +1947,21 @@ public sealed class RemoteServerService : IAsyncDisposable
                 await controller.ReadAsync(
                     cancellationToken);
 
-            var definition =
-                SettingDefinitions.First(
-                    x =>
-                        string.Equals(
-                            x.PropertyName,
-                            changedProperty,
-                            StringComparison.OrdinalIgnoreCase));
-
-            var desired =
-                definition.Getter(
-                    beforeSnapshot);
-
             var live =
                 definition.Getter(
                     after);
 
             var verified =
-                desired.HasValue &&
-                live == desired &&
-                result.VerifiedSettingsChanged >= 1;
+                live.HasValue &&
+                live.Value ==
+                    desired.Value &&
+                result.VerifiedSettingsChanged >=
+                    1;
 
             if (verified)
             {
-                _remoteBeforeSnapshot = null;
-                _remoteChangedProperty = null;
+                ClearRemoteRevertStateIfSame(
+                    revertState);
             }
 
             SetActivity(
@@ -1717,7 +1976,7 @@ public sealed class RemoteServerService : IAsyncDisposable
                 new RemoteAzomChangedEventArgs
                 {
                     PropertyName =
-                        changedProperty,
+                        revertState.PropertyName,
 
                     Value =
                         live,
@@ -1735,10 +1994,10 @@ public sealed class RemoteServerService : IAsyncDisposable
                     verified,
 
                 PropertyName =
-                    changedProperty,
+                    revertState.PropertyName,
 
                 RequestedValue =
-                    desired,
+                    desired.Value,
 
                 LiveValue =
                     live,
@@ -1757,20 +2016,19 @@ public sealed class RemoteServerService : IAsyncDisposable
         {
             SetActivity(
                 "Remote Revert failed: " +
-                ex.GetType().Name +
-                ": " +
-                ex.Message);
+                ex.GetType().Name);
 
             return new RemoteAzomWriteResponse
             {
                 Ok = false,
 
-                PropertyName =
-                    changedProperty,
-
                 Message =
                     "ADT could not complete the remote revert."
             };
+        }
+        finally
+        {
+            _remoteMutationGate.Release();
         }
     }
 
@@ -1803,6 +2061,51 @@ public sealed class RemoteServerService : IAsyncDisposable
                 live.PipeName),
             live.ActionDelayMs,
             cliFallback);
+    }
+
+    private void SetRemoteRevertState(
+        RemoteRevertState state)
+    {
+        ArgumentNullException.ThrowIfNull(
+            state);
+
+        lock (_remoteRevertGate)
+        {
+            _remoteRevertState =
+                state;
+        }
+    }
+
+    private RemoteRevertState? GetRemoteRevertState()
+    {
+        lock (_remoteRevertGate)
+        {
+            return _remoteRevertState;
+        }
+    }
+
+    private void ClearRemoteRevertState()
+    {
+        lock (_remoteRevertGate)
+        {
+            _remoteRevertState =
+                null;
+        }
+    }
+
+    private void ClearRemoteRevertStateIfSame(
+        RemoteRevertState expected)
+    {
+        lock (_remoteRevertGate)
+        {
+            if (ReferenceEquals(
+                    _remoteRevertState,
+                    expected))
+            {
+                _remoteRevertState =
+                    null;
+            }
+        }
     }
 
     private static RemoteAzomWriteResponse Failure(

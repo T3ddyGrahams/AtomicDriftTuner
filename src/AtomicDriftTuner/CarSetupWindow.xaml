@@ -1,7 +1,7 @@
 <Window x:Class="AtomicDriftTuner.CarSetupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Atomic Drift Tuner - Assetto Corsa Car Setup" Width="1260" Height="980"
+        Title="ADT • Assetto Corsa Car Setup Tuner" Width="1260" Height="980"
         MinWidth="940" MinHeight="720" Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
@@ -38,7 +38,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="Tuning aggressiveness" FontWeight="Bold"/>
-                    <ComboBox x:Name="AggressivenessBox"/>
+                    <ComboBox x:Name="AggressivenessBox" SelectionChanged="AggressivenessBox_SelectionChanged"/>
                     <Button Content="GENERATE CAR SETUP" Click="GenerateSetup_Click" FontWeight="Bold" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}"/>
                 </StackPanel>
             </Grid>
@@ -75,7 +75,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Calmer" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="FrontEndBiteSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="FrontEndBiteSlider" AutomationProperties.Name="Front-end bite" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Aggressive" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="FrontEndBiteValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -86,7 +86,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Loose" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="RearGripSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="RearGripSlider" AutomationProperties.Name="Rear grip" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Planted" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="RearGripValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -97,7 +97,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Slower" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="SelfSteerSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="SelfSteerSlider" AutomationProperties.Name="Self-steer speed" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Faster" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="SelfSteerValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -108,7 +108,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Smooth" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="TransitionSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="TransitionSlider" AutomationProperties.Name="Transition speed" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Quick" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="TransitionValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -119,7 +119,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Lively" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="AngleStabilitySlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="AngleStabilitySlider" AutomationProperties.Name="Angle stability" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Stable" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="AngleStabilityValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -130,7 +130,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Less rotation" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="ThrottleSteeringSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="ThrottleSteeringSlider" AutomationProperties.Name="Throttle steering" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="More rotation" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="ThrottleSteeringValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -141,7 +141,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="86"/><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Progressive" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" x:Name="InitiationSlider" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
+                                <Slider Grid.Column="1" x:Name="InitiationSlider" AutomationProperties.Name="Initiation sharpness" Minimum="-2" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="BehaviorSlider_ValueChanged" Margin="8,0"/>
                                 <TextBlock Grid.Column="2" Text="Sharp" Foreground="{DynamicResource MutedTextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
                             <TextBlock x:Name="InitiationValueText" Foreground="{DynamicResource AccentBrush}"/>
@@ -168,7 +168,7 @@
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="These sliders describe handling goals, not direct setup values. Atomic now blends overlapping goals with diminishing returns, resolves opposing goals as a compromise, gives the selected session intent priority when it conflicts with a per-car behavior target, and then keeps the same range/click safety rules as the normal setup tuner."
+                    <TextBlock Text="These sliders describe handling goals, not direct setup values. ADT blends overlapping goals with diminishing returns, resolves opposing goals as a compromise, gives the selected session intent priority when it conflicts with a per-car behavior target, and then keeps the same range/click safety rules as the normal setup tuner."
                                Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
@@ -193,9 +193,9 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock x:Name="SetupStatusText" Text="Load a baseline setup to begin." FontWeight="Bold" TextWrapping="Wrap"/>
-                    <TextBlock Text="Atomic Drift Tuner preserves the baseline file and writes a new setup. Review every recommendation in-game before relying on it." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,12,0"/>
+                    <TextBlock Text="ADT preserves the loaded baseline and writes a separate setup file. Review every recommendation in-game before relying on it." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,12,0"/>
                 </StackPanel>
-                <Button Grid.Column="1" Content="Save Atomic Setup..." Click="SaveGenerated_Click" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button x:Name="SaveGeneratedButton" Grid.Column="1" Content="Save ADT Setup..." Click="SaveGenerated_Click" FontWeight="Bold" VerticalAlignment="Center" IsEnabled="False"/>
             </Grid>
         </Border>
     </Grid>

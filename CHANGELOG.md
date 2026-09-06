@@ -8,6 +8,19 @@ through GitHub Releases.
 
 ---
 
+## v0.8.2-beta.1 — Reliability & Recovery
+
+- Hardened saved settings, profiles, calibration, recovery records and update handling.
+- Added stale-source checks for AZOM Apply/Revert and remote undo.
+- Fixed telemetry reconnect/freshness and failed-save file preservation.
+- Reject changed AC setup baselines, invalid shared identities and unsupported telemetry formats.
+- Fixed bridge compilation and strengthened UI lifecycle/error handling.
+- Added 18 regression scenarios, including 8,000 built-in tuning combinations.
+- Added share registry error handling that keeps internal storage errors private (separate service deployment required).
+
+See [release notes](docs/releases/v0.8.2-beta.1.md) for upgrade instructions and testing focus.
+
+---
 ## v0.8.1-beta.1 — Modern Workflow UI + Automatic Pack Discovery
 
 ### Added

@@ -1,13 +1,41 @@
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace AtomicDriftTuner.Models;
 
 public sealed class AzomLiveConnectionSettings
 {
-    private string _pipeName =
+    public const string DefaultPipeName =
         "AtomicDriftTuner.AzomBridge.v1";
 
-    public string? SimHubExePath { get; set; }
+    public const int DefaultActionDelayMs =
+        70;
+
+    public const int MinimumActionDelayMs =
+        20;
+
+    public const int MaximumActionDelayMs =
+        500;
+
+    private string? _simHubExePath;
+
+    private string _pipeName =
+        DefaultPipeName;
+
+    private int _actionDelayMs =
+        DefaultActionDelayMs;
+
+    public string? SimHubExePath
+    {
+        get => _simHubExePath;
+
+        set =>
+            _simHubExePath =
+                string.IsNullOrWhiteSpace(
+                    value)
+                    ? null
+                    : value.Trim();
+    }
 
     public string PipeName
     {
@@ -15,13 +43,63 @@ public sealed class AzomLiveConnectionSettings
 
         set =>
             _pipeName =
-                string.IsNullOrWhiteSpace(value)
-                    ? "AtomicDriftTuner.AzomBridge.v1"
-                    : value.Trim();
+                NormalizePipeName(
+                    value);
     }
 
-    public int ActionDelayMs { get; set; } =
-        70;
+    public int ActionDelayMs
+    {
+        get => _actionDelayMs;
+
+        set =>
+            _actionDelayMs =
+                Math.Clamp(
+                    value,
+                    MinimumActionDelayMs,
+                    MaximumActionDelayMs);
+    }
+
+    private static string NormalizePipeName(
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(
+                value))
+        {
+            return
+                DefaultPipeName;
+        }
+
+        var normalized =
+            value.Trim();
+
+        // The packaged ADT bridge uses the AtomicDriftTuner.* local pipe
+        // namespace. Keep room for future bridge versions/testing while
+        // refusing arbitrary path-like or unrelated local pipe names from a
+        // malformed settings file.
+        if (
+            normalized.Length >
+                128 ||
+            !normalized.StartsWith(
+                "AtomicDriftTuner.",
+                StringComparison.Ordinal) ||
+            normalized.Any(
+                character =>
+                    !char.IsLetterOrDigit(
+                        character) &&
+                    character !=
+                        '.' &&
+                    character !=
+                        '_' &&
+                    character !=
+                        '-'))
+        {
+            return
+                DefaultPipeName;
+        }
+
+        return
+            normalized;
+    }
 }
 
 public sealed class AzomLiveSnapshot

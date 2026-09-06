@@ -18,15 +18,17 @@ public partial class CarSetupWindow : Window
     private CarBehaviorTarget _behavior = new();
     private bool _uiReady;
     private bool _loadingBehavior;
+    private string? _generatedSignature;
 
     public CarSetupWindow(
         TuneInput input,
         CarBehaviorTarget? assistantBehaviorOverride = null,
         string? assistantGuidanceNote = null)
     {
+        ArgumentNullException.ThrowIfNull(input);
+
         InitializeComponent();
         _input = input;
-        _uiReady = true;
 
         AggressivenessBox.ItemsSource = Enum.GetValues<SetupAggressiveness>();
         AggressivenessBox.SelectedItem = SetupAggressiveness.Balanced;
@@ -40,6 +42,8 @@ public partial class CarSetupWindow : Window
             "Aggressive Rotation",
             "Custom"
         };
+
+        _uiReady = true;
 
         CarSummaryText.Text = $"{input.DriftPack.Name} • {input.Car.DisplayName} • session intent: {input.Intent.Name}";
         LoadBehaviorTarget();
@@ -60,22 +64,11 @@ public partial class CarSetupWindow : Window
 
         try
         {
-            target.Normalize();
-
             _behavior =
-                new CarBehaviorTarget
-                {
-                    Key = target.Key,
-                    DisplayName = target.DisplayName,
-                    UpdatedUtc = target.UpdatedUtc,
-                    FrontEndBite = target.FrontEndBite,
-                    RearGrip = target.RearGrip,
-                    SelfSteerSpeed = target.SelfSteerSpeed,
-                    TransitionSpeed = target.TransitionSpeed,
-                    AngleStability = target.AngleStability,
-                    ThrottleSteering = target.ThrottleSteering,
-                    InitiationSharpness = target.InitiationSharpness
-                };
+                CloneBehaviorTarget(
+                    target);
+
+            _behavior.Normalize();
 
             ApplyBehaviorToControls(
                 _behavior);
@@ -100,114 +93,462 @@ public partial class CarSetupWindow : Window
 
     private void RefreshSavedSetups()
     {
+        string? previousPath =
+            TryGetSelectedPath();
+
+        var discovered =
+            _service.FindSavedSetups(
+                _input.Car);
+
         _savedSetups.Clear();
-        _savedSetups.AddRange(_service.FindSavedSetups(_input.Car));
-        BaselineBox.ItemsSource = null;
-        BaselineBox.ItemsSource = _savedSetups.Select(x => new SetupChoice(x)).ToList();
-        if (_savedSetups.Count > 0)
+        _savedSetups.AddRange(
+            discovered.Distinct(
+                StringComparer.OrdinalIgnoreCase));
+
+        var choices =
+            _savedSetups
+                .Select(
+                    path =>
+                        new SetupChoice(
+                            path))
+                .ToList();
+
+        BaselineBox.ItemsSource =
+            choices;
+
+        int selectedIndex =
+            previousPath is null
+                ? -1
+                : choices.FindIndex(
+                    choice =>
+                        string.Equals(
+                            choice.Path,
+                            previousPath,
+                            StringComparison.OrdinalIgnoreCase));
+
+        if (selectedIndex < 0 &&
+            choices.Count > 0)
         {
-            BaselineBox.SelectedIndex = 0;
-            SetupStatusText.Text = $"Found {_savedSetups.Count} saved setup(s) for {_input.Car.SourceFolderName}.";
+            selectedIndex =
+                0;
+        }
+
+        BaselineBox.SelectedIndex =
+            selectedIndex;
+
+        if (choices.Count > 0)
+        {
+            SetupStatusText.Text =
+                $"Found {choices.Count} saved setup(s) for {_input.Car.SourceFolderName}.";
         }
         else
         {
-            SetupStatusText.Text = "No saved setup was auto-detected. Save a setup in Assetto Corsa once, or use Browse Setup.";
+            ClearAnalysis(
+                clearGrid: true);
+
+            SetupStatusText.Text =
+                "No saved setup was auto-detected. Save a setup in Assetto Corsa once, or use Browse Setup.";
         }
     }
 
-    private void RefreshSetups_Click(object sender, RoutedEventArgs e) => RefreshSavedSetups();
-
-    private void BrowseSetup_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFileDialog { Filter = "Assetto Corsa setup (*.ini)|*.ini|INI (*.ini)|*.ini" };
-        if (dialog.ShowDialog() == true)
-        {
-            if (!_savedSetups.Contains(dialog.FileName, StringComparer.OrdinalIgnoreCase)) _savedSetups.Insert(0, dialog.FileName);
-            BaselineBox.ItemsSource = _savedSetups.Select(x => new SetupChoice(x)).ToList();
-            BaselineBox.SelectedIndex = 0;
-        }
-    }
-
-    private void LoadBaseline_Click(object sender, RoutedEventArgs e)
+    private void RefreshSetups_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            var path = SelectedPath();
-            _analysis = _service.LoadBaseline(path, _input.Car);
-            SetupGrid.ItemsSource = _analysis.Parameters;
-            RangeStatusText.Text = _analysis.RangeSummary;
-            SetupStatusText.Text = $"Loaded {Path.GetFileName(path)} with {_analysis.Parameters.Count} adjustable saved values. Generate a car setup to see recommendations.";
-            BehaviorBlendResultText.Text = "Generate a setup to see the actual parameter-by-parameter blend audit for this car.";
+            RefreshSavedSetups();
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Car Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                ex.Message,
+                "Refresh AC Setups",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
-    private void GenerateSetup_Click(object sender, RoutedEventArgs e)
+    private void BrowseSetup_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            if (_analysis is null) LoadAnalysisFromSelection();
-            var mode = AggressivenessBox.SelectedItem is SetupAggressiveness a ? a : SetupAggressiveness.Balanced;
-            _behavior = ReadBehaviorFromControls();
-            _analysis = _engine.Generate(_input, _analysis!, mode, _behavior);
-            SetupGrid.ItemsSource = null;
-            SetupGrid.ItemsSource = _analysis.Parameters;
+            var dialog =
+                new OpenFileDialog
+                {
+                    Filter =
+                        "Assetto Corsa setup (*.ini)|*.ini|INI (*.ini)|*.ini",
+                    Title =
+                        $"Choose a baseline setup for {_input.Car.DisplayName}",
+                    CheckFileExists =
+                        true,
+                    Multiselect =
+                        false
+                };
 
-            var behaviorSummary = _behavior.IsNeutral
-                ? "neutral per-car behavior"
-                : $"{_behavior.ActiveBiasCount} per-car behavior bias(es)";
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
 
-            SetupStatusText.Text = $"Generated {_analysis.ChangedCount} recommended change(s) using {mode} tuning + {behaviorSummary}. Review the Blend and Reason columns before saving.";
+            var selectedPath =
+                Path.GetFullPath(
+                    dialog.FileName);
 
-            var blend = _analysis.BehaviorBlend;
-            var topNotices = blend.Notices
-                .Where(x => x.Kind.Contains("compromise", StringComparison.OrdinalIgnoreCase))
-                .Take(3)
-                .Select(x => $"{x.Parameter}: {x.Kind}")
-                .ToList();
+            if (!string.Equals(
+                    Path.GetExtension(
+                        selectedPath),
+                    ".ini",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "The selected baseline must be an Assetto Corsa .ini setup file.");
+            }
+
+            bool discoveredForCurrentCar =
+                _savedSetups.Contains(
+                    selectedPath,
+                    StringComparer.OrdinalIgnoreCase);
+
+            if (!discoveredForCurrentCar)
+            {
+                var answer =
+                    MessageBox.Show(
+                        $"ADT did not auto-discover this file under the saved setups for {_input.Car.DisplayName}. " +
+                        "Assetto Corsa setup files do not contain a reliable car identity, so ADT cannot prove from the file alone that it belongs to the selected car.\n\n" +
+                        "Continue using it as the baseline for this car?",
+                        "Confirm External Baseline",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                if (answer != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            if (!discoveredForCurrentCar)
+            {
+                _savedSetups.Insert(
+                    0,
+                    selectedPath);
+            }
+
+            var choices =
+                _savedSetups
+                    .Select(
+                        path =>
+                            new SetupChoice(
+                                path))
+                    .ToList();
+
+            BaselineBox.ItemsSource =
+                choices;
+
+            BaselineBox.SelectedIndex =
+                choices.FindIndex(
+                    choice =>
+                        string.Equals(
+                            choice.Path,
+                            selectedPath,
+                            StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Browse AC Setup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private void LoadBaseline_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        try
+        {
+            var path =
+                SelectedPath();
+
+            _analysis =
+                _service.LoadBaseline(
+                    path,
+                    _input.Car);
+
+            _generatedSignature =
+                null;
+
+            SaveGeneratedButton.IsEnabled =
+                false;
+
+            SetupGrid.ItemsSource =
+                _analysis.Parameters;
+
+            RangeStatusText.Text =
+                _analysis.RangeSummary;
+
+            SetupStatusText.Text =
+                $"Loaded {Path.GetFileName(path)} with {_analysis.Parameters.Count} adjustable saved values. Generate a car setup to see recommendations.";
+
+            BehaviorBlendResultText.Text =
+                "Generate a setup to see the actual parameter-by-parameter blend audit for this car.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Car Setup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private void GenerateSetup_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        try
+        {
+            var baselinePath =
+                SelectedPath();
+
+            var mode =
+                AggressivenessBox.SelectedItem is SetupAggressiveness selectedMode
+                    ? selectedMode
+                    : SetupAggressiveness.Balanced;
+
+            var behavior =
+                ReadBehaviorFromControls();
+
+            // Always reload the baseline before generation. This makes repeated
+            // Generate clicks deterministic and prevents recommendations from
+            // ever being based on a previously generated result.
+            var baseline =
+                _service.LoadBaseline(
+                    baselinePath,
+                    _input.Car);
+
+            _behavior =
+                behavior;
+
+            _analysis =
+                _engine.Generate(
+                    _input,
+                    baseline,
+                    mode,
+                    _behavior);
+
+            _generatedSignature =
+                BuildGenerationSignature(
+                    baselinePath,
+                    mode,
+                    _behavior);
+
+            SetupGrid.ItemsSource =
+                null;
+
+            SetupGrid.ItemsSource =
+                _analysis.Parameters;
+
+            RangeStatusText.Text =
+                _analysis.RangeSummary;
+
+            SaveGeneratedButton.IsEnabled =
+                _analysis.ChangedCount > 0;
+
+            var behaviorSummary =
+                _behavior.IsNeutral
+                    ? "neutral per-car behavior"
+                    : $"{_behavior.ActiveBiasCount} per-car behavior bias(es)";
+
+            SetupStatusText.Text =
+                _analysis.ChangedCount == 0
+                    ? $"Generated with {mode} tuning + {behaviorSummary}, but no setup changes are currently recommended."
+                    : $"Generated {_analysis.ChangedCount} recommended change(s) using {mode} tuning + {behaviorSummary}. Review the Blend and Reason columns before saving.";
+
+            var blend =
+                _analysis.BehaviorBlend;
+
+            var topNotices =
+                blend.Notices
+                    .Where(
+                        notice =>
+                            notice.Kind.Contains(
+                                "compromise",
+                                StringComparison.OrdinalIgnoreCase))
+                    .Take(
+                        3)
+                    .Select(
+                        notice =>
+                            $"{notice.Parameter}: {notice.Kind}")
+                    .ToList();
 
             BehaviorBlendResultText.Text =
                 "Generated blend: " +
                 blend.Summary +
-                (topNotices.Count == 0
-                    ? ""
-                    : " Key compromises: " + string.Join(" • ", topNotices) + ".");
+                (
+                    topNotices.Count == 0
+                        ? ""
+                        : " Key compromises: " +
+                          string.Join(
+                              " • ",
+                              topNotices) +
+                          "."
+                );
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Car Setup Generation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ClearGeneratedSignature();
+
+            MessageBox.Show(
+                ex.Message,
+                "Car Setup Generation",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
-    private void SaveGenerated_Click(object sender, RoutedEventArgs e)
+    private void SaveGenerated_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            if (_analysis is null) throw new InvalidOperationException("Load and generate a setup first.");
-            if (_analysis.ChangedCount == 0) throw new InvalidOperationException("Generate recommendations before saving.");
-
-            var sourceDir = Path.GetDirectoryName(_analysis.BaselinePath) ?? _service.GetDefaultSetupsRoot();
-            var safeStyle = new string(_input.Intent.Name.Where(ch => char.IsLetterOrDigit(ch) || ch == '-').ToArray());
-            if (string.IsNullOrWhiteSpace(safeStyle)) safeStyle = "Drift";
-
-            var dialog = new SaveFileDialog
+            if (_analysis is null ||
+                _generatedSignature is null)
             {
-                Filter = "Assetto Corsa setup (*.ini)|*.ini",
-                InitialDirectory = sourceDir,
-                FileName = $"Atomic_{safeStyle}_{DateTime.Now:yyyyMMdd_HHmm}.ini"
-            };
-            if (dialog.ShowDialog() != true) return;
+                throw new InvalidOperationException(
+                    "Generate the setup before saving.");
+            }
 
-            var written = _service.WriteGenerated(_analysis, dialog.FileName);
-            SetupStatusText.Text = $"Saved: {written}";
-            MessageBox.Show("Atomic setup saved. Load it from Assetto Corsa's Setup menu and test it before further calibration.", "Car Setup Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (_analysis.ChangedCount == 0)
+            {
+                throw new InvalidOperationException(
+                    "The current generation has no recommended setup changes to save.");
+            }
+
+            var baselinePath =
+                SelectedPath();
+
+            var mode =
+                AggressivenessBox.SelectedItem is SetupAggressiveness selectedMode
+                    ? selectedMode
+                    : SetupAggressiveness.Balanced;
+
+            var currentBehavior =
+                ReadBehaviorFromControls();
+
+            var currentSignature =
+                BuildGenerationSignature(
+                    baselinePath,
+                    mode,
+                    currentBehavior);
+
+            if (!string.Equals(
+                    currentSignature,
+                    _generatedSignature,
+                    StringComparison.Ordinal))
+            {
+                InvalidateGeneratedRecommendations(
+                    "The baseline, aggressiveness, or Desired Behavior changed after the last generation.");
+
+                throw new InvalidOperationException(
+                    "The setup controls changed after the last generation. Generate again before saving so the file matches what the UI currently shows.");
+            }
+
+            var sourceDir =
+                Path.GetDirectoryName(
+                    _analysis.BaselinePath);
+
+            if (string.IsNullOrWhiteSpace(
+                    sourceDir) ||
+                !Directory.Exists(
+                    sourceDir))
+            {
+                sourceDir =
+                    _service.GetDefaultSetupsRoot();
+            }
+
+            var safeStyle =
+                new string(
+                    _input.Intent.Name
+                        .Where(
+                            ch =>
+                                char.IsLetterOrDigit(ch) ||
+                                ch == '-')
+                        .ToArray());
+
+            if (string.IsNullOrWhiteSpace(
+                    safeStyle))
+            {
+                safeStyle =
+                    "Drift";
+            }
+
+            var dialog =
+                new SaveFileDialog
+                {
+                    Filter =
+                        "Assetto Corsa setup (*.ini)|*.ini",
+                    DefaultExt =
+                        ".ini",
+                    AddExtension =
+                        true,
+                    OverwritePrompt =
+                        true,
+                    InitialDirectory =
+                        sourceDir,
+                    FileName =
+                        $"ADT_{safeStyle}_{DateTime.Now:yyyyMMdd_HHmm}.ini"
+                };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var baselineFullPath =
+                Path.GetFullPath(
+                    _analysis.BaselinePath);
+
+            var destinationFullPath =
+                Path.GetFullPath(
+                    dialog.FileName);
+
+            if (string.Equals(
+                    baselineFullPath,
+                    destinationFullPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "ADT will not overwrite the loaded baseline setup. Choose a different filename so the original remains available for comparison and recovery.");
+            }
+
+            var written =
+                _service.WriteGenerated(
+                    _analysis,
+                    destinationFullPath);
+
+            SetupStatusText.Text =
+                $"Saved ADT setup: {written}";
+
+            MessageBox.Show(
+                "ADT setup saved as a separate file. Load it from Assetto Corsa's Setup menu and test it before further calibration.",
+                "Car Setup Saved",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Save Car Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                ex.Message,
+                "Save Car Setup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
@@ -231,38 +572,94 @@ public partial class CarSetupWindow : Window
         }
     }
 
-    private void SaveBehavior_Click(object sender, RoutedEventArgs e)
+    private void SaveBehavior_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            _behavior = ReadBehaviorFromControls();
-            _behaviorStore.Save(_input, _behavior);
-            BehaviorPresetBox.SelectedItem = MatchPreset(_behavior);
-            BehaviorStatusText.Text = _behavior.IsNeutral
-                ? "Neutral behavior target saved for this car."
-                : $"Saved {_behavior.ActiveBiasCount} desired-behavior bias(es) for {_input.Car.DisplayName}.";
+            _behavior =
+                ReadBehaviorFromControls();
+
+            _behaviorStore.Save(
+                _input,
+                _behavior);
+
+            _loadingBehavior =
+                true;
+
+            try
+            {
+                BehaviorPresetBox.SelectedItem =
+                    MatchPreset(
+                        _behavior);
+            }
+            finally
+            {
+                _loadingBehavior =
+                    false;
+            }
+
+            BehaviorStatusText.Text =
+                _behavior.IsNeutral
+                    ? "Neutral behavior target saved for this car."
+                    : $"Saved {_behavior.ActiveBiasCount} desired-behavior bias(es) for {_input.Car.DisplayName}.";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "Save Car Behavior", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                ex.Message,
+                "Save Car Behavior",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
-    private void ResetBehavior_Click(object sender, RoutedEventArgs e)
+    private void ResetBehavior_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        _loadingBehavior = true;
+        _loadingBehavior =
+            true;
+
         try
         {
-            _behavior = new CarBehaviorTarget();
-            ApplyBehaviorToControls(_behavior);
-            BehaviorPresetBox.SelectedItem = "Neutral";
+            _behavior =
+                new CarBehaviorTarget();
+
+            ApplyBehaviorToControls(
+                _behavior);
+
+            BehaviorPresetBox.SelectedItem =
+                "Neutral";
+
             UpdateBehaviorLabels();
-            _behaviorStore.Save(_input, ReadBehaviorFromControls());
-            BehaviorStatusText.Text = "Behavior target reset to neutral and saved for this car.";
+
+            _behavior =
+                ReadBehaviorFromControls();
+
+            _behaviorStore.Save(
+                _input,
+                _behavior);
+
+            InvalidateGeneratedRecommendations(
+                "Desired Behavior was reset to neutral.");
+
+            BehaviorStatusText.Text =
+                "Behavior target reset to neutral and saved for this car.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Reset Car Behavior",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
         finally
         {
-            _loadingBehavior = false;
+            _loadingBehavior =
+                false;
         }
     }
 
@@ -324,7 +721,12 @@ public partial class CarSetupWindow : Window
 
             ApplyBehaviorToControls(target);
             UpdateBehaviorLabels();
-            BehaviorStatusText.Text = $"{preset} preset loaded. Generate uses it immediately; click Save for This Car to persist it.";
+
+            InvalidateGeneratedRecommendations(
+                $"Desired Behavior preset changed to {preset}.");
+
+            BehaviorStatusText.Text =
+                $"{preset} preset loaded. Generate uses it immediately; click Save for This Car to persist it.";
         }
         finally
         {
@@ -332,25 +734,40 @@ public partial class CarSetupWindow : Window
         }
     }
 
-    private void BehaviorSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void BehaviorSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
     {
         if (!_uiReady)
+        {
             return;
+        }
 
         UpdateBehaviorLabels();
 
         if (_loadingBehavior)
+        {
             return;
+        }
 
-        _loadingBehavior = true;
+        _loadingBehavior =
+            true;
+
         try
         {
-            BehaviorPresetBox.SelectedItem = "Custom";
-            BehaviorStatusText.Text = "Custom behavior target has unsaved changes. Generate will use the current slider values; Save for This Car makes them persistent.";
+            BehaviorPresetBox.SelectedItem =
+                "Custom";
+
+            InvalidateGeneratedRecommendations(
+                "Desired Behavior changed after the last generation.");
+
+            BehaviorStatusText.Text =
+                "Custom behavior target has unsaved changes. Generate will use the current slider values; Save for This Car makes them persistent.";
         }
         finally
         {
-            _loadingBehavior = false;
+            _loadingBehavior =
+                false;
         }
     }
 
@@ -462,8 +879,165 @@ public partial class CarSetupWindow : Window
 
     private void LoadAnalysisFromSelection()
     {
-        _analysis = _service.LoadBaseline(SelectedPath(), _input.Car);
-        RangeStatusText.Text = _analysis.RangeSummary;
+        var path =
+            SelectedPath();
+
+        _analysis =
+            _service.LoadBaseline(
+                path,
+                _input.Car);
+
+        _generatedSignature =
+            null;
+
+        SaveGeneratedButton.IsEnabled =
+            false;
+
+        RangeStatusText.Text =
+            _analysis.RangeSummary;
+    }
+
+    private void AggressivenessBox_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (!_uiReady)
+        {
+            return;
+        }
+
+        InvalidateGeneratedRecommendations(
+            "Tuning aggressiveness changed after the last generation.");
+    }
+
+    private void InvalidateGeneratedRecommendations(
+        string reason)
+    {
+        if (_generatedSignature is null)
+        {
+            SaveGeneratedButton.IsEnabled =
+                false;
+
+            return;
+        }
+
+        _generatedSignature =
+            null;
+
+        SaveGeneratedButton.IsEnabled =
+            false;
+
+        SetupStatusText.Text =
+            $"{reason} Generate again before saving.";
+
+        BehaviorBlendResultText.Text =
+            "The displayed generated blend is now stale because setup controls changed. Generate again to refresh it.";
+    }
+
+    private void ClearGeneratedSignature()
+    {
+        _generatedSignature =
+            null;
+
+        SaveGeneratedButton.IsEnabled =
+            false;
+    }
+
+    private void ClearAnalysis(
+        bool clearGrid)
+    {
+        _analysis =
+            null;
+
+        ClearGeneratedSignature();
+
+        if (clearGrid)
+        {
+            SetupGrid.ItemsSource =
+                null;
+        }
+
+        RangeStatusText.Text =
+            string.Empty;
+
+        BehaviorBlendResultText.Text =
+            "Generate a setup to see the actual parameter-by-parameter blend audit for this car.";
+    }
+
+    private string BuildGenerationSignature(
+        string baselinePath,
+        SetupAggressiveness mode,
+        CarBehaviorTarget behavior)
+    {
+        var normalizedPath =
+            Path.GetFullPath(
+                    baselinePath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar);
+
+        var baselineInfo =
+            new FileInfo(
+                normalizedPath);
+
+        if (!baselineInfo.Exists)
+        {
+            throw new FileNotFoundException(
+                "The selected baseline setup no longer exists. Refresh or choose another baseline.",
+                normalizedPath);
+        }
+
+        return string.Join(
+            "\u001F",
+            normalizedPath.ToUpperInvariant(),
+            baselineInfo.Length.ToString(),
+            baselineInfo.LastWriteTimeUtc.Ticks.ToString(),
+            ((int)mode).ToString(),
+            behavior.FrontEndBite.ToString(),
+            behavior.RearGrip.ToString(),
+            behavior.SelfSteerSpeed.ToString(),
+            behavior.TransitionSpeed.ToString(),
+            behavior.AngleStability.ToString(),
+            behavior.ThrottleSteering.ToString(),
+            behavior.InitiationSharpness.ToString());
+    }
+
+    private string? TryGetSelectedPath()
+    {
+        return BaselineBox.SelectedItem is SetupChoice choice
+            ? choice.Path
+            : null;
+    }
+
+    private static CarBehaviorTarget CloneBehaviorTarget(
+        CarBehaviorTarget source)
+    {
+        ArgumentNullException.ThrowIfNull(
+            source);
+
+        return new CarBehaviorTarget
+        {
+            Key =
+                source.Key,
+            DisplayName =
+                source.DisplayName,
+            UpdatedUtc =
+                source.UpdatedUtc,
+            FrontEndBite =
+                source.FrontEndBite,
+            RearGrip =
+                source.RearGrip,
+            SelfSteerSpeed =
+                source.SelfSteerSpeed,
+            TransitionSpeed =
+                source.TransitionSpeed,
+            AngleStability =
+                source.AngleStability,
+            ThrottleSteering =
+                source.ThrottleSteering,
+            InitiationSharpness =
+                source.InitiationSharpness
+        };
     }
 
     private string SelectedPath()
@@ -472,12 +1046,18 @@ public partial class CarSetupWindow : Window
         throw new InvalidOperationException("Choose or browse to a baseline Assetto Corsa setup first.");
     }
 
-    private void BaselineBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void BaselineBox_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
     {
-        _analysis = null;
-        SetupGrid.ItemsSource = null;
+        ClearAnalysis(
+            clearGrid: true);
+
         if (BaselineBox.SelectedItem is SetupChoice choice)
-            SetupStatusText.Text = $"Selected baseline: {choice.DisplayName}";
+        {
+            SetupStatusText.Text =
+                $"Selected baseline: {choice.DisplayName}. Load or Generate to continue.";
+        }
     }
 
     private sealed class SetupChoice

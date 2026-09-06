@@ -24,7 +24,7 @@ public sealed class TelemetryHubService : IDisposable
     private readonly object _gate =
         new();
 
-    private readonly AssettoCorsaTelemetryReader _reader =
+    private AssettoCorsaTelemetryReader _reader =
         new();
 
     private readonly Stopwatch _clock =
@@ -33,6 +33,7 @@ public sealed class TelemetryHubService : IDisposable
     private readonly System.Threading.Timer _pollTimer;
 
     private TelemetrySample? _latest;
+    private int? _lastObservedPacketId;
     private string? _error;
     private DateTimeOffset? _updatedUtc;
 
@@ -273,6 +274,18 @@ public sealed class TelemetryHubService : IDisposable
                 return false;
             }
 
+            // Freshness follows the producer, not how often ADT polls the map.
+            if (_lastObservedPacketId == sample.PacketId)
+            {
+                if (_latest is null || IsLatestSampleStaleLocked())
+                {
+                    HandleReadFailureLocked("Assetto Corsa stopped updating telemetry. ADT will reconnect automatically.");
+                    return false;
+                }
+                return true;
+            }
+
+            _lastObservedPacketId = sample.PacketId;
             _latest =
                 sample;
 
@@ -312,6 +325,7 @@ public sealed class TelemetryHubService : IDisposable
             // Reader cleanup failure must not replace the telemetry-state
             // error. The next reconnect attempt remains authoritative.
         }
+        _reader = new AssettoCorsaTelemetryReader();
     }
 
     private bool IsSnapshotHealthyLocked()

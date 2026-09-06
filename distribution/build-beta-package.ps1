@@ -79,8 +79,20 @@ if (-not (Test-Path $SimHubPath)) {
     throw "SimHub path does not exist: '$SimHubPath'"
 }
 
-Remove-Item $publish -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+$artifactRoot = [IO.Path]::GetFullPath($artifacts).TrimEnd('\') + '\'
+foreach ($cleanupPath in @($publish, $staging)) {
+    $resolved = [IO.Path]::GetFullPath($cleanupPath)
+    if (-not $resolved.StartsWith($artifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing cleanup outside the artifact directory: $resolved"
+    }
+    if (Test-Path -LiteralPath $resolved) {
+        if ((Get-Item -LiteralPath $resolved).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "Refusing cleanup through a reparse point: $resolved"
+        }
+        Remove-Item -LiteralPath $resolved -Recurse -Force
+    }
+}
+
 
 New-Item $publish -ItemType Directory -Force | Out-Null
 New-Item $staging -ItemType Directory -Force | Out-Null
@@ -94,6 +106,8 @@ dotnet publish (Join-Path $repo "src\AtomicDriftTuner\AtomicDriftTuner.csproj") 
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:PublishTrimmed=false `
+    -p:DebugType=None `
+    -p:DebugSymbols=false `
     -p:Version="$Version" `
     -p:AssemblyVersion="$versionInfoVersion" `
     -p:FileVersion="$versionInfoVersion" `
@@ -151,6 +165,8 @@ Copy-Item `
     $testerReadme `
     (Join-Path $staging "README-BETA-TESTERS.md") `
     -Force
+
+Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $staging "LICENSE")
 
 $portable = Join-Path $output "AtomicDriftTuner-$Version-portable.zip"
 

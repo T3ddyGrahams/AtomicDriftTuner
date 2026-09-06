@@ -2,7 +2,14 @@ namespace AtomicDriftTuner.Models;
 
 public sealed class ThemeSettings
 {
-    private string _presetName = "Atomic Cyan";
+    public const string DefaultPresetName =
+        "ADT Cyan";
+
+    private const string LegacyDefaultPresetName =
+        "Atomic Cyan";
+
+    private string _presetName =
+        DefaultPresetName;
     private string _appBackground = "#0E1116";
     private string _surface = "#171B22";
     private string _panel = "#20252D";
@@ -44,7 +51,29 @@ public sealed class ThemeSettings
     public string PresetName
     {
         get => _presetName;
-        set => _presetName = value ?? "Atomic Cyan";
+
+        set
+        {
+            var normalized =
+                value?.Trim();
+
+            if (string.IsNullOrWhiteSpace(
+                    normalized))
+            {
+                _presetName =
+                    DefaultPresetName;
+
+                return;
+            }
+
+            _presetName =
+                string.Equals(
+                    normalized,
+                    LegacyDefaultPresetName,
+                    StringComparison.OrdinalIgnoreCase)
+                    ? DefaultPresetName
+                    : normalized;
+        }
     }
 
     public string AppBackground
@@ -349,7 +378,7 @@ public static class ThemeCatalog
         new List<ThemeSettings>
         {
             Preset(
-                "Atomic Cyan",
+                ThemeSettings.DefaultPresetName,
                 "#0E1116",
                 "#171B22",
                 "#20252D",

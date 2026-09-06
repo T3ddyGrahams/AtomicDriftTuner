@@ -8,13 +8,18 @@ namespace AtomicDriftTuner;
 
 public partial class ThemeWindow : Window
 {
-    private readonly AppSettingsStore _store = new();
+    private readonly AppSettingsStore _store =
+        new();
+
     private ThemeSettings _original;
     private bool _loading;
 
-    private sealed record ColorTarget(string Label, string TextBoxName)
+    private sealed record ColorTarget(
+        string Label,
+        string TextBoxName)
     {
-        public override string ToString() => Label;
+        public override string ToString() =>
+            Label;
     }
 
     private IReadOnlyList<ColorTarget> Targets { get; } =
@@ -66,335 +71,1141 @@ public partial class ThemeWindow : Window
     public ThemeWindow()
     {
         InitializeComponent();
-        _original = ThemeCatalog.Clone(_store.Load().Theme);
-        PresetBox.ItemsSource = ThemeCatalog.Presets.Select(x => x.PresetName).Concat(new[] { "Custom" }).ToList();
-        ColorTargetBox.ItemsSource = Targets;
-        LoadBoxes(_original);
 
-        PreviewGrid.ItemsSource = new[]
+        var savedTheme =
+            _store.Load().Theme;
+
+        _original =
+            ThemeCatalog.Clone(
+                savedTheme);
+
+        PresetBox.ItemsSource =
+            ThemeCatalog.Presets
+                .Select(
+                    preset =>
+                        preset.PresetName)
+                .Concat(
+                    new[]
+                    {
+                        "Custom"
+                    })
+                .ToList();
+
+        ColorTargetBox.ItemsSource =
+            Targets;
+
+        LoadBoxes(
+            _original);
+
+        PreviewGrid.ItemsSource =
+            new[]
+            {
+                new
+                {
+                    Group = "Core",
+                    Setting = "Base Torque Output",
+                    Live = "68%",
+                    Target = "68%"
+                },
+                new
+                {
+                    Group = "Core",
+                    Setting = "Maximum Wheel Speed",
+                    Live = "135%",
+                    Target = "142%"
+                },
+                new
+                {
+                    Group = "Effects",
+                    Setting = "Wheel Damper",
+                    Live = "8%",
+                    Target = "7%"
+                }
+            };
+
+        _loading =
+            true;
+
+        try
         {
-            new { Group = "Core", Setting = "Base Torque Output", Live = "68%", Target = "68%" },
-            new { Group = "Core", Setting = "Maximum Wheel Speed", Live = "135%", Target = "142%" },
-            new { Group = "Effects", Setting = "Wheel Damper", Live = "8%", Target = "7%" }
-        };
+            PresetBox.SelectedItem =
+                ThemeCatalog.Presets.Any(
+                    preset =>
+                        string.Equals(
+                            preset.PresetName,
+                            _original.PresetName,
+                            StringComparison.Ordinal))
+                    ? _original.PresetName
+                    : "Custom";
 
-        _loading = true;
-        PresetBox.SelectedItem = ThemeCatalog.Presets.Any(x => x.PresetName == _original.PresetName)
-            ? _original.PresetName
-            : "Custom";
-        ColorTargetBox.SelectedItem = Targets.First(x => x.TextBoxName == "AccentBox");
-        _loading = false;
+            ColorTargetBox.SelectedItem =
+                Targets.First(
+                    target =>
+                        target.TextBoxName ==
+                        "AccentBox");
+        }
+        finally
+        {
+            _loading =
+                false;
+        }
+
         LoadWheelForSelectedTarget();
         UpdateContrastStatus();
     }
 
-    private ThemeSettings ReadBoxes(string presetName = "Custom")
+    private ThemeSettings ReadBoxes(
+        string presetName = "Custom")
     {
-        var t = new ThemeSettings
-        {
-            PresetName = presetName,
-            AppBackground = BackgroundBox.Text,
-            Surface = SurfaceBox.Text,
-            Panel = PanelBox.Text,
-            PanelAlt = PanelAltBox.Text,
-            Input = InputBox.Text,
-            Border = BorderBox.Text,
-            PrimaryText = PrimaryTextBox.Text,
-            SecondaryText = SecondaryTextBox.Text,
-            MutedText = MutedTextBox.Text,
-            Accent = AccentBox.Text,
-            AccentText = AccentTextBox.Text,
+        var theme =
+            new ThemeSettings
+            {
+                PresetName =
+                    presetName,
 
-            InputText = InputTextBox.Text,
-            InputBorder = InputBorderBox.Text,
+                AppBackground =
+                    BackgroundBox.Text,
 
-            DataGridBackground = GridBackgroundBox.Text,
-            DataGridAlternateBackground = GridAlternateBox.Text,
-            DataGridText = GridTextBox.Text,
-            DataGridHeaderBackground = GridHeaderBackgroundBox.Text,
-            DataGridHeaderText = GridHeaderTextBox.Text,
-            DataGridSelectedBackground = GridSelectedBackgroundBox.Text,
-            DataGridSelectedText = GridSelectedTextBox.Text,
-            DataGridGridLine = GridLineBox.Text,
+                Surface =
+                    SurfaceBox.Text,
 
-            TabHeaderBackground = TabBackgroundBox.Text,
-            TabHeaderText = TabTextBox.Text,
-            TabSelectedBackground = TabSelectedBackgroundBox.Text,
-            TabSelectedText = TabSelectedTextBox.Text,
-            TabBorder = TabBorderBox.Text,
+                Panel =
+                    PanelBox.Text,
 
-            CheckBoxText = CheckBoxTextBox.Text,
-            CheckBoxBackground = CheckBoxBackgroundBox.Text,
-            CheckBoxBorder = CheckBoxBorderBox.Text,
-            CheckBoxCheckMark = CheckBoxCheckMarkBox.Text,
+                PanelAlt =
+                    PanelAltBox.Text,
 
-            ComboBoxBackground = ComboBackgroundBox.Text,
-            ComboBoxText = ComboTextBox.Text,
-            ComboBoxDropDownBackground = ComboDropBackgroundBox.Text,
-            ComboBoxDropDownText = ComboDropTextBox.Text,
-            ComboBoxHighlight = ComboHighlightBox.Text,
-            ComboBoxHighlightText = ComboHighlightTextBox.Text,
-            ComboBoxBorder = ComboBorderBox.Text
-        };
+                Input =
+                    InputBox.Text,
 
-        ThemeService.Validate(t);
+                Border =
+                    BorderBox.Text,
 
-        t.AppBackground = ThemeService.NormalizeHex(t.AppBackground);
-        t.Surface = ThemeService.NormalizeHex(t.Surface);
-        t.Panel = ThemeService.NormalizeHex(t.Panel);
-        t.PanelAlt = ThemeService.NormalizeHex(t.PanelAlt);
-        t.Input = ThemeService.NormalizeHex(t.Input);
-        t.Border = ThemeService.NormalizeHex(t.Border);
-        t.PrimaryText = ThemeService.NormalizeHex(t.PrimaryText);
-        t.SecondaryText = ThemeService.NormalizeHex(t.SecondaryText);
-        t.MutedText = ThemeService.NormalizeHex(t.MutedText);
-        t.Accent = ThemeService.NormalizeHex(t.Accent);
-        t.AccentText = ThemeService.NormalizeHex(t.AccentText);
+                PrimaryText =
+                    PrimaryTextBox.Text,
 
-        t.InputText = ThemeService.NormalizeHex(t.InputText);
-        t.InputBorder = ThemeService.NormalizeHex(t.InputBorder);
+                SecondaryText =
+                    SecondaryTextBox.Text,
 
-        t.DataGridBackground = ThemeService.NormalizeHex(t.DataGridBackground);
-        t.DataGridAlternateBackground = ThemeService.NormalizeHex(t.DataGridAlternateBackground);
-        t.DataGridText = ThemeService.NormalizeHex(t.DataGridText);
-        t.DataGridHeaderBackground = ThemeService.NormalizeHex(t.DataGridHeaderBackground);
-        t.DataGridHeaderText = ThemeService.NormalizeHex(t.DataGridHeaderText);
-        t.DataGridSelectedBackground = ThemeService.NormalizeHex(t.DataGridSelectedBackground);
-        t.DataGridSelectedText = ThemeService.NormalizeHex(t.DataGridSelectedText);
-        t.DataGridGridLine = ThemeService.NormalizeHex(t.DataGridGridLine);
+                MutedText =
+                    MutedTextBox.Text,
 
-        t.TabHeaderBackground = ThemeService.NormalizeHex(t.TabHeaderBackground);
-        t.TabHeaderText = ThemeService.NormalizeHex(t.TabHeaderText);
-        t.TabSelectedBackground = ThemeService.NormalizeHex(t.TabSelectedBackground);
-        t.TabSelectedText = ThemeService.NormalizeHex(t.TabSelectedText);
-        t.TabBorder = ThemeService.NormalizeHex(t.TabBorder);
+                Accent =
+                    AccentBox.Text,
 
-        t.CheckBoxText = ThemeService.NormalizeHex(t.CheckBoxText);
-        t.CheckBoxBackground = ThemeService.NormalizeHex(t.CheckBoxBackground);
-        t.CheckBoxBorder = ThemeService.NormalizeHex(t.CheckBoxBorder);
-        t.CheckBoxCheckMark = ThemeService.NormalizeHex(t.CheckBoxCheckMark);
+                AccentText =
+                    AccentTextBox.Text,
 
-        t.ComboBoxBackground = ThemeService.NormalizeHex(t.ComboBoxBackground);
-        t.ComboBoxText = ThemeService.NormalizeHex(t.ComboBoxText);
-        t.ComboBoxDropDownBackground = ThemeService.NormalizeHex(t.ComboBoxDropDownBackground);
-        t.ComboBoxDropDownText = ThemeService.NormalizeHex(t.ComboBoxDropDownText);
-        t.ComboBoxHighlight = ThemeService.NormalizeHex(t.ComboBoxHighlight);
-        t.ComboBoxHighlightText = ThemeService.NormalizeHex(t.ComboBoxHighlightText);
-        t.ComboBoxBorder = ThemeService.NormalizeHex(t.ComboBoxBorder);
+                InputText =
+                    InputTextBox.Text,
 
-        return t;
+                InputBorder =
+                    InputBorderBox.Text,
+
+                DataGridBackground =
+                    GridBackgroundBox.Text,
+
+                DataGridAlternateBackground =
+                    GridAlternateBox.Text,
+
+                DataGridText =
+                    GridTextBox.Text,
+
+                DataGridHeaderBackground =
+                    GridHeaderBackgroundBox.Text,
+
+                DataGridHeaderText =
+                    GridHeaderTextBox.Text,
+
+                DataGridSelectedBackground =
+                    GridSelectedBackgroundBox.Text,
+
+                DataGridSelectedText =
+                    GridSelectedTextBox.Text,
+
+                DataGridGridLine =
+                    GridLineBox.Text,
+
+                TabHeaderBackground =
+                    TabBackgroundBox.Text,
+
+                TabHeaderText =
+                    TabTextBox.Text,
+
+                TabSelectedBackground =
+                    TabSelectedBackgroundBox.Text,
+
+                TabSelectedText =
+                    TabSelectedTextBox.Text,
+
+                TabBorder =
+                    TabBorderBox.Text,
+
+                CheckBoxText =
+                    CheckBoxTextBox.Text,
+
+                CheckBoxBackground =
+                    CheckBoxBackgroundBox.Text,
+
+                CheckBoxBorder =
+                    CheckBoxBorderBox.Text,
+
+                CheckBoxCheckMark =
+                    CheckBoxCheckMarkBox.Text,
+
+                ComboBoxBackground =
+                    ComboBackgroundBox.Text,
+
+                ComboBoxText =
+                    ComboTextBox.Text,
+
+                ComboBoxDropDownBackground =
+                    ComboDropBackgroundBox.Text,
+
+                ComboBoxDropDownText =
+                    ComboDropTextBox.Text,
+
+                ComboBoxHighlight =
+                    ComboHighlightBox.Text,
+
+                ComboBoxHighlightText =
+                    ComboHighlightTextBox.Text,
+
+                ComboBoxBorder =
+                    ComboBorderBox.Text
+            };
+
+        ThemeService.Validate(
+            theme);
+
+        NormalizeTheme(
+            theme);
+
+        return theme;
     }
 
-    private void LoadBoxes(ThemeSettings t)
+    private static void NormalizeTheme(
+        ThemeSettings theme)
     {
-        _loading = true;
+        theme.AppBackground =
+            ThemeService.NormalizeHex(
+                theme.AppBackground);
 
-        BackgroundBox.Text = t.AppBackground;
-        SurfaceBox.Text = t.Surface;
-        PanelBox.Text = t.Panel;
-        PanelAltBox.Text = t.PanelAlt;
-        BorderBox.Text = t.Border;
-        PrimaryTextBox.Text = t.PrimaryText;
-        SecondaryTextBox.Text = t.SecondaryText;
-        MutedTextBox.Text = t.MutedText;
-        AccentBox.Text = t.Accent;
-        AccentTextBox.Text = t.AccentText;
+        theme.Surface =
+            ThemeService.NormalizeHex(
+                theme.Surface);
 
-        InputBox.Text = t.Input;
-        InputTextBox.Text = t.InputText;
-        InputBorderBox.Text = t.InputBorder;
+        theme.Panel =
+            ThemeService.NormalizeHex(
+                theme.Panel);
 
-        GridBackgroundBox.Text = t.DataGridBackground;
-        GridAlternateBox.Text = t.DataGridAlternateBackground;
-        GridTextBox.Text = t.DataGridText;
-        GridHeaderBackgroundBox.Text = t.DataGridHeaderBackground;
-        GridHeaderTextBox.Text = t.DataGridHeaderText;
-        GridSelectedBackgroundBox.Text = t.DataGridSelectedBackground;
-        GridSelectedTextBox.Text = t.DataGridSelectedText;
-        GridLineBox.Text = t.DataGridGridLine;
+        theme.PanelAlt =
+            ThemeService.NormalizeHex(
+                theme.PanelAlt);
 
-        TabBackgroundBox.Text = t.TabHeaderBackground;
-        TabTextBox.Text = t.TabHeaderText;
-        TabSelectedBackgroundBox.Text = t.TabSelectedBackground;
-        TabSelectedTextBox.Text = t.TabSelectedText;
-        TabBorderBox.Text = t.TabBorder;
+        theme.Input =
+            ThemeService.NormalizeHex(
+                theme.Input);
 
-        CheckBoxTextBox.Text = t.CheckBoxText;
-        CheckBoxBackgroundBox.Text = t.CheckBoxBackground;
-        CheckBoxBorderBox.Text = t.CheckBoxBorder;
-        CheckBoxCheckMarkBox.Text = t.CheckBoxCheckMark;
+        theme.Border =
+            ThemeService.NormalizeHex(
+                theme.Border);
 
-        ComboBackgroundBox.Text = t.ComboBoxBackground;
-        ComboTextBox.Text = t.ComboBoxText;
-        ComboDropBackgroundBox.Text = t.ComboBoxDropDownBackground;
-        ComboDropTextBox.Text = t.ComboBoxDropDownText;
-        ComboHighlightBox.Text = t.ComboBoxHighlight;
-        ComboHighlightTextBox.Text = t.ComboBoxHighlightText;
-        ComboBorderBox.Text = t.ComboBoxBorder;
+        theme.PrimaryText =
+            ThemeService.NormalizeHex(
+                theme.PrimaryText);
 
-        _loading = false;
+        theme.SecondaryText =
+            ThemeService.NormalizeHex(
+                theme.SecondaryText);
+
+        theme.MutedText =
+            ThemeService.NormalizeHex(
+                theme.MutedText);
+
+        theme.Accent =
+            ThemeService.NormalizeHex(
+                theme.Accent);
+
+        theme.AccentText =
+            ThemeService.NormalizeHex(
+                theme.AccentText);
+
+        theme.InputText =
+            ThemeService.NormalizeHex(
+                theme.InputText);
+
+        theme.InputBorder =
+            ThemeService.NormalizeHex(
+                theme.InputBorder);
+
+        theme.DataGridBackground =
+            ThemeService.NormalizeHex(
+                theme.DataGridBackground);
+
+        theme.DataGridAlternateBackground =
+            ThemeService.NormalizeHex(
+                theme.DataGridAlternateBackground);
+
+        theme.DataGridText =
+            ThemeService.NormalizeHex(
+                theme.DataGridText);
+
+        theme.DataGridHeaderBackground =
+            ThemeService.NormalizeHex(
+                theme.DataGridHeaderBackground);
+
+        theme.DataGridHeaderText =
+            ThemeService.NormalizeHex(
+                theme.DataGridHeaderText);
+
+        theme.DataGridSelectedBackground =
+            ThemeService.NormalizeHex(
+                theme.DataGridSelectedBackground);
+
+        theme.DataGridSelectedText =
+            ThemeService.NormalizeHex(
+                theme.DataGridSelectedText);
+
+        theme.DataGridGridLine =
+            ThemeService.NormalizeHex(
+                theme.DataGridGridLine);
+
+        theme.TabHeaderBackground =
+            ThemeService.NormalizeHex(
+                theme.TabHeaderBackground);
+
+        theme.TabHeaderText =
+            ThemeService.NormalizeHex(
+                theme.TabHeaderText);
+
+        theme.TabSelectedBackground =
+            ThemeService.NormalizeHex(
+                theme.TabSelectedBackground);
+
+        theme.TabSelectedText =
+            ThemeService.NormalizeHex(
+                theme.TabSelectedText);
+
+        theme.TabBorder =
+            ThemeService.NormalizeHex(
+                theme.TabBorder);
+
+        theme.CheckBoxText =
+            ThemeService.NormalizeHex(
+                theme.CheckBoxText);
+
+        theme.CheckBoxBackground =
+            ThemeService.NormalizeHex(
+                theme.CheckBoxBackground);
+
+        theme.CheckBoxBorder =
+            ThemeService.NormalizeHex(
+                theme.CheckBoxBorder);
+
+        theme.CheckBoxCheckMark =
+            ThemeService.NormalizeHex(
+                theme.CheckBoxCheckMark);
+
+        theme.ComboBoxBackground =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxBackground);
+
+        theme.ComboBoxText =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxText);
+
+        theme.ComboBoxDropDownBackground =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxDropDownBackground);
+
+        theme.ComboBoxDropDownText =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxDropDownText);
+
+        theme.ComboBoxHighlight =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxHighlight);
+
+        theme.ComboBoxHighlightText =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxHighlightText);
+
+        theme.ComboBoxBorder =
+            ThemeService.NormalizeHex(
+                theme.ComboBoxBorder);
     }
 
-    private TextBox? FindTargetBox(string name) => FindName(name) as TextBox;
-
-    private void ColorBox_GotFocus(object sender, RoutedEventArgs e)
+    private void LoadBoxes(
+        ThemeSettings theme)
     {
-        if (_loading || sender is not TextBox box || box.Tag is not string name) return;
-        var target = Targets.FirstOrDefault(x => x.TextBoxName == name);
-        if (target != null)
+        _loading =
+            true;
+
+        try
         {
-            _loading = true;
-            ColorTargetBox.SelectedItem = target;
-            _loading = false;
-            LoadWheelForSelectedTarget();
+            BackgroundBox.Text =
+                theme.AppBackground;
+
+            SurfaceBox.Text =
+                theme.Surface;
+
+            PanelBox.Text =
+                theme.Panel;
+
+            PanelAltBox.Text =
+                theme.PanelAlt;
+
+            BorderBox.Text =
+                theme.Border;
+
+            PrimaryTextBox.Text =
+                theme.PrimaryText;
+
+            SecondaryTextBox.Text =
+                theme.SecondaryText;
+
+            MutedTextBox.Text =
+                theme.MutedText;
+
+            AccentBox.Text =
+                theme.Accent;
+
+            AccentTextBox.Text =
+                theme.AccentText;
+
+            InputBox.Text =
+                theme.Input;
+
+            InputTextBox.Text =
+                theme.InputText;
+
+            InputBorderBox.Text =
+                theme.InputBorder;
+
+            GridBackgroundBox.Text =
+                theme.DataGridBackground;
+
+            GridAlternateBox.Text =
+                theme.DataGridAlternateBackground;
+
+            GridTextBox.Text =
+                theme.DataGridText;
+
+            GridHeaderBackgroundBox.Text =
+                theme.DataGridHeaderBackground;
+
+            GridHeaderTextBox.Text =
+                theme.DataGridHeaderText;
+
+            GridSelectedBackgroundBox.Text =
+                theme.DataGridSelectedBackground;
+
+            GridSelectedTextBox.Text =
+                theme.DataGridSelectedText;
+
+            GridLineBox.Text =
+                theme.DataGridGridLine;
+
+            TabBackgroundBox.Text =
+                theme.TabHeaderBackground;
+
+            TabTextBox.Text =
+                theme.TabHeaderText;
+
+            TabSelectedBackgroundBox.Text =
+                theme.TabSelectedBackground;
+
+            TabSelectedTextBox.Text =
+                theme.TabSelectedText;
+
+            TabBorderBox.Text =
+                theme.TabBorder;
+
+            CheckBoxTextBox.Text =
+                theme.CheckBoxText;
+
+            CheckBoxBackgroundBox.Text =
+                theme.CheckBoxBackground;
+
+            CheckBoxBorderBox.Text =
+                theme.CheckBoxBorder;
+
+            CheckBoxCheckMarkBox.Text =
+                theme.CheckBoxCheckMark;
+
+            ComboBackgroundBox.Text =
+                theme.ComboBoxBackground;
+
+            ComboTextBox.Text =
+                theme.ComboBoxText;
+
+            ComboDropBackgroundBox.Text =
+                theme.ComboBoxDropDownBackground;
+
+            ComboDropTextBox.Text =
+                theme.ComboBoxDropDownText;
+
+            ComboHighlightBox.Text =
+                theme.ComboBoxHighlight;
+
+            ComboHighlightTextBox.Text =
+                theme.ComboBoxHighlightText;
+
+            ComboBorderBox.Text =
+                theme.ComboBoxBorder;
+        }
+        finally
+        {
+            _loading =
+                false;
         }
     }
 
-    private void ColorTargetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private TextBox? FindTargetBox(
+        string name) =>
+        FindName(
+            name) as TextBox;
+
+    private ColorTarget? FindTarget(
+        string textBoxName) =>
+        Targets.FirstOrDefault(
+            target =>
+                string.Equals(
+                    target.TextBoxName,
+                    textBoxName,
+                    StringComparison.Ordinal));
+
+    private void ColorBox_GotFocus(
+        object sender,
+        RoutedEventArgs e)
     {
-        if (_loading) return;
+        if (
+            _loading ||
+            sender is not TextBox box ||
+            box.Tag is not string name)
+        {
+            return;
+        }
+
+        var target =
+            FindTarget(
+                name);
+
+        if (target is null)
+        {
+            return;
+        }
+
+        _loading =
+            true;
+
+        try
+        {
+            ColorTargetBox.SelectedItem =
+                target;
+        }
+        finally
+        {
+            _loading =
+                false;
+        }
+
+        LoadWheelForSelectedTarget();
+    }
+
+    private void ColorBox_TextChanged(
+        object sender,
+        TextChangedEventArgs e)
+    {
+        if (
+            _loading ||
+            sender is not TextBox box ||
+            box.Tag is not string textBoxName)
+        {
+            return;
+        }
+
+        var target =
+            FindTarget(
+                textBoxName);
+
+        if (target is not null &&
+            ReferenceEquals(
+                ColorTargetBox.SelectedItem,
+                target))
+        {
+            TryLoadWheelFromBox(
+                box);
+        }
+
+        if (!string.Equals(
+                PresetBox.SelectedItem as string,
+                "Custom",
+                StringComparison.Ordinal))
+        {
+            PresetBox.SelectedItem =
+                "Custom";
+        }
+
+        TryPreviewQuietly();
+    }
+
+    private void ColorTargetBox_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
         LoadWheelForSelectedTarget();
     }
 
     private void LoadWheelForSelectedTarget()
     {
-        if (ColorTargetBox.SelectedItem is not ColorTarget target) return;
-        var box = FindTargetBox(target.TextBoxName);
-        if (box == null) return;
-        try
+        if (
+            ColorTargetBox.SelectedItem is not ColorTarget target)
         {
-            _loading = true;
-            ColorWheel.SetColor(ThemeService.ParseThemeColor(box.Text), false);
+            return;
         }
-        catch { }
-        finally { _loading = false; }
-    }
 
-    private void ColorWheel_ColorChanged(object? sender, ColorWheelChangedEventArgs e)
-    {
-        if (_loading || ColorTargetBox.SelectedItem is not ColorTarget target) return;
-        var box = FindTargetBox(target.TextBoxName);
-        if (box == null) return;
-        box.Text = ThemeService.ToHex(e.Color);
-        PresetBox.SelectedItem = "Custom";
-        TryPreviewQuietly();
-    }
+        var box =
+            FindTargetBox(
+                target.TextBoxName);
 
-    private void TryPreviewQuietly()
-    {
-        try
+        if (box is null)
         {
-            var t = ReadBoxes(PresetBox.SelectedItem as string ?? "Custom");
-            ThemeService.Apply(t);
-            UpdateContrastStatus(t);
+            return;
         }
-        catch { }
+
+        if (!TryLoadWheelFromBox(
+                box))
+        {
+            StatusText.Text =
+                $"The {target.Label} value is not a valid theme color yet. " +
+                "Enter a valid hex color before using the wheel for this field.";
+        }
     }
 
-    private void UpdateContrastStatus(ThemeSettings? theme = null)
+    private bool TryLoadWheelFromBox(
+        TextBox box)
     {
         try
         {
-            theme ??= ReadBoxes(PresetBox.SelectedItem as string ?? "Custom");
+            var color =
+                ThemeService.ParseThemeColor(
+                    box.Text);
 
-            var checks = new[]
+            _loading =
+                true;
+
+            try
             {
-                ("input", ThemeService.ContrastRatio(theme.InputText, theme.Input)),
-                ("table rows", ThemeService.ContrastRatio(theme.DataGridText, theme.DataGridBackground)),
-                ("table alt rows", ThemeService.ContrastRatio(theme.DataGridText, theme.DataGridAlternateBackground)),
-                ("table headers", ThemeService.ContrastRatio(theme.DataGridHeaderText, theme.DataGridHeaderBackground)),
-                ("table selection", ThemeService.ContrastRatio(theme.DataGridSelectedText, theme.DataGridSelectedBackground)),
-                ("tabs", ThemeService.ContrastRatio(theme.TabHeaderText, theme.TabHeaderBackground)),
-                ("active tab", ThemeService.ContrastRatio(theme.TabSelectedText, theme.TabSelectedBackground)),
-                ("checkbox on panel", ThemeService.ContrastRatio(theme.CheckBoxText, theme.Panel)),
-                ("checkbox on alt panel", ThemeService.ContrastRatio(theme.CheckBoxText, theme.PanelAlt)),
-                ("checkbox on surface", ThemeService.ContrastRatio(theme.CheckBoxText, theme.Surface)),
-                ("dropdown closed", ThemeService.ContrastRatio(theme.ComboBoxText, theme.ComboBoxBackground)),
-                ("dropdown popup", ThemeService.ContrastRatio(theme.ComboBoxDropDownText, theme.ComboBoxDropDownBackground)),
-                ("dropdown highlight", ThemeService.ContrastRatio(theme.ComboBoxHighlightText, theme.ComboBoxHighlight))
-            };
+                ColorWheel.SetColor(
+                    color,
+                    false);
+            }
+            finally
+            {
+                _loading =
+                    false;
+            }
 
-            var weak = checks.Where(x => x.Item2 < 4.5).ToList();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void ColorWheel_ColorChanged(
+        object? sender,
+        ColorWheelChangedEventArgs e)
+    {
+        if (
+            _loading ||
+            ColorTargetBox.SelectedItem is not ColorTarget target)
+        {
+            return;
+        }
+
+        var box =
+            FindTargetBox(
+                target.TextBoxName);
+
+        if (box is null)
+        {
+            return;
+        }
+
+        // TextChanged marks the theme Custom, updates readability and performs
+        // the actual preview after the wheel writes the new valid color.
+        box.Text =
+            ThemeService.ToHex(
+                e.Color);
+    }
+
+    private bool TryPreviewQuietly()
+    {
+        try
+        {
+            var theme =
+                ReadBoxes(
+                    PresetBox.SelectedItem as string ??
+                    "Custom");
+
+            ThemeService.Apply(
+                theme);
+
+            UpdateContrastStatus(
+                theme);
+
+            StatusText.Text =
+                "Previewing custom appearance. Save Theme to persist it; closing restores the last saved theme.";
+
+            return true;
+        }
+        catch
+        {
+            UpdateContrastStatus();
+            return false;
+        }
+    }
+
+    private void UpdateContrastStatus(
+        ThemeSettings? theme = null)
+    {
+        try
+        {
+            theme ??=
+                ReadBoxes(
+                    PresetBox.SelectedItem as string ??
+                    "Custom");
+
+            var checks =
+                new[]
+                {
+                    (
+                        "primary on background",
+                        ThemeService.ContrastRatio(
+                            theme.PrimaryText,
+                            theme.AppBackground)
+                    ),
+                    (
+                        "primary on panel",
+                        ThemeService.ContrastRatio(
+                            theme.PrimaryText,
+                            theme.Panel)
+                    ),
+                    (
+                        "secondary on background",
+                        ThemeService.ContrastRatio(
+                            theme.SecondaryText,
+                            theme.AppBackground)
+                    ),
+                    (
+                        "muted on panel",
+                        ThemeService.ContrastRatio(
+                            theme.MutedText,
+                            theme.Panel)
+                    ),
+                    (
+                        "accent text",
+                        ThemeService.ContrastRatio(
+                            theme.AccentText,
+                            theme.Accent)
+                    ),
+                    (
+                        "input",
+                        ThemeService.ContrastRatio(
+                            theme.InputText,
+                            theme.Input)
+                    ),
+                    (
+                        "table rows",
+                        ThemeService.ContrastRatio(
+                            theme.DataGridText,
+                            theme.DataGridBackground)
+                    ),
+                    (
+                        "table alt rows",
+                        ThemeService.ContrastRatio(
+                            theme.DataGridText,
+                            theme.DataGridAlternateBackground)
+                    ),
+                    (
+                        "table headers",
+                        ThemeService.ContrastRatio(
+                            theme.DataGridHeaderText,
+                            theme.DataGridHeaderBackground)
+                    ),
+                    (
+                        "table selection",
+                        ThemeService.ContrastRatio(
+                            theme.DataGridSelectedText,
+                            theme.DataGridSelectedBackground)
+                    ),
+                    (
+                        "tabs",
+                        ThemeService.ContrastRatio(
+                            theme.TabHeaderText,
+                            theme.TabHeaderBackground)
+                    ),
+                    (
+                        "active tab",
+                        ThemeService.ContrastRatio(
+                            theme.TabSelectedText,
+                            theme.TabSelectedBackground)
+                    ),
+                    (
+                        "checkbox on panel",
+                        ThemeService.ContrastRatio(
+                            theme.CheckBoxText,
+                            theme.Panel)
+                    ),
+                    (
+                        "checkbox on alt panel",
+                        ThemeService.ContrastRatio(
+                            theme.CheckBoxText,
+                            theme.PanelAlt)
+                    ),
+                    (
+                        "checkbox on surface",
+                        ThemeService.ContrastRatio(
+                            theme.CheckBoxText,
+                            theme.Surface)
+                    ),
+                    (
+                        "dropdown closed",
+                        ThemeService.ContrastRatio(
+                            theme.ComboBoxText,
+                            theme.ComboBoxBackground)
+                    ),
+                    (
+                        "dropdown popup",
+                        ThemeService.ContrastRatio(
+                            theme.ComboBoxDropDownText,
+                            theme.ComboBoxDropDownBackground)
+                    ),
+                    (
+                        "dropdown highlight",
+                        ThemeService.ContrastRatio(
+                            theme.ComboBoxHighlightText,
+                            theme.ComboBoxHighlight)
+                    )
+                };
+
+            var weak =
+                checks
+                    .Where(
+                        check =>
+                            check.Item2 <
+                            4.5)
+                    .ToList();
 
             if (weak.Count == 0)
             {
                 ContrastText.Text =
-                    "All major text/background pairs are at least 4.5:1. " +
-                    string.Join(" • ", checks.Select(x => $"{x.Item1} {x.Item2:0.0}:1"));
+                    "All checked text/background pairs are at least 4.5:1. " +
+                    string.Join(
+                        " • ",
+                        checks.Select(
+                            check =>
+                                $"{check.Item1} {check.Item2:0.0}:1"));
+
+                return;
             }
-            else
-            {
-                ContrastText.Text =
-                    "LOW CONTRAST: " +
-                    string.Join(", ", weak.Select(x => $"{x.Item1} {x.Item2:0.0}:1")) +
-                    ". Aim for at least 4.5:1 for normal UI text. " +
-                    "Other pairs: " +
-                    string.Join(" • ", checks.Where(x => x.Item2 >= 4.5).Select(x => $"{x.Item1} {x.Item2:0.0}:1"));
-            }
+
+            ContrastText.Text =
+                "LOW CONTRAST: " +
+                string.Join(
+                    ", ",
+                    weak.Select(
+                        check =>
+                            $"{check.Item1} {check.Item2:0.0}:1")) +
+                ". Aim for at least 4.5:1 for normal UI text. " +
+                "Other pairs: " +
+                string.Join(
+                    " • ",
+                    checks
+                        .Where(
+                            check =>
+                                check.Item2 >=
+                                4.5)
+                        .Select(
+                            check =>
+                                $"{check.Item1} {check.Item2:0.0}:1"));
         }
         catch
         {
-            ContrastText.Text = "Enter valid #RRGGBB values to calculate readability contrast.";
+            ContrastText.Text =
+                "Enter valid theme hex colors (for example #RRGGBB or #AARRGGBB) to calculate readability contrast.";
         }
     }
 
-    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void PresetBox_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs e)
     {
-        if (_loading || PresetBox.SelectedItem is not string name || name == "Custom") return;
-        var preset = ThemeCatalog.Presets.FirstOrDefault(x => x.PresetName == name);
-        if (preset == null) return;
-        LoadBoxes(ThemeCatalog.Clone(preset));
-        ThemeService.Apply(ReadBoxes(name));
-        LoadWheelForSelectedTarget();
-        UpdateContrastStatus();
-        StatusText.Text = $"Previewing {name}.";
+        if (
+            _loading ||
+            PresetBox.SelectedItem is not string name ||
+            string.Equals(
+                name,
+                "Custom",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var preset =
+            ThemeCatalog.Presets.FirstOrDefault(
+                candidate =>
+                    string.Equals(
+                        candidate.PresetName,
+                        name,
+                        StringComparison.Ordinal));
+
+        if (preset is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var preview =
+                ThemeCatalog.Clone(
+                    preset);
+
+            LoadBoxes(
+                preview);
+
+            ThemeService.Apply(
+                ReadBoxes(
+                    name));
+
+            LoadWheelForSelectedTarget();
+            UpdateContrastStatus();
+
+            StatusText.Text =
+                $"Previewing {name}. Save Theme to persist it; closing restores the last saved theme.";
+        }
+        catch (Exception ex)
+        {
+            RestoreSavedPreview();
+
+            MessageBox.Show(
+                ex.Message,
+                "Appearance",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
-    private void ApplyPreview_Click(object sender, RoutedEventArgs e)
+    private void ApplyPreview_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            var t = ReadBoxes(PresetBox.SelectedItem as string ?? "Custom");
-            ThemeService.Apply(t);
-            UpdateContrastStatus(t);
-            StatusText.Text = "Preview applied. It is not saved yet.";
+            var theme =
+                ReadBoxes(
+                    PresetBox.SelectedItem as string ??
+                    "Custom");
+
+            ThemeService.Apply(
+                theme);
+
+            UpdateContrastStatus(
+                theme);
+
+            StatusText.Text =
+                "Preview applied. It is not saved; closing restores the last saved theme.";
         }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "Theme", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Appearance",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
-    private void SaveTheme_Click(object sender, RoutedEventArgs e)
+    private void SaveTheme_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            var selected = PresetBox.SelectedItem as string ?? "Custom";
-            var t = ReadBoxes(selected);
-            ThemeService.Apply(t);
-            var app = _store.Load();
-            app.Theme = t;
-            _store.Save(app);
-            _original = ThemeCatalog.Clone(t);
-            UpdateContrastStatus(t);
-            StatusText.Text = "Theme saved.";
+            var selected =
+                PresetBox.SelectedItem as string ??
+                "Custom";
+
+            var theme =
+                ReadBoxes(
+                    selected);
+
+            // Persist first. If disk/settings persistence fails, ADT must not
+            // report the preview as the new saved theme.
+            var app =
+                _store.Load();
+
+            app.Theme =
+                theme;
+
+            _store.Save(
+                app);
+
+            _original =
+                ThemeCatalog.Clone(
+                    theme);
+
+            ThemeService.Apply(
+                theme);
+
+            LoadBoxes(
+                theme);
+
+            LoadWheelForSelectedTarget();
+            UpdateContrastStatus(
+                theme);
+
+            StatusText.Text =
+                "Theme saved.";
         }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "Theme", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Appearance",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
-    private void ResetTheme_Click(object sender, RoutedEventArgs e)
+    private void ResetTheme_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        var t = ThemeCatalog.Clone(ThemeCatalog.Presets[0]);
-        LoadBoxes(t);
-        PresetBox.SelectedItem = t.PresetName;
-        ThemeService.Apply(t);
-        LoadWheelForSelectedTarget();
-        UpdateContrastStatus(t);
-        StatusText.Text = "Atomic Cyan preview restored.";
+        try
+        {
+            if (ThemeCatalog.Presets.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "ADT does not have a default appearance preset available.");
+            }
+
+            var theme =
+                ThemeCatalog.Clone(
+                    ThemeCatalog.Presets[0]);
+
+            LoadBoxes(
+                theme);
+
+            _loading =
+                true;
+
+            try
+            {
+                PresetBox.SelectedItem =
+                    theme.PresetName;
+            }
+            finally
+            {
+                _loading =
+                    false;
+            }
+
+            ThemeService.Apply(
+                theme);
+
+            LoadWheelForSelectedTarget();
+            UpdateContrastStatus(
+                theme);
+
+            StatusText.Text =
+                $"Previewing default preset: {theme.PresetName}. Save Theme to persist it; closing restores the last saved theme.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Appearance",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
-
-    protected override void OnClosed(EventArgs e)
+    private void RestoreSavedPreview()
     {
-        ThemeService.Apply(_store.Load().Theme);
-        base.OnClosed(e);
+        try
+        {
+            ThemeService.Apply(
+                _original);
+
+            LoadBoxes(
+                _original);
+
+            _loading =
+                true;
+
+            try
+            {
+                PresetBox.SelectedItem =
+                    ThemeCatalog.Presets.Any(
+                        preset =>
+                            string.Equals(
+                                preset.PresetName,
+                                _original.PresetName,
+                                StringComparison.Ordinal))
+                        ? _original.PresetName
+                        : "Custom";
+            }
+            finally
+            {
+                _loading =
+                    false;
+            }
+
+            LoadWheelForSelectedTarget();
+            UpdateContrastStatus(
+                _original);
+        }
+        catch
+        {
+            // Appearance recovery is best-effort. Never turn a preview failure
+            // into a window-close/application-shutdown failure.
+        }
+    }
+
+    private void Close_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    protected override void OnClosed(
+        EventArgs e)
+    {
+        // Never re-read settings during the close path. _original always
+        // represents the last theme that was successfully loaded or saved in
+        // this window, so it is the safest source for reverting unsaved preview.
+        try
+        {
+            ThemeService.Apply(
+                _original);
+        }
+        catch
+        {
+            // Closing the Appearance window must not crash ADT.
+        }
+
+        base.OnClosed(
+            e);
     }
 }

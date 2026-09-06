@@ -357,6 +357,11 @@ public sealed class AssettoCorsaSetupService
             BuildReplacementMap(
                 analysis.Parameters);
 
+        var expected = analysis.Parameters
+            .Where(p => p is not null && p.Changed && replacements.ContainsKey(p.Section.Trim()))
+            .ToDictionary(p => p.Section.Trim(), p => p.CurrentRaw.Trim(), StringComparer.OrdinalIgnoreCase);
+        var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var outputLines =
             new List<string>();
 
@@ -387,8 +392,10 @@ public sealed class AssettoCorsaSetupService
                     section,
                     out var replacement))
             {
-                outputLines.Add(
-                    $"VALUE={replacement}");
+                var currentRaw = trimmed[(trimmed.IndexOf('=') + 1)..].Trim();
+                if (!matched.Add(section) || !string.Equals(currentRaw, expected[section], StringComparison.Ordinal))
+                    throw new InvalidDataException("The baseline setup changed after analysis. Reload it and generate recommendations again.");
+                outputLines.Add($"VALUE={replacement}");
             }
             else
             {
@@ -396,6 +403,9 @@ public sealed class AssettoCorsaSetupService
                     rawLine);
             }
         }
+
+        if (matched.Count != replacements.Count)
+            throw new InvalidDataException("The baseline setup changed after analysis. Reload it and generate recommendations again.");
 
         WriteAllLinesAtomic(
             outputFull,

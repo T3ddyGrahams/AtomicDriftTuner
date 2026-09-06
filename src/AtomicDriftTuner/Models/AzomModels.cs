@@ -10,17 +10,51 @@ public enum AzomCurvePreset
 
 public sealed class AzomUserPreferences
 {
+    public const int MinimumShiftIntensity =
+        0;
+
+    public const int MaximumShiftIntensity =
+        5;
+
+    public const int MinimumShiftDebounceMs =
+        0;
+
+    public const int MaximumShiftDebounceMs =
+        1000;
+
+    private int _shiftIntensity;
+
+    private int _shiftDebounceMs;
+
     private string _standbyAfter =
         "Disabled";
 
-    public int ShiftIntensity { get; set; } =
-        0;
+    public int ShiftIntensity
+    {
+        get => _shiftIntensity;
+
+        set =>
+            _shiftIntensity =
+                Math.Clamp(
+                    value,
+                    MinimumShiftIntensity,
+                    MaximumShiftIntensity);
+    }
 
     public bool VibrateOnNeutral { get; set; } =
         true;
 
-    public int ShiftDebounceMs { get; set; } =
-        0;
+    public int ShiftDebounceMs
+    {
+        get => _shiftDebounceMs;
+
+        set =>
+            _shiftDebounceMs =
+                Math.Clamp(
+                    value,
+                    MinimumShiftDebounceMs,
+                    MaximumShiftDebounceMs);
+    }
 
     public bool HandsOffProtection { get; set; } =
         true;
@@ -40,7 +74,8 @@ public sealed class AzomUserPreferences
 
         set =>
             _standbyAfter =
-                string.IsNullOrWhiteSpace(value)
+                string.IsNullOrWhiteSpace(
+                    value)
                     ? "Disabled"
                     : value.Trim();
     }

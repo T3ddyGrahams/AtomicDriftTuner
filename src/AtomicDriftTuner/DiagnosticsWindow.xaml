@@ -1,9 +1,11 @@
 <Window x:Class="AtomicDriftTuner.DiagnosticsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Atomic Drift Tuner - System Diagnostics"
-        Width="1040" Height="720"
-        MinWidth="800" MinHeight="560"
+        Title="ADT • System Diagnostics"
+        Width="1040"
+        Height="720"
+        MinWidth="800"
+        MinHeight="560"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
@@ -14,13 +16,22 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel>
-            <TextBlock Text="SYSTEM DIAGNOSTICS" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="SYSTEM DIAGNOSTICS"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Visibility="Collapsed"/>
+
             <TextBlock x:Name="SummaryText"
                        Text="Checking this PC..."
                        Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap"
-                       Margin="0,4,0,12"/>
+                       Margin="0,4,0,5"/>
+
+            <TextBlock Text="Diagnostics are read-only. Export creates a local support ZIP; ADT does not upload it automatically. Review the package before sharing it."
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,12"/>
         </StackPanel>
 
         <DataGrid Grid.Row="1"
@@ -29,19 +40,45 @@
                   IsReadOnly="True"
                   CanUserAddRows="False"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal">
+                  GridLinesVisibility="Horizontal"
+                  AutomationProperties.Name="ADT system diagnostics checks">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Status" Binding="{Binding Status, Mode=OneWay}" Width="120"/>
-                <DataGridTextColumn Header="Area" Binding="{Binding Area, Mode=OneWay}" Width="150"/>
-                <DataGridTextColumn Header="Check" Binding="{Binding Check, Mode=OneWay}" Width="190"/>
-                <DataGridTextColumn Header="Value" Binding="{Binding Value, Mode=OneWay}" Width="*"/>
+                <DataGridTextColumn Header="Status"
+                                    Binding="{Binding Status, Mode=OneWay}"
+                                    Width="120"/>
+                <DataGridTextColumn Header="Area"
+                                    Binding="{Binding Area, Mode=OneWay}"
+                                    Width="150"/>
+                <DataGridTextColumn Header="Check"
+                                    Binding="{Binding Check, Mode=OneWay}"
+                                    Width="190"/>
+                <DataGridTextColumn Header="Value"
+                                    Binding="{Binding Value, Mode=OneWay}"
+                                    Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <WrapPanel Grid.Row="2" Margin="0,14,0,0" HorizontalAlignment="Right">
-            <Button Content="Refresh" Click="Refresh_Click" Padding="14,8" Margin="0,0,8,0"/>
-            <Button Content="Copy Diagnostics" Click="Copy_Click" Padding="14,8" Margin="0,0,8,0"/>
-            <Button Content="Export Support Package" Click="Export_Click" Padding="14,8" FontWeight="Bold"/>
+        <WrapPanel Grid.Row="2"
+                   Margin="0,14,0,0"
+                   HorizontalAlignment="Right">
+            <Button x:Name="RefreshButton"
+                    Content="Refresh"
+                    Click="Refresh_Click"
+                    Padding="14,8"
+                    Margin="0,0,8,0"/>
+
+            <Button x:Name="CopyButton"
+                    Content="Copy Diagnostics"
+                    Click="Copy_Click"
+                    Padding="14,8"
+                    Margin="0,0,8,0"
+                    IsEnabled="False"/>
+
+            <Button x:Name="ExportButton"
+                    Content="Export Support Package"
+                    Click="Export_Click"
+                    Padding="14,8"
+                    FontWeight="Bold"/>
         </WrapPanel>
     </Grid>
 </Window>

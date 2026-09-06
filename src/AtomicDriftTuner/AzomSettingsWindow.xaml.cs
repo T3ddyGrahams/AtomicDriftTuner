@@ -8,29 +8,76 @@ namespace AtomicDriftTuner;
 
 public partial class AzomSettingsWindow : Window
 {
-    private readonly TuneInput _input;
     private readonly AzomSettings _azom;
+    private readonly AzomUserPreferences _recommendationPreferences;
+    private readonly AzomUserPreferences _hostPreferences;
     private readonly AppSettingsStore _settingsStore = new();
+    private readonly SemaphoreSlim _liveOperationGate = new(1, 1);
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+
     private AzomUserPreferences _preferences;
     private AzomLiveSnapshot? _liveSnapshot;
     private List<AzomApplyPlanItem> _livePlan = [];
+    private bool _preferencesOutOfSync;
+    private bool _isClosing;
+
     public bool PreferencesChanged { get; private set; }
 
-    public AzomSettingsWindow(TuneInput input, TuneResult result, AzomUserPreferences preferences)
+    public AzomSettingsWindow(
+        TuneInput input,
+        TuneResult result,
+        AzomUserPreferences preferences)
     {
-        InitializeComponent();
-        SectionSelectionBox.ItemsSource = new[] { "Core", "Wheelbase", "Game Effects", "Protection", "Soft Limit", "High Speed Damping", "FFB Equalizer", "FFB Curve", "Preferences" };
-        SectionSelectionBox.SelectedIndex = 0;
-        _input = input;
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        if (result.Azom is null)
+            throw new InvalidOperationException("ADT cannot open Full AZOM Settings because the generated AZOM recommendation is missing.");
+
         _azom = result.Azom;
+        _hostPreferences = preferences;
+        _recommendationPreferences = Clone(preferences);
         _preferences = Clone(preferences);
-        SetupText.Text = $"{input.Hardware.Model} • {input.Wheel.Model} • {input.DriftPack.Name} • {input.Car.DisplayName} • {input.Intent.Name}";
+
+        InitializeComponent();
+
+        Closing += (_, _) =>
+        {
+            _isClosing = true;
+            _lifetimeCancellation.Cancel();
+        };
+
+        SectionSelectionBox.ItemsSource = new[]
+        {
+            "Core",
+            "Wheelbase",
+            "Game Effects",
+            "Protection",
+            "Soft Limit",
+            "High Speed Damping",
+            "FFB Equalizer",
+            "FFB Curve",
+            "Preferences"
+        };
+        SectionSelectionBox.SelectedIndex = 0;
+
+        SetupText.Text =
+            $"{input.Hardware.Model} • {input.Wheel.Model} • {input.DriftPack.Name} • {input.Car.DisplayName} • {input.Intent.Name}";
+
         Render();
         LoadPreferences();
+
         var app = _settingsStore.Load();
-        SimHubPathBox.Text = SimHubLocator.FindSimHubExe(app.AzomLive?.SimHubExePath) ?? app.AzomLive?.SimHubExePath ?? "";
-        LiveStatusText.Text = "Live integration is idle. Build/install the bundled Atomic SimHub Bridge, start SimHub + AZOM, then click READ LIVE AZOM.";
+        SimHubPathBox.Text =
+            SimHubLocator.FindSimHubExe(app.AzomLive?.SimHubExePath) ??
+            app.AzomLive?.SimHubExePath ??
+            "";
+
+        LiveStatusText.Text =
+            "Live integration is idle. Install/update the bundled ADT SimHub Bridge, start SimHub + AZOM, then click READ LIVE AZOM.";
     }
+
 
     private void Render()
     {
@@ -122,14 +169,33 @@ public partial class AzomSettingsWindow : Window
         BluetoothBox.IsChecked = _preferences.Bluetooth;
     }
 
-    private void SavePreferences_Click(object sender, RoutedEventArgs e)
+    private void SavePreferences_Click(
+        object sender,
+        RoutedEventArgs e)
     {
         try
         {
-            if (!int.TryParse(ShiftIntensityBox.Text, out var shift) || shift < 0 || shift > 5)
+            if (!int.TryParse(
+                    ShiftIntensityBox.Text,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var shift) ||
+                shift < 0 ||
+                shift > 5)
+            {
                 throw new InvalidOperationException("Shift Intensity must be 0–5.");
-            if (!int.TryParse(ShiftDebounceBox.Text, out var debounce) || debounce < 0 || debounce > 1000)
+            }
+
+            if (!int.TryParse(
+                    ShiftDebounceBox.Text,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var debounce) ||
+                debounce < 0 ||
+                debounce > 1000)
+            {
                 throw new InvalidOperationException("Shift Debounce must be 0–1000 ms.");
+            }
 
             _preferences = new AzomUserPreferences
             {
@@ -140,7 +206,10 @@ public partial class AzomSettingsWindow : Window
                 RetainGameFfb = RetainGameFfbBox.IsChecked == true,
                 ForceFeedbackReversal = FfbReversalBox.IsChecked == true,
                 StandbyMode = StandbyModeBox.IsChecked == true,
-                StandbyAfter = string.IsNullOrWhiteSpace(StandbyAfterBox.Text) ? "Disabled" : StandbyAfterBox.Text.Trim(),
+                StandbyAfter =
+                    string.IsNullOrWhiteSpace(StandbyAfterBox.Text)
+                        ? "Disabled"
+                        : StandbyAfterBox.Text.Trim(),
                 BaseStatusLed = BaseStatusLedBox.IsChecked == true,
                 Bluetooth = BluetoothBox.IsChecked == true
             };
@@ -148,14 +217,41 @@ public partial class AzomSettingsWindow : Window
             var app = _settingsStore.Load();
             app.AzomPreferences = Clone(_preferences);
             _settingsStore.Save(app);
-            PreferencesChanged = true;
-            StatusText.Text = "AZOM preference controls saved. Regenerate the main tune to see them reflected.";
+            CopyPreferences(_preferences, _hostPreferences);
+
+            PreferencesChanged =
+                !PreferencesEqual(
+                    _recommendationPreferences,
+                    _preferences);
+
+            _preferencesOutOfSync =
+                PreferencesChanged;
+
+            if (_preferencesOutOfSync)
+            {
+                IncludePreferencesBox.IsChecked = false;
+                IncludePreferencesBox.IsEnabled = false;
+
+                StatusText.Text =
+                    "AZOM preferences saved. Return to the Dashboard and reopen Full AZOM Settings before including the changed preferences in Live Apply.";
+            }
+            else
+            {
+                IncludePreferencesBox.IsEnabled = true;
+                StatusText.Text =
+                    "AZOM preference controls saved. The current recommendation still matches these preferences.";
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "AZOM Preferences", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                ex.Message,
+                "AZOM Preferences",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
+
 
 
     private void AutoDetectSimHub_Click(object sender, RoutedEventArgs e)
@@ -168,7 +264,7 @@ public partial class AzomSettingsWindow : Window
         }
         SimHubPathBox.Text = found;
         SaveLiveConnectionSettings();
-        LiveStatusText.Text = "SimHub detected. Start SimHub and ensure the Atomic Drift Tuner Bridge + AZOM plugins are enabled.";
+        LiveStatusText.Text = "SimHub detected. Start SimHub and ensure the ADT SimHub Bridge + AZOM plugins are enabled.";
     }
 
     private void BrowseSimHub_Click(object sender, RoutedEventArgs e)
@@ -179,83 +275,215 @@ public partial class AzomSettingsWindow : Window
         SaveLiveConnectionSettings();
     }
 
-    private async void ReadLiveAzom_Click(object sender, RoutedEventArgs e)
+    private async void ReadLiveAzom_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        try { await ReadAndCompareAsync(); }
-        catch (Exception ex) { ShowLiveError(ex); }
+        await RunLiveOperationAsync(
+            ReadAndCompareAsync,
+            showModalErrors: true);
     }
 
-    private async void RefreshComparison_Click(object sender, RoutedEventArgs e)
+
+    private async void RefreshComparison_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        try { await ReadAndCompareAsync(); }
-        catch (Exception ex) { ShowLiveError(ex); }
+        await RunLiveOperationAsync(
+            ReadAndCompareAsync,
+            showModalErrors: true);
     }
 
-    private async void ApplyLiveAzom_Click(object sender, RoutedEventArgs e)
+
+    private async void ApplyLiveAzom_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        try
+        await RunLiveOperationAsync(
+            ApplySelectedAsync,
+            showModalErrors: true);
+    }
+
+
+    private async void RevertLiveAzom_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        await RunLiveOperationAsync(
+            RevertLastApplyAsync,
+            showModalErrors: true);
+    }
+
+
+    private async Task ApplySelectedAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_preferencesOutOfSync &&
+            IncludePreferencesBox.IsChecked == true)
         {
-            if (_liveSnapshot == null) await ReadAndCompareAsync();
-            if (_liveSnapshot == null) return;
-            RenderComparison(_liveSnapshot);
-            var changed = _livePlan.Where(x => x.CanApply && x.IsDifferent && x.IsSelectedForApply).ToList();
-            if (changed.Count == 0)
-            {
-                LiveStatusText.Text = "No differing writable settings are selected for apply.";
-                return;
-            }
-            var actionCount = changed.Sum(x => x.EstimatedActions);
-            var answer = MessageBox.Show(
-                $"Atomic will change {changed.Count} selected AZOM settings. Public-action fallback would require about {actionCount} actions, but v0.6 tries the exact AZOM commit first.\n\n" +
-                "AZOM actions push to the wheelbase immediately and persist to the active profile/base as applicable. Atomic will save a pre-apply snapshot for Revert and will not touch undocumented controls.\n\nContinue?",
-                "Apply AZOM Settings", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.Yes) return;
-
-            LiveStatusText.Text = "Applying AZOM differences...";
-            var controller = CreateLiveController();
-            var result = await controller.ApplyAsync(_livePlan, _liveSnapshot);
-            _liveSnapshot = result.After ?? await controller.ReadAsync();
-            RenderComparison(_liveSnapshot);
-            ShowBatchResult("Apply", result);
-            LiveStatusText.Text = $"Apply complete: verified {result.VerifiedSettingsChanged}/{result.SettingsChanged} selected settings." +
-                                  (result.Warnings.Count > 0 ? " " + string.Join(" ", result.Warnings) : "");
+            throw new InvalidOperationException(
+                "The saved AZOM preferences no longer match this generated recommendation. Return to the Dashboard and reopen Full AZOM Settings before including preferences in Live Apply.");
         }
-        catch (Exception ex) { ShowLiveError(ex); }
-    }
 
-    private async void RevertLiveAzom_Click(object sender, RoutedEventArgs e)
-    {
-        try
+        if (_liveSnapshot is null)
+            await ReadAndCompareAsync(cancellationToken);
+
+        if (_liveSnapshot is null)
+            return;
+
+        RenderComparison(_liveSnapshot);
+
+        var changed =
+            _livePlan
+                .Where(x =>
+                    x.CanApply &&
+                    x.IsDifferent &&
+                    x.IsSelectedForApply)
+                .ToList();
+
+        if (changed.Count == 0)
         {
-            var controller = CreateLiveController();
-            var backup = controller.LoadRevertRecord();
-            if (backup == null || backup.ChangedProperties.Count == 0)
-            {
-                MessageBox.Show("No Atomic AZOM apply backup is available yet.", "Revert AZOM", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            var current = await controller.ReadAsync();
-            var plan = controller.BuildRevertPlan(backup.Snapshot, current, backup.ChangedProperties);
-            var changed = plan.Where(x => x.CanApply && x.IsDifferent).ToList();
-            if (changed.Count == 0)
-            {
-                LiveStatusText.Text = "The settings changed by the last Atomic apply already match the saved pre-apply snapshot.";
-                _liveSnapshot = current; RenderComparison(current);
-                return;
-            }
-            var answer = MessageBox.Show($"Revert {changed.Count} settings to the snapshot saved before the last Atomic apply?", "Revert AZOM", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (answer != MessageBoxResult.Yes) return;
-            LiveStatusText.Text = "Reverting last Atomic AZOM apply...";
-            var result = await controller.ApplyAsync(plan, current);
-            _liveSnapshot = result.After ?? await controller.ReadAsync();
-            RenderComparison(_liveSnapshot);
-            ShowBatchResult("Revert", result);
-            LiveStatusText.Text = $"Revert complete: verified {result.VerifiedSettingsChanged}/{result.SettingsChanged} settings.";
+            LiveStatusText.Text =
+                "No differing writable settings are selected for apply.";
+            return;
         }
-        catch (Exception ex) { ShowLiveError(ex); }
+
+        var actionCount =
+            changed.Sum(x => x.EstimatedActions);
+
+        var answer =
+            MessageBox.Show(
+                $"ADT will change {changed.Count} selected AZOM settings. " +
+                $"A public-action fallback could require about {actionCount} actions, but ADT attempts the guarded exact commit path first.\n\n" +
+                "AZOM changes can affect wheelbase behavior immediately and may persist to the active profile/base as applicable. " +
+                "Stop driving before continuing. ADT will save a pre-apply snapshot for Revert and will not touch undocumented controls.\n\nContinue?",
+                "Apply AZOM Settings",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        LiveStatusText.Text =
+            "Applying selected AZOM differences...";
+
+        var controller =
+            CreateLiveController();
+
+        var result =
+            await controller.ApplyAsync(
+                _livePlan,
+                _liveSnapshot,
+                cancellationToken);
+
+        _liveSnapshot =
+            result.After ??
+            await controller.ReadAsync(
+                cancellationToken);
+
+        RenderComparison(_liveSnapshot);
+        ShowBatchResult("Apply", result);
+
+        LiveStatusText.Text =
+            $"Apply complete: verified {result.VerifiedSettingsChanged}/{result.SettingsChanged} selected settings." +
+            (result.Warnings.Count > 0
+                ? " " + string.Join(" ", result.Warnings)
+                : "");
     }
 
-    private async Task ReadAndCompareAsync()
+    private async Task RevertLastApplyAsync(
+        CancellationToken cancellationToken)
+    {
+        var controller =
+            CreateLiveController();
+
+        var backup =
+            controller.LoadRevertRecord();
+
+        if (backup is null ||
+            backup.ChangedProperties.Count == 0)
+        {
+            MessageBox.Show(
+                "No ADT AZOM apply backup is available yet.",
+                "Revert AZOM",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var current =
+            await controller.ReadAsync(
+                cancellationToken);
+
+        var plan =
+            controller.BuildRevertPlan(
+                backup.Snapshot,
+                current,
+                backup.ChangedProperties);
+
+        var changed =
+            plan
+                .Where(x =>
+                    x.CanApply &&
+                    x.IsDifferent)
+                .ToList();
+
+        if (changed.Count == 0)
+        {
+            LiveStatusText.Text =
+                "The settings changed by the last ADT apply already match the saved pre-apply snapshot.";
+
+            _liveSnapshot =
+                current;
+
+            RenderComparison(
+                current);
+
+            return;
+        }
+
+        var answer =
+            MessageBox.Show(
+                $"Revert {changed.Count} settings to the snapshot saved before the last ADT apply?\n\n" +
+                "Stop driving before continuing.",
+                "Revert AZOM",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        LiveStatusText.Text =
+            "Reverting last ADT AZOM apply...";
+
+        var result =
+            await controller.ApplyAsync(
+                plan,
+                current,
+                cancellationToken);
+
+        _liveSnapshot =
+            result.After ??
+            await controller.ReadAsync(
+                cancellationToken);
+
+        RenderComparison(
+            _liveSnapshot);
+
+        ShowBatchResult(
+            "Revert",
+            result);
+
+        LiveStatusText.Text =
+            $"Revert complete: verified {result.VerifiedSettingsChanged}/{result.SettingsChanged} settings.";
+    }
+
+    private async Task ReadAndCompareAsync(
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -269,25 +497,42 @@ public partial class AzomSettingsWindow : Window
                 ex);
         }
 
-        LiveStatusText.Text = "Reading AZOM properties from SimHub...";
-        var controller = CreateLiveController();
-        _liveSnapshot = await controller.ReadAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        LiveStatusText.Text =
+            "Reading AZOM properties from SimHub...";
+
+        var controller =
+            CreateLiveController();
+
+        _liveSnapshot =
+            await controller.ReadAsync(
+                cancellationToken);
 
         if (!_liveSnapshot.SettingsReadable)
         {
             if (!_liveSnapshot.PluginDetected)
+            {
                 throw new InvalidOperationException(
-                    "The Atomic bridge is connected, but SimHub is not publishing any AZOM/Moza properties. " +
+                    "The ADT bridge is connected, but SimHub is not publishing any AZOM/Moza properties. " +
                     "Verify AZOM is enabled in SimHub and restart SimHub after enabling it.");
+            }
 
-            if (string.Equals(_liveSnapshot.PropertyNamespace, "Moza", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(
+                    _liveSnapshot.PropertyNamespace,
+                    "Moza",
+                    StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidOperationException(
-                    $"Atomic detected a legacy AZOM property namespace (Moza.*), but this AZOM build does not expose the full Base settings needed for Live Apply. " +
+                    $"ADT detected a legacy AZOM property namespace (Moza.*), but this AZOM build does not expose the full Base settings needed for Live Apply. " +
                     $"Published Moza properties: {_liveSnapshot.LegacyMozaPropertyCount}. Update AZOM to a current build that exposes AZOM.FfbStrength, AZOM.Torque, AZOM.Rotation, etc.");
+            }
 
             if (_liveSnapshot.BaseConnected == false)
+            {
                 throw new InvalidOperationException(
                     "AZOM is detected, but AZOM.BaseConnected is false. Close MOZA Pit House completely, connect the wheelbase, and wait for the Base tab to populate before reading again.");
+            }
 
             throw new InvalidOperationException(
                 $"AZOM is detected and the bridge sees {_liveSnapshot.AzomPropertyCount} AZOM properties, but the Base-setting values are not readable yet. " +
@@ -295,11 +540,14 @@ public partial class AzomSettingsWindow : Window
                 "Open AZOM's Base tab and wait for the wheelbase settings read to complete, then try again.");
         }
 
-        RenderComparison(_liveSnapshot);
+        RenderComparison(
+            _liveSnapshot);
+
         LiveStatusText.Text =
             $"Live AZOM read OK • Bridge {_liveSnapshot.BridgeVersion} • namespace {_liveSnapshot.PropertyNamespace} • " +
             $"source {_liveSnapshot.ReadSource} • captured {_liveSnapshot.CapturedUtc.ToLocalTime():T}.";
     }
+
 
     private void RenderComparison(AzomLiveSnapshot snapshot)
     {
@@ -320,6 +568,25 @@ public partial class AzomSettingsWindow : Window
         LiveComparisonGrid.ItemsSource = null;
         LiveComparisonGrid.ItemsSource = _livePlan;
         UpdateSelectionStatus();
+    }
+
+    private void IncludePreferencesBox_Changed(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_preferencesOutOfSync &&
+            IncludePreferencesBox.IsChecked == true)
+        {
+            IncludePreferencesBox.IsChecked = false;
+            IncludePreferencesBox.IsEnabled = false;
+
+            LiveStatusText.Text =
+                "Saved preferences changed after this tune was generated. Return to the Dashboard and reopen Full AZOM Settings before including them in Live Apply.";
+            return;
+        }
+
+        if (_liveSnapshot is not null)
+            RenderComparison(_liveSnapshot);
     }
 
     private void SelectAllDifferences_Click(object sender, RoutedEventArgs e)
@@ -371,7 +638,7 @@ public partial class AzomSettingsWindow : Window
         BatchSummaryText.Text =
             $"{operation}: verified {result.VerifiedSettingsChanged}/{result.SettingsChanged}. " +
             $"Exact commits: {result.DirectFallbackSettingsTriggered}; " +
-            $"public/CLI actions: {result.ActionsTriggered}. " +
+            $"action fallbacks: {result.ActionsTriggered}. " +
             (result.Warnings.Count > 0 ? $"Warnings: {result.Warnings.Count}." : "No warnings.");
     }
 
@@ -411,31 +678,184 @@ public partial class AzomSettingsWindow : Window
 
     public async Task RefreshLiveFromRemoteAsync()
     {
+        await RunLiveOperationAsync(
+            async cancellationToken =>
+            {
+                await ReadAndCompareAsync(
+                    cancellationToken);
+
+                LiveStatusText.Text =
+                    "Live AZOM refreshed after a remote change.";
+            },
+            showModalErrors: false);
+    }
+
+
+    private async Task RunLiveOperationAsync(
+        Func<CancellationToken, Task> operation,
+        bool showModalErrors)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        var cancellationToken =
+            _lifetimeCancellation.Token;
+
         try
         {
-            await ReadAndCompareAsync();
-            LiveStatusText.Text = "Live AZOM refreshed after a remote change.";
+            await _liveOperationGate.WaitAsync(
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_isClosing)
+                return;
+
+            SetLiveControlsEnabled(
+                false);
+
+            await operation(
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            if (!_isClosing)
+            {
+                LiveStatusText.Text =
+                    "Live AZOM operation cancelled.";
+            }
         }
         catch (Exception ex)
         {
-            // A remote refresh should never interrupt the user's desktop flow
-            // with a modal dialog. Keep the error visible in the Live panel.
-            LiveStatusText.Text = "Remote refresh unavailable: " + ex.Message;
+            if (showModalErrors)
+            {
+                ShowLiveError(
+                    ex);
+            }
+            else if (!_isClosing)
+            {
+                LiveStatusText.Text =
+                    "Remote refresh unavailable: " +
+                    ex.Message;
+            }
+        }
+        finally
+        {
+            if (!_isClosing)
+            {
+                SetLiveControlsEnabled(
+                    true);
+            }
+
+            _liveOperationGate.Release();
         }
     }
 
-    private void ShowLiveError(Exception ex)
+    private void SetLiveControlsEnabled(
+        bool enabled)
     {
-        LiveStatusText.Text = "Live AZOM unavailable: " + ex.Message;
+        SimHubPathBox.IsEnabled = enabled;
+        AutoDetectSimHubButton.IsEnabled = enabled;
+        BrowseSimHubButton.IsEnabled = enabled;
+        ReadLiveAzomButton.IsEnabled = enabled;
+        RefreshComparisonButton.IsEnabled = enabled;
+        ApplySelectedButton.IsEnabled = enabled;
+        RevertLastApplyButton.IsEnabled = enabled;
+        SelectAllDifferencesButton.IsEnabled = enabled;
+        ClearApplySelectionButton.IsEnabled = enabled;
+        SectionSelectionBox.IsEnabled = enabled;
+        SelectSectionButton.IsEnabled = enabled;
+        LiveComparisonGrid.IsEnabled = enabled;
 
-        var detail = ex is UnauthorizedAccessException
-            ? "\n\nPermission check: make sure SimHub and Atomic Drift Tuner are running under the same Windows user. " +
-              "The v0.5.2 bridge explicitly grants local authenticated users read/write access to its read-only named pipe. " +
-              "After installing the updated bridge, fully exit and restart SimHub."
-            : "\n\nIf SimHub is running, verify that AZOM and the bundled Atomic Drift Tuner SimHub Bridge are installed/enabled.";
+        ShiftIntensityBox.IsEnabled = enabled;
+        VibrateNeutralBox.IsEnabled = enabled;
+        ShiftDebounceBox.IsEnabled = enabled;
+        HandsOffBox.IsEnabled = enabled;
+        RetainGameFfbBox.IsEnabled = enabled;
+        FfbReversalBox.IsEnabled = enabled;
+        StandbyModeBox.IsEnabled = enabled;
+        StandbyAfterBox.IsEnabled = enabled;
+        BaseStatusLedBox.IsEnabled = enabled;
+        BluetoothBox.IsEnabled = enabled;
+        SavePreferencesButton.IsEnabled = enabled;
 
-        MessageBox.Show(ex.Message + detail + "\n\nThe normal tuner still works without the bridge.",
-            "Live AZOM", MessageBoxButton.OK, MessageBoxImage.Warning);
+        IncludePreferencesBox.IsEnabled =
+            enabled &&
+            !_preferencesOutOfSync;
+    }
+
+    private void ShowLiveError(
+        Exception ex)
+    {
+        LiveStatusText.Text =
+            "Live AZOM unavailable: " +
+            ex.Message;
+
+        var detail =
+            ex is UnauthorizedAccessException
+                ? "\n\nPermission check: make sure ADT can write to %LOCALAPPDATA%\\AtomicDriftTuner and that SimHub is running in the same interactive Windows session. " +
+                  "The ADT bridge grants local authenticated users access to its local named pipe. " +
+                  "After installing or updating the bridge, fully exit and restart SimHub."
+                : "\n\nIf SimHub is running, verify that AZOM and the bundled ADT SimHub Bridge are installed and enabled.";
+
+        MessageBox.Show(
+            ex.Message +
+            detail +
+            "\n\nThe normal tuner still works without the bridge.",
+            "Live AZOM",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+
+    private static void CopyPreferences(
+        AzomUserPreferences source,
+        AzomUserPreferences destination)
+    {
+        destination.ShiftIntensity = source.ShiftIntensity;
+        destination.VibrateOnNeutral = source.VibrateOnNeutral;
+        destination.ShiftDebounceMs = source.ShiftDebounceMs;
+        destination.HandsOffProtection = source.HandsOffProtection;
+        destination.RetainGameFfb = source.RetainGameFfb;
+        destination.ForceFeedbackReversal = source.ForceFeedbackReversal;
+        destination.StandbyMode = source.StandbyMode;
+        destination.StandbyAfter = source.StandbyAfter;
+        destination.BaseStatusLed = source.BaseStatusLed;
+        destination.Bluetooth = source.Bluetooth;
+    }
+
+    private static bool PreferencesEqual(
+        AzomUserPreferences left,
+        AzomUserPreferences right)
+    {
+        return
+            left.ShiftIntensity == right.ShiftIntensity &&
+            left.VibrateOnNeutral == right.VibrateOnNeutral &&
+            left.ShiftDebounceMs == right.ShiftDebounceMs &&
+            left.HandsOffProtection == right.HandsOffProtection &&
+            left.RetainGameFfb == right.RetainGameFfb &&
+            left.ForceFeedbackReversal == right.ForceFeedbackReversal &&
+            left.StandbyMode == right.StandbyMode &&
+            string.Equals(
+                NormalizePreferenceText(left.StandbyAfter),
+                NormalizePreferenceText(right.StandbyAfter),
+                StringComparison.OrdinalIgnoreCase) &&
+            left.BaseStatusLed == right.BaseStatusLed &&
+            left.Bluetooth == right.Bluetooth;
+    }
+
+    private static string NormalizePreferenceText(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Disabled"
+            : value.Trim();
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

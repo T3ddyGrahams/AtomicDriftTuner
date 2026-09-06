@@ -279,6 +279,15 @@ public sealed class TelemetrySessionStore
                 return null;
             }
 
+            if (!TryGetCaseInsensitive(sessionElement, "schema", out var schema) ||
+                schema.ValueKind != JsonValueKind.String ||
+                schema.GetString() != TelemetrySession.CurrentSchema ||
+                !TryGetCaseInsensitive(sessionElement, "samples", out var samples) ||
+                samples.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
             TelemetrySession? session;
 
             try
@@ -366,65 +375,11 @@ public sealed class TelemetrySessionStore
         var baseName =
             $"{stamp}_{safeCar}";
 
-        var sessionSuffix =
-            BuildSessionSuffix(
-                session.Id);
-
-        for (var attempt = 0; attempt < 1000; attempt++)
-        {
-            string directoryName;
-
-            if (attempt == 0)
-            {
-                directoryName =
-                    baseName;
-            }
-            else if (attempt == 1 &&
-                     !string.IsNullOrWhiteSpace(sessionSuffix))
-            {
-                directoryName =
-                    $"{baseName}_{sessionSuffix}";
-            }
-            else
-            {
-                directoryName =
-                    $"{baseName}_{sessionSuffix}_{attempt:D3}";
-            }
-
-            var candidate =
-                Path.Combine(
-                    RootDirectory,
-                    directoryName);
-
-            try
-            {
-                Directory.CreateDirectory(
-                    candidate);
-
-                // Directory.CreateDirectory succeeds for an existing folder,
-                // so use the absence of ADT session files to determine
-                // whether this candidate is available.
-                if (
-                    !File.Exists(
-                        Path.Combine(
-                            candidate,
-                            SessionFileName)) &&
-                    !File.Exists(
-                        Path.Combine(
-                            candidate,
-                            CsvFileName)))
-                {
-                    return candidate;
-                }
-            }
-            catch (IOException)
-            {
-                // Try the next unique suffix.
-            }
-        }
-
-        throw new IOException(
-            "ADT could not create a unique telemetry-session directory.");
+        // Never claim a pre-existing folder based on missing session files:
+        // it may contain unrelated data or another process's unfinished save.
+        var candidate = Path.Combine(RootDirectory, $"{baseName}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(candidate);
+        return candidate;
     }
 
     private static DateTime NormalizeSessionTime(
@@ -448,36 +403,6 @@ public sealed class TelemetrySessionStore
                     startedUtc,
                     DateTimeKind.Utc)
         };
-    }
-
-    private static string BuildSessionSuffix(
-        string? sessionId)
-    {
-        if (string.IsNullOrWhiteSpace(
-                sessionId))
-        {
-            return Guid.NewGuid()
-                .ToString("N")[..6];
-        }
-
-        var cleaned =
-            new string(
-                sessionId
-                    .Where(
-                        char.IsLetterOrDigit)
-                    .ToArray());
-
-        if (string.IsNullOrWhiteSpace(
-                cleaned))
-        {
-            return Guid.NewGuid()
-                .ToString("N")[..6];
-        }
-
-        return cleaned[
-            ..Math.Min(
-                8,
-                cleaned.Length)];
     }
 
     private static void WriteSessionJson(
@@ -978,9 +903,10 @@ public sealed class TelemetrySessionStore
 
             // Only delete the folder created for this failed save. Session
             // folders are not shared between runs.
-            Directory.Delete(
-                folder,
-                recursive: true);
+            TryDeleteFile(Path.Combine(folder, SessionFileName));
+            TryDeleteFile(Path.Combine(folder, CsvFileName));
+            // Leave unexpected files alone, even in our newly allocated folder.
+            Directory.Delete(folder, recursive: false);
         }
         catch
         {

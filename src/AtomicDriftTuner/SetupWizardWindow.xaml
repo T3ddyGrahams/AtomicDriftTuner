@@ -1,24 +1,29 @@
 <Window x:Class="AtomicDriftTuner.SetupWizardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Atomic Drift Tuner - Setup &amp; Paths"
-        Width="940" Height="760"
-        MinWidth="780" MinHeight="650"
+        Title="ADT • Setup &amp; Paths"
+        Width="940"
+        Height="760"
+        MinWidth="780"
+        MinHeight="650"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
-            <TextBlock Text="ATOMIC DRIFT TUNER"
+            <TextBlock Text="ADT SETUP &amp; PATHS"
                        FontSize="28"
                        FontWeight="Bold"/>
-            <TextBlock Text="FIRST-RUN / MACHINE SETUP"
+
+            <TextBlock x:Name="ModeText"
+                       Text="MACHINE SETUP &amp; PATHS"
                        FontSize="16"
                        FontWeight="Bold"
                        Foreground="{DynamicResource AccentBrush}"
                        Margin="0,2,0,0"/>
+
             <TextBlock x:Name="IntroText"
-                       Text="Atomic detects common locations, but every path can be changed. These paths stay on this PC and are not part of shared tuning profiles."
+                       Text="Review this PC's integration paths. These machine-specific paths stay local and are not part of shared tuning profiles."
                        Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap"
                        Margin="0,6,0,18"/>
@@ -30,28 +35,66 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="SIMHUB" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="Choose the folder containing SimHubWPF.exe."
+                    <TextBlock Text="SIMHUB"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+
+                    <TextBlock Text="Choose the SimHub folder containing SimHubWPF.exe and SimHub.Plugins.dll."
                                Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextWrapping="Wrap"
                                Margin="0,2,0,8"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="SimHubPathBox" Margin="0,0,8,0" Padding="8"/>
-                        <Button Grid.Column="1" Content="Browse" Click="BrowseSimHub_Click" Padding="14,8"/>
+
+                        <TextBox x:Name="SimHubPathBox"
+                                 Margin="0,0,8,0"
+                                 Padding="8"
+                                 TextChanged="PathBox_TextChanged"
+                                 AutomationProperties.Name="SimHub install folder"/>
+
+                        <Button Grid.Column="1"
+                                x:Name="BrowseSimHubButton"
+                                Content="Browse"
+                                Click="BrowseSimHub_Click"
+                                Padding="14,8"/>
                     </Grid>
-                    <TextBlock x:Name="SimHubStatusText" Margin="0,7,0,0" TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="SimHubStatusText"
+                               Margin="0,7,0,0"
+                               TextWrapping="Wrap"/>
+
                     <WrapPanel Margin="0,10,0,0">
-                        <Button Content="Auto Detect" Click="DetectSimHub_Click" Padding="14,8" Margin="0,0,8,0"/>
-                        <Button Content="Install / Repair Packaged Bridge" Click="InstallBridge_Click" Padding="14,8" Margin="0,0,8,0"/>
-                        <Button Content="Refresh Bridge Status" Click="RefreshBridge_Click" Padding="14,8"/>
+                        <Button x:Name="DetectSimHubButton"
+                                Content="Auto Detect"
+                                Click="DetectSimHub_Click"
+                                Padding="14,8"
+                                Margin="0,0,8,0"/>
+
+                        <Button x:Name="InstallBridgeButton"
+                                Content="Install / Repair Packaged Bridge"
+                                Click="InstallBridge_Click"
+                                Padding="14,8"
+                                Margin="0,0,8,0"/>
+
+                        <Button x:Name="RefreshBridgeButton"
+                                Content="Refresh Bridge Status"
+                                Click="RefreshBridge_Click"
+                                Padding="14,8"/>
                     </WrapPanel>
+
                     <TextBlock x:Name="BridgeStatusText"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
                                Margin="0,8,0,0"/>
+
+                    <TextBlock Text="Bridge install/repair uses the packaged ADT SimHub Bridge payload for the selected SimHub installation. Fully exit SimHub first. This setup window does not issue AZOM wheelbase-setting writes."
+                               Foreground="{DynamicResource MutedTextBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,7,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -62,19 +105,36 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="ASSETTO CORSA INSTALL" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="Choose the Assetto Corsa folder containing content\cars."
+                    <TextBlock Text="ASSETTO CORSA INSTALL"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+
+                    <TextBlock Text="Choose the Assetto Corsa install folder containing content\cars."
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                Margin="0,2,0,8"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="AcRootBox" Margin="0,0,8,0" Padding="8"/>
-                        <Button Grid.Column="1" Content="Browse" Click="BrowseAc_Click" Padding="14,8"/>
+
+                        <TextBox x:Name="AcRootBox"
+                                 Margin="0,0,8,0"
+                                 Padding="8"
+                                 TextChanged="PathBox_TextChanged"
+                                 AutomationProperties.Name="Assetto Corsa install folder"/>
+
+                        <Button Grid.Column="1"
+                                x:Name="BrowseAcButton"
+                                Content="Browse"
+                                Click="BrowseAc_Click"
+                                Padding="14,8"/>
                     </Grid>
-                    <TextBlock x:Name="AcStatusText" Margin="0,7,0,0" TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="AcStatusText"
+                               Margin="0,7,0,0"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
@@ -85,20 +145,37 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="ASSETTO CORSA USER DATA" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="This is usually the Windows Documents\Assetto Corsa folder. Atomic uses the Windows known-folder location so redirected/OneDrive Documents are supported."
+                    <TextBlock Text="ASSETTO CORSA USER DATA"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+
+                    <TextBlock Text="Usually the Windows Documents\Assetto Corsa folder. ADT uses Windows known-folder detection so redirected or OneDrive Documents locations can be supported."
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
                                Margin="0,2,0,8"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="AcDocumentsBox" Margin="0,0,8,0" Padding="8"/>
-                        <Button Grid.Column="1" Content="Browse" Click="BrowseAcDocuments_Click" Padding="14,8"/>
+
+                        <TextBox x:Name="AcDocumentsBox"
+                                 Margin="0,0,8,0"
+                                 Padding="8"
+                                 TextChanged="PathBox_TextChanged"
+                                 AutomationProperties.Name="Assetto Corsa user-data folder"/>
+
+                        <Button Grid.Column="1"
+                                x:Name="BrowseAcDocumentsButton"
+                                Content="Browse"
+                                Click="BrowseAcDocuments_Click"
+                                Padding="14,8"/>
                     </Grid>
-                    <TextBlock x:Name="AcDocumentsStatusText" Margin="0,7,0,0" TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="AcDocumentsStatusText"
+                               Margin="0,7,0,0"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
@@ -111,13 +188,33 @@
                 <TextBlock x:Name="OverallStatusText"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"
-                           Text="Use Test Everything before saving. Missing optional integrations do not prevent Atomic from opening."/>
+                           Text="Test Everything is optional. Missing integrations do not prevent ADT from opening, and paths can be changed later."/>
             </Border>
 
             <WrapPanel HorizontalAlignment="Right">
-                <Button Content="Detect All" Click="DetectAll_Click" Padding="16,9" Margin="0,0,8,0"/>
-                <Button Content="Test Everything" Click="TestEverything_Click" Padding="16,9" Margin="0,0,8,0"/>
-                <Button Content="Save &amp; Continue" Click="Save_Click" Padding="18,9" FontWeight="Bold"/>
+                <Button x:Name="DetectAllButton"
+                        Content="Detect All"
+                        Click="DetectAll_Click"
+                        Padding="16,9"
+                        Margin="0,0,8,0"/>
+
+                <Button x:Name="TestEverythingButton"
+                        Content="Test Everything"
+                        Click="TestEverything_Click"
+                        Padding="16,9"
+                        Margin="0,0,8,0"/>
+
+                <Button x:Name="CloseWithoutSavingButton"
+                        Content="Close Without Saving"
+                        Click="CloseWithoutSaving_Click"
+                        Padding="16,9"
+                        Margin="0,0,8,0"/>
+
+                <Button x:Name="SaveButton"
+                        Content="Save Paths"
+                        Click="Save_Click"
+                        Padding="18,9"
+                        FontWeight="Bold"/>
             </WrapPanel>
         </StackPanel>
     </ScrollViewer>

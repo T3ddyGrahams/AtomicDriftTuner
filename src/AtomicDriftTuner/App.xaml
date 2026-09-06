@@ -78,11 +78,13 @@
                                           HorizontalAlignment="Stretch"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="TextBoxChrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TextBoxChrome" Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                            <!-- Keep keyboard focus visible even while the mouse is over the field. -->
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TextBoxChrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="TextBoxChrome" Property="BorderThickness" Value="2"/>
                             </Trigger>
                             <Trigger Property="IsReadOnly" Value="True">
                                 <Setter TargetName="TextBoxChrome" Property="Opacity" Value="0.86"/>
@@ -309,20 +311,70 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type DataGridColumnHeader}">
-                        <Border x:Name="HeaderBorder"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center"
-                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              RecognizesAccessKey="True"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="HeaderBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ContentPresenter VerticalAlignment="Center"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      RecognizesAccessKey="True"/>
+
+                                    <Path x:Name="SortArrow"
+                                          Grid.Column="1"
+                                          Width="8"
+                                          Height="5"
+                                          Margin="8,0,0,0"
+                                          VerticalAlignment="Center"
+                                          Fill="{DynamicResource DataGridHeaderTextBrush}"
+                                          Visibility="Collapsed"
+                                          Data="M 0 5 L 4 0 L 8 5 Z"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Required DataGridColumnHeader resize parts. -->
+                            <Thumb x:Name="PART_LeftHeaderGripper"
+                                   HorizontalAlignment="Left"
+                                   Width="8"
+                                   Background="Transparent"
+                                   Cursor="SizeWE"/>
+                            <Thumb x:Name="PART_RightHeaderGripper"
+                                   HorizontalAlignment="Right"
+                                   Width="8"
+                                   Background="Transparent"
+                                   Cursor="SizeWE"/>
+                        </Grid>
+
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="HeaderBorder"
                                         Property="Background"
                                         Value="{DynamicResource PanelAltBrush}"/>
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Ascending">
+                                <Setter TargetName="SortArrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="SortArrow" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Descending">
+                                <Setter TargetName="SortArrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="SortArrow" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="180"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="SortArrow" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="HeaderBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -342,6 +394,10 @@
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource DataGridSelectedBackgroundBrush}"/>
                     <Setter Property="Foreground" Value="{DynamicResource DataGridSelectedTextBrush}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -387,6 +443,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource TabBorderBrush}"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TabItem}">
@@ -413,6 +470,14 @@
                                 <Setter TargetName="HeaderBorder"
                                         Property="BorderBrush"
                                         Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="HeaderBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="HeaderBorder"
+                                        Property="BorderThickness"
+                                        Value="2"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45"/>
@@ -459,7 +524,7 @@
         <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource AtomicTabItemStyle}"/>
         <Style TargetType="{x:Type TabControl}" BasedOn="{StaticResource AtomicTabControlStyle}"/>
 
-        <!-- Sandbox 4 visual system: app-wide controls and scrollbar chrome. -->
+        <!-- App-wide controls and scrollbar chrome. Atomic* keys are retained for XAML compatibility. -->
         <SolidColorBrush x:Key="ControlHoverBrush" Color="#303640"/>
         <SolidColorBrush x:Key="ScrollTrackBrush" Color="#10141A"/>
         <SolidColorBrush x:Key="ScrollThumbBrush" Color="#48515E"/>
@@ -512,7 +577,7 @@
         <Style TargetType="{x:Type Button}" BasedOn="{StaticResource AtomicButtonStyle}"/>
 
         <Style x:Key="AtomicScrollBarThumbStyle" TargetType="{x:Type Thumb}">
-            <Setter Property="Background" Value="{StaticResource ScrollThumbBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="MinWidth" Value="7"/>
             <Setter Property="MinHeight" Value="28"/>
             <Setter Property="Template">
@@ -524,7 +589,7 @@
                                 CornerRadius="6"/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource ScrollThumbHoverBrush}"/>
+                                <Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource SecondaryTextBrush}"/>
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
                                 <Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource AccentBrush}"/>
@@ -561,7 +626,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                         <Grid x:Name="Root" Background="Transparent" SnapsToDevicePixels="True">
-                            <Border x:Name="TrackBackground" Background="{StaticResource ScrollTrackBrush}" CornerRadius="5" Opacity="0.35"/>
+                            <Border x:Name="TrackBackground" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="5" Opacity="0.35"/>
                             <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton x:Name="DecreasePageButton" Command="ScrollBar.PageUpCommand" Style="{StaticResource AtomicScrollBarPageButtonStyle}"/>
@@ -633,10 +698,13 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Slider}">
                         <Grid VerticalAlignment="Center" Margin="0,4">
-                            <Border Height="5" VerticalAlignment="Center"
+                            <Border x:Name="SliderTrackBorder"
+                                    Height="5"
+                                    VerticalAlignment="Center"
                                     Background="{DynamicResource InputBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1" CornerRadius="3"/>
+                                    BorderThickness="1"
+                                    CornerRadius="3"/>
                             <Track x:Name="PART_Track" VerticalAlignment="Center">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="Slider.DecreaseLarge" Focusable="False" IsTabStop="False">
@@ -662,6 +730,14 @@
                             </Track>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="SliderTrackBorder"
+                                        Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="SliderTrackBorder"
+                                        Property="BorderThickness"
+                                        Value="2"/>
+                            </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
                             </Trigger>

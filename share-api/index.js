@@ -154,7 +154,7 @@ function emptyStore() {
 function loadStore() {
   try {
     const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    if (data?.schema !== "atomic-share-registry/v1" || typeof data?.shares !== "object") {
+    if (data?.schema !== "atomic-share-registry/v1" || !data?.shares || typeof data.shares !== "object" || Array.isArray(data.shares)) {
       throw new Error("unsupported registry schema");
     }
     return data;
@@ -180,7 +180,10 @@ function findExistingByHash(store, hash) {
 }
 
 function createRecord(portable) {
-  const { compact, parsed } = decodePortable(portable);
+  let decoded;
+  try { decoded = decodePortable(portable); }
+  catch (error) { error.status = 400; throw error; }
+  const { compact, parsed } = decoded;
   const sha256 = crypto.createHash("sha256").update(compact, "utf8").digest("hex");
   const store = loadStore();
 
@@ -262,6 +265,9 @@ const server = http.createServer(async (req, res) => {
         return json(res, 415, { error: "Content-Type must be application/json." });
       }
       const body = await readJsonBody(req);
+      if (!body || typeof body !== "object" || typeof body.payload !== "string") {
+        return json(res, 400, { error: "A portable Share Code payload is required." });
+      }
       const result = createRecord(body.payload);
       return json(res, result.deduplicated ? 200 : 201, {
         code: result.code,
@@ -297,7 +303,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 404, { error: "Not found." });
   } catch (error) {
     console.error("Request failed:", error);
-    const status = Number(error.status) || 400;
+    const status = Number(error.status) || 500;
     return json(res, status >= 400 && status < 600 ? status : 500, {
       error: status >= 500 ? "Internal server error." : error.message,
     });

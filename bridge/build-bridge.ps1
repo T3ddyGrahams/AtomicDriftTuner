@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SimHubPath,
 
-    [string]$Version = "0.8.1-beta.1"
+    [string]$Version = "0.8.2-beta.1"
 )
 
 $ErrorActionPreference = "Stop"

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
+using System.Text;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Collections;
@@ -22,7 +23,19 @@ namespace AtomicDriftTuner.SimHubBridge
     public sealed class AtomicDriftTunerBridge : IPlugin, IDataPlugin
     {
         private const string PipeName = "AtomicDriftTuner.AzomBridge.v1";
-        private static readonly string BridgeVersion = ResolveBridgeVersion();
+        private const string BridgeVersion = "0.8.2-beta.1";
+
+        private const int MaxRequestChars = 16 * 1024;
+        private const int MaxAzomNameLength = 256;
+        private const int MaxErrorMessageChars = 1000;
+
+        private const int ActionWaitTimeoutMs = 3000;
+        private const int DirectWriteWaitTimeoutMs = 3500;
+
+        private const int RequestPending = 0;
+        private const int RequestExecuting = 1;
+        private const int RequestCompleted = 2;
+        private const int RequestCancelled = 3;
         private Thread? _serverThread;
         private volatile bool _stop;
         private NamedPipeServerStream? _activeServer;
@@ -34,70 +47,108 @@ namespace AtomicDriftTuner.SimHubBridge
         private object? _cachedSnapshot;
         private int _lastCaptureTick;
 
-        // Desktop action requests are queued here and executed on SimHub's
-        // DataUpdate thread through PluginManager.TriggerAction.
+        // Desktop mutation requests are queued here and executed only from
+        // SimHub's DataUpdate thread. Every request has a pending/executing/
+        // completed/cancelled state so a pipe timeout can cancel work that has
+        // not started yet. A timed-out pending request is never allowed to wake
+        // up on a later DataUpdate and surprise the wheelbase.
         private readonly ConcurrentQueue<ActionRequest> _pendingActions =
             new ConcurrentQueue<ActionRequest>();
 
-        private sealed class ActionRequest
-        {
-            public string ActionName = "";
-            public readonly ManualResetEventSlim Completed = new ManualResetEventSlim(false);
-            public string? Error;
-        }
-
-        // Compatibility fallback for SimHub builds where registered cross-plugin
-        // actions return successfully but AZOM does not execute them.
-        //
-        // Requests are still executed on SimHub's DataUpdate thread. The bridge
-        // reflects into AZOM's own SimHubRegistrar commit methods so AZOM itself
-        // performs the data update, hardware write, and SaveSettings().
         private readonly ConcurrentQueue<DirectSettingRequest> _pendingDirectSets =
             new ConcurrentQueue<DirectSettingRequest>();
 
+        private abstract class PendingRequest
+        {
+            private int _state = RequestPending;
+
+            public readonly ManualResetEventSlim Completed =
+                new ManualResetEventSlim(false);
+
+            public int DeadlineTick;
+
+            public string? Error;
+
+            public bool IsExpired(int now)
+            {
+                // All bridge request lifetimes are only a few seconds, so the
+                // normal unchecked TickCount subtraction pattern remains safe
+                // across the ~24.9-day signed wrap boundary.
+                return unchecked(
+                    now -
+                    DeadlineTick) >= 0;
+            }
+
+            public bool IsExecuting
+            {
+                get
+                {
+                    return Volatile.Read(ref _state) == RequestExecuting;
+                }
+            }
+
+            public bool IsCompleted
+            {
+                get
+                {
+                    return Volatile.Read(ref _state) == RequestCompleted;
+                }
+            }
+
+            public bool TryBeginExecution()
+            {
+                return Interlocked.CompareExchange(
+                    ref _state,
+                    RequestExecuting,
+                    RequestPending) == RequestPending;
+            }
+
+            public bool TryCancelPending(string error)
+            {
+                if (Interlocked.CompareExchange(
+                        ref _state,
+                        RequestCancelled,
+                        RequestPending) != RequestPending)
+                {
+                    return false;
+                }
+
+                Error = error;
+                Completed.Set();
+                return true;
+            }
+
+            public void Complete()
+            {
+                Interlocked.Exchange(
+                    ref _state,
+                    RequestCompleted);
+
+                Completed.Set();
+            }
+        }
+
+        private sealed class ActionRequest : PendingRequest
+        {
+            public string ActionName = "";
+        }
+
         // Bridge-side guard for the reflection compatibility path. We never
-        // block SimHub's DataUpdate thread; requests are simply deferred to a
-        // later update until the minimum spacing has elapsed.
+        // block SimHub's DataUpdate thread; requests are deferred to a later
+        // update until the minimum spacing has elapsed.
         private const int DirectWriteMinIntervalMs = 120;
         private int _lastDirectWriteTick;
 
-        private sealed class DirectSettingRequest
+        private sealed class DirectSettingRequest : PendingRequest
         {
             public string PropertyName = "";
             public int? TargetInt;
             public bool? TargetBool;
-            public readonly ManualResetEventSlim Completed =
-                new ManualResetEventSlim(false);
-            public string? Error;
             public string? Method;
             public bool Suppressed;
         }
 
         public PluginManager PluginManager { get; set; } = null!;
-
-        private static string ResolveBridgeVersion()
-        {
-            var assembly =
-                typeof(AtomicDriftTunerBridge).Assembly;
-
-            var informationalVersion =
-                assembly
-                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                    ?.InformationalVersion;
-
-            if (informationalVersion != null &&
-                informationalVersion.Trim().Length > 0)
-            {
-                return informationalVersion.Trim();
-            }
-
-            var assemblyVersion =
-                assembly.GetName().Version;
-
-            return assemblyVersion != null
-                ? assemblyVersion.ToString()
-                : "unknown";
-        }
 
         public void Init(PluginManager pluginManager)
         {
@@ -139,30 +190,57 @@ namespace AtomicDriftTuner.SimHubBridge
         private void DrainPendingActions(PluginManager pluginManager)
         {
             int processed = 0;
-            while (processed < 8 && _pendingActions.TryDequeue(out var request))
+
+            while (processed < 8 &&
+                   _pendingActions.TryDequeue(out var request))
             {
                 processed++;
+
+                int now =
+                    Environment.TickCount;
+
+                if (request.IsExpired(now))
+                {
+                    request.TryCancelPending(
+                        "ADT bridge action request expired before SimHub began execution; no action was performed.");
+
+                    continue;
+                }
+
+                if (!request.TryBeginExecution())
+                    continue;
+
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(request.ActionName) ||
-                        !request.ActionName.StartsWith("AZOM.", StringComparison.Ordinal))
+                    string validationError;
+                    if (!TryValidateActionName(
+                            request.ActionName,
+                            out validationError))
+                    {
                         throw new InvalidOperationException(
-                            "Only AZOM.* actions are allowed through the Atomic bridge.");
+                            validationError);
+                    }
 
-                    pluginManager.TriggerAction(request.ActionName);
+                    pluginManager.TriggerAction(
+                        request.ActionName);
+
                     SimHub.Logging.Current.Info(
-                        "[Atomic Drift Tuner Bridge] Triggered action " + request.ActionName);
+                        "[Atomic Drift Tuner Bridge] Triggered approved action " +
+                        request.ActionName);
                 }
                 catch (Exception ex)
                 {
-                    request.Error = ex.Message;
+                    request.Error =
+                        SafeError(
+                            ex.GetBaseException().Message);
+
                     SimHub.Logging.Current.Error(
                         "[Atomic Drift Tuner Bridge] Action failed " +
                         request.ActionName + ": " + ex);
                 }
                 finally
                 {
-                    request.Completed.Set();
+                    request.Complete();
                 }
             }
         }
@@ -172,22 +250,54 @@ namespace AtomicDriftTuner.SimHubBridge
             if (!_pendingDirectSets.TryDequeue(out var request))
                 return;
 
-            int now = Environment.TickCount;
+            int requestNow =
+                Environment.TickCount;
+
+            if (request.IsExpired(requestNow))
+            {
+                request.TryCancelPending(
+                    "ADT bridge direct-write request expired before SimHub began execution; no setting write was performed.");
+
+                return;
+            }
+
+            int now =
+                Environment.TickCount;
+
             int elapsed =
-                unchecked(now - _lastDirectWriteTick);
+                unchecked(
+                    now -
+                    _lastDirectWriteTick);
 
             if (_lastDirectWriteTick != 0 &&
                 elapsed >= 0 &&
                 elapsed < DirectWriteMinIntervalMs)
             {
-                // Do not sleep/block SimHub's update thread. Put the request
-                // back and let a later DataUpdate process it.
-                _pendingDirectSets.Enqueue(request);
+                // Do not sleep/block SimHub's update thread. Keep the request
+                // pending and let a later update process it. Its deadline still
+                // applies while it is waiting here.
+                _pendingDirectSets.Enqueue(
+                    request);
+
                 return;
             }
 
+            if (!request.TryBeginExecution())
+                return;
+
             try
             {
+                string validationError;
+                if (!TryValidateDirectTarget(
+                        request.PropertyName,
+                        request.TargetInt,
+                        request.TargetBool,
+                        out validationError))
+                {
+                    throw new InvalidOperationException(
+                        validationError);
+                }
+
                 if (IsDirectTargetAlreadyLive(
                         request.PropertyName,
                         request.TargetInt,
@@ -195,7 +305,7 @@ namespace AtomicDriftTuner.SimHubBridge
                 {
                     request.Suppressed = true;
                     request.Method =
-                        "Atomic write guard: duplicate target already live; write suppressed";
+                        "ADT write guard: duplicate target already live; write suppressed";
 
                     SimHub.Logging.Current.Info(
                         "[Atomic Drift Tuner Bridge] Suppressed duplicate AZOM target " +
@@ -213,12 +323,14 @@ namespace AtomicDriftTuner.SimHubBridge
                         out var error))
                 {
                     throw new InvalidOperationException(
-                        error ?? "AZOM direct setting fallback was not available.");
+                        error ??
+                        "AZOM direct setting compatibility path was not available.");
                 }
 
-                request.Method = method;
+                request.Method =
+                    method;
 
-                // Only count an actual commit against the bridge write spacing.
+                // Only count an actual commit against bridge write spacing.
                 if (method.IndexOf(
                         "already at target",
                         StringComparison.OrdinalIgnoreCase) < 0)
@@ -233,14 +345,17 @@ namespace AtomicDriftTuner.SimHubBridge
             }
             catch (Exception ex)
             {
-                request.Error = ex.GetBaseException().Message;
+                request.Error =
+                    SafeError(
+                        ex.GetBaseException().Message);
+
                 SimHub.Logging.Current.Error(
                     "[Atomic Drift Tuner Bridge] Direct AZOM setting failed " +
                     request.PropertyName + ": " + ex);
             }
             finally
             {
-                request.Completed.Set();
+                request.Complete();
             }
         }
 
@@ -306,55 +421,259 @@ namespace AtomicDriftTuner.SimHubBridge
             return false;
         }
 
-        private static readonly HashSet<string> DirectWriteAllowList =
+        private sealed class NumericRange
+        {
+            public NumericRange(
+                int minimum,
+                int maximum)
+            {
+                Minimum = minimum;
+                Maximum = maximum;
+            }
+
+            public int Minimum { get; }
+
+            public int Maximum { get; }
+
+            public bool Contains(int value)
+            {
+                return value >= Minimum &&
+                       value <= Maximum;
+            }
+        }
+
+        // Exact display-unit ranges ADT supports for live AZOM writes.
+        private static readonly Dictionary<string, NumericRange>
+            DirectNumericRanges =
+            new Dictionary<string, NumericRange>(StringComparer.Ordinal)
+            {
+                { "AZOM.FfbStrength", new NumericRange(0, 100) },
+                { "AZOM.Torque", new NumericRange(50, 100) },
+                { "AZOM.Rotation", new NumericRange(60, 2700) },
+                { "AZOM.WheelSpeedLimit", new NumericRange(0, 200) },
+                { "AZOM.Interpolation", new NumericRange(0, 10) },
+                { "AZOM.GearshiftVibration", new NumericRange(0, 5) },
+
+                { "AZOM.Damper", new NumericRange(0, 100) },
+                { "AZOM.Friction", new NumericRange(0, 100) },
+                { "AZOM.Inertia", new NumericRange(100, 500) },
+                { "AZOM.Spring", new NumericRange(0, 100) },
+
+                { "AZOM.GameDamper", new NumericRange(0, 100) },
+                { "AZOM.GameFriction", new NumericRange(0, 100) },
+                { "AZOM.GameInertia", new NumericRange(0, 100) },
+                { "AZOM.GameSpring", new NumericRange(0, 100) },
+
+                { "AZOM.NaturalInertia", new NumericRange(100, 4000) },
+                { "AZOM.SoftLimitStiffness", new NumericRange(1, 10) },
+                { "AZOM.SpeedDamping", new NumericRange(0, 100) },
+                { "AZOM.SpeedDampingPoint", new NumericRange(0, 400) },
+                { "AZOM.RoadSensitivity", new NumericRange(0, 10) },
+
+                { "AZOM.Equalizer1", new NumericRange(0, 400) },
+                { "AZOM.Equalizer2", new NumericRange(0, 400) },
+                { "AZOM.Equalizer3", new NumericRange(0, 400) },
+                { "AZOM.Equalizer4", new NumericRange(0, 400) },
+                { "AZOM.Equalizer5", new NumericRange(0, 400) },
+                { "AZOM.Equalizer6", new NumericRange(0, 400) },
+                { "AZOM.Equalizer7", new NumericRange(0, 400) },
+                { "AZOM.Equalizer8", new NumericRange(0, 400) },
+                { "AZOM.Equalizer9", new NumericRange(0, 400) },
+                { "AZOM.Equalizer10", new NumericRange(0, 400) },
+
+                { "AZOM.FfbCurveX1", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveX2", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveX3", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveX4", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveY1", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveY2", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveY3", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveY4", new NumericRange(0, 100) },
+                { "AZOM.FfbCurveY5", new NumericRange(0, 100) }
+            };
+
+        private static readonly HashSet<string> DirectToggleAllowList =
             new HashSet<string>(StringComparer.Ordinal)
             {
-                "AZOM.FfbStrength",
-                "AZOM.Torque",
-                "AZOM.Rotation",
-                "AZOM.WheelSpeedLimit",
-                "AZOM.Interpolation",
-                "AZOM.GearshiftVibration",
-                "AZOM.Damper",
-                "AZOM.Friction",
-                "AZOM.Inertia",
-                "AZOM.Spring",
-                "AZOM.GameDamper",
-                "AZOM.GameFriction",
-                "AZOM.GameInertia",
-                "AZOM.GameSpring",
-                "AZOM.NaturalInertia",
-                "AZOM.SoftLimitStiffness",
-                "AZOM.SpeedDamping",
-                "AZOM.SpeedDampingPoint",
-                "AZOM.RoadSensitivity",
-                "AZOM.Equalizer1",
-                "AZOM.Equalizer2",
-                "AZOM.Equalizer3",
-                "AZOM.Equalizer4",
-                "AZOM.Equalizer5",
-                "AZOM.Equalizer6",
-                "AZOM.Equalizer7",
-                "AZOM.Equalizer8",
-                "AZOM.Equalizer9",
-                "AZOM.Equalizer10",
-                "AZOM.FfbCurveX1",
-                "AZOM.FfbCurveX2",
-                "AZOM.FfbCurveX3",
-                "AZOM.FfbCurveX4",
-                "AZOM.FfbCurveY1",
-                "AZOM.FfbCurveY2",
-                "AZOM.FfbCurveY3",
-                "AZOM.FfbCurveY4",
-                "AZOM.FfbCurveY5",
                 "AZOM.Protection",
                 "AZOM.FfbReverse",
                 "AZOM.SoftLimitRetain",
-                "AZOM.PerformanceOutput",
                 "AZOM.BaseStatusLed",
                 "AZOM.Bluetooth",
                 "AZOM.WorkMode"
             };
+
+        private static readonly HashSet<string> ToggleActionAllowList =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "AZOM.ProtectionOn",
+                "AZOM.ProtectionOff",
+                "AZOM.SoftLimitRetainOn",
+                "AZOM.SoftLimitRetainOff",
+                "AZOM.FfbReverseOn",
+                "AZOM.FfbReverseOff",
+                "AZOM.BaseStatusLedOn",
+                "AZOM.BaseStatusLedOff",
+                "AZOM.BluetoothOn",
+                "AZOM.BluetoothOff",
+                "AZOM.WorkModeOn",
+                "AZOM.WorkModeOff"
+            };
+
+        private static bool TryValidateDirectTarget(
+            string propertyName,
+            int? targetInt,
+            bool? targetBool,
+            out string error)
+        {
+            error = "";
+
+            if (!IsValidAzomName(propertyName))
+            {
+                error =
+                    "Invalid AZOM property name.";
+                return false;
+            }
+
+            if (DirectNumericRanges.TryGetValue(
+                    propertyName,
+                    out var range))
+            {
+                if (!targetInt.HasValue ||
+                    targetBool.HasValue)
+                {
+                    error =
+                        propertyName +
+                        " requires exactly one numeric target.";
+                    return false;
+                }
+
+                if (!range.Contains(
+                        targetInt.Value))
+                {
+                    error =
+                        "ADT refused " +
+                        propertyName +
+                        "=" +
+                        targetInt.Value +
+                        "; supported range is " +
+                        range.Minimum +
+                        ".." +
+                        range.Maximum +
+                        ".";
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (DirectToggleAllowList.Contains(
+                    propertyName))
+            {
+                if (!targetBool.HasValue ||
+                    targetInt.HasValue)
+                {
+                    error =
+                        propertyName +
+                        " requires exactly one boolean target.";
+                    return false;
+                }
+
+                return true;
+            }
+
+            error =
+                "Direct bridge writes are not allowed for " +
+                propertyName +
+                ".";
+
+            return false;
+        }
+
+        private static bool TryValidateActionName(
+            string actionName,
+            out string error)
+        {
+            error = "";
+
+            if (!IsValidAzomName(
+                    actionName))
+            {
+                error =
+                    "Invalid AZOM action name.";
+                return false;
+            }
+
+            if (ToggleActionAllowList.Contains(
+                    actionName))
+            {
+                return true;
+            }
+
+            string[] suffixes =
+            {
+                "UpCoarse",
+                "DownCoarse",
+                "Up",
+                "Down"
+            };
+
+            foreach (var suffix in suffixes)
+            {
+                if (!actionName.EndsWith(
+                        suffix,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string propertyName =
+                    actionName.Substring(
+                        0,
+                        actionName.Length -
+                        suffix.Length);
+
+                if (DirectNumericRanges.ContainsKey(
+                        propertyName))
+                {
+                    return true;
+                }
+            }
+
+            error =
+                "Bridge action is not in ADT's approved AZOM action set: " +
+                actionName +
+                ".";
+
+            return false;
+        }
+
+        private static bool IsValidAzomName(
+            string value)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    value))
+                return false;
+
+            if (value.Length > MaxAzomNameLength ||
+                !value.StartsWith(
+                    "AZOM.",
+                    StringComparison.Ordinal))
+                return false;
+
+            foreach (char character in value)
+            {
+                if (!char.IsLetterOrDigit(character) &&
+                    character != '.' &&
+                    character != '_' &&
+                    character != '-')
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         private bool TryApplyAzomSettingDirect(
             string propertyName,
@@ -366,9 +685,15 @@ namespace AtomicDriftTuner.SimHubBridge
             methodUsed = "";
             error = null;
 
-            if (!DirectWriteAllowList.Contains(propertyName))
+            string validationError;
+            if (!TryValidateDirectTarget(
+                    propertyName,
+                    targetInt,
+                    targetBool,
+                    out validationError))
             {
-                error = "Direct fallback is not allowed for " + propertyName + ".";
+                error =
+                    validationError;
                 return false;
             }
 
@@ -1328,14 +1653,33 @@ namespace AtomicDriftTuner.SimHubBridge
         public void End(PluginManager pluginManager)
         {
             _stop = true;
+
+            CancelPendingRequests(
+                "ADT SimHub Bridge is shutting down; pending mutation request was cancelled before execution.");
+
             lock (_serverLock)
             {
-                try { _activeServer?.Dispose(); } catch { }
-                _activeServer = null;
+                try
+                {
+                    _activeServer?.Dispose();
+                }
+                catch
+                {
+                }
+
+                _activeServer =
+                    null;
             }
-            if (_serverThread != null && _serverThread.IsAlive)
-                _serverThread.Join(750);
-            SimHub.Logging.Current.Info("[Atomic Drift Tuner Bridge] Stopped.");
+
+            if (_serverThread != null &&
+                _serverThread.IsAlive)
+            {
+                _serverThread.Join(
+                    1500);
+            }
+
+            SimHub.Logging.Current.Info(
+                "[Atomic Drift Tuner Bridge] Stopped.");
         }
 
         private void ServerLoop()
@@ -1345,26 +1689,38 @@ namespace AtomicDriftTuner.SimHubBridge
                 NamedPipeServerStream? server = null;
                 try
                 {
-                    var security = new PipeSecurity();
+                    var security =
+                        new PipeSecurity();
 
-                    var currentUser = WindowsIdentity.GetCurrent().User;
-                    if (currentUser != null)
+                    var currentUser =
+                        WindowsIdentity
+                            .GetCurrent()
+                            .User;
+
+                    if (currentUser == null)
                     {
-                        security.SetOwner(currentUser);
-                        security.AddAccessRule(new PipeAccessRule(
+                        throw new InvalidOperationException(
+                            "ADT SimHub Bridge could not determine the current Windows user SID.");
+                    }
+
+                    // The bridge can cause wheelbase-setting changes, so only the
+                    // Windows account running SimHub receives pipe access. An
+                    // elevated/non-elevated process for the same account has the
+                    // same user SID; unrelated authenticated users do not.
+                    security.SetOwner(
+                        currentUser);
+
+                    security.SetAccessRuleProtection(
+                        isProtected:
+                            true,
+                        preserveInheritance:
+                            false);
+
+                    security.AddAccessRule(
+                        new PipeAccessRule(
                             currentUser,
                             PipeAccessRights.FullControl,
                             AccessControlType.Allow));
-                    }
-
-                    // Allow local authenticated users to connect even when SimHub
-                    // and Atomic run at different elevation levels. The bridge only
-                    // relays registered AZOM.* SimHub actions; it does not write
-                    // MOZA hardware registers directly.
-                    security.AddAccessRule(new PipeAccessRule(
-                        new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
-                        PipeAccessRights.ReadWrite,
-                        AccessControlType.Allow));
 
                     server = new NamedPipeServerStream(
                         PipeName,
@@ -1396,170 +1752,548 @@ namespace AtomicDriftTuner.SimHubBridge
 
         private void HandleClient(Stream pipe)
         {
-            using (var reader = new StreamReader(pipe, System.Text.Encoding.UTF8, false, 4096, true))
-            using (var writer = new StreamWriter(pipe, new System.Text.UTF8Encoding(false), 4096, true) { AutoFlush = true })
+            var strictUtf8 =
+                new UTF8Encoding(
+                    false,
+                    true);
+
+            using (var reader =
+                new StreamReader(
+                    pipe,
+                    strictUtf8,
+                    false,
+                    4096,
+                    true))
+            using (var writer =
+                new StreamWriter(
+                    pipe,
+                    strictUtf8,
+                    4096,
+                    true)
+                {
+                    AutoFlush = true
+                })
             {
-                var line = reader.ReadLine();
-                if (string.IsNullOrWhiteSpace(line)) return;
                 try
                 {
-                    var request = JObject.Parse(line);
-                    var command = (string?)request["command"] ?? "";
-                    if (string.Equals(command, "snapshot", StringComparison.OrdinalIgnoreCase))
+                    var line =
+                        ReadBoundedLine(
+                            reader,
+                            MaxRequestChars);
+
+                    if (line == null || string.IsNullOrWhiteSpace(line))
+                        return;
+
+                    var request =
+                        JObject.Parse(
+                            line);
+
+                    var commandToken =
+                        request["command"];
+
+                    if (commandToken == null ||
+                        commandToken.Type != JTokenType.String)
                     {
-                        writer.WriteLine(JsonConvert.SerializeObject(new { ok = true, snapshot = ReadSnapshot() }));
+                        WriteError(
+                            writer,
+                            "command is required.");
+
+                        return;
                     }
-                    else if (string.Equals(command, "triggerAction", StringComparison.OrdinalIgnoreCase))
+
+                    var command =
+                        ((string?)commandToken ??
+                         "")
+                            .Trim();
+
+                    if (string.Equals(
+                            command,
+                            "snapshot",
+                            StringComparison.OrdinalIgnoreCase))
                     {
-                        var actionName = ((string?)request["actionName"] ?? "").Trim();
-
-                        if (string.IsNullOrWhiteSpace(actionName))
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(
-                                new { ok = false, error = "actionName is required." }));
-                        }
-                        else if (!actionName.StartsWith("AZOM.", StringComparison.Ordinal))
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(
-                                new { ok = false, error = "Only AZOM.* actions may be triggered." }));
-                        }
-                        else
-                        {
-                            var action = new ActionRequest { ActionName = actionName };
-                            _pendingActions.Enqueue(action);
-
-                            if (!action.Completed.Wait(3000))
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new
-                                    {
-                                        ok = false,
-                                        error = "Timed out waiting for SimHub to execute " + actionName + "."
-                                    }));
-                            }
-                            else if (!string.IsNullOrWhiteSpace(action.Error))
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new { ok = false, error = action.Error }));
-                            }
-                            else
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new
-                                    {
-                                        ok = true,
-                                        bridgeVersion = BridgeVersion,
-                                        action = actionName
-                                    }));
-                            }
-                        }
-                    }
-                    else if (string.Equals(command, "setSettingDirect", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var propertyName =
-                            ((string?)request["propertyName"] ?? "").Trim();
-
-                        int? targetInt =
-                            request["targetInt"]?.Type == JTokenType.Null
-                                ? null
-                                : (int?)request["targetInt"];
-
-                        bool? targetBool =
-                            request["targetBool"]?.Type == JTokenType.Null
-                                ? null
-                                : (bool?)request["targetBool"];
-
-                        if (string.IsNullOrWhiteSpace(propertyName))
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(
+                        writer.WriteLine(
+                            JsonConvert.SerializeObject(
                                 new
                                 {
-                                    ok = false,
-                                    error = "propertyName is required."
+                                    ok = true,
+                                    snapshot = ReadSnapshot()
                                 }));
-                        }
-                        else if (!DirectWriteAllowList.Contains(propertyName))
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(
+
+                        return;
+                    }
+
+                    if (string.Equals(
+                            command,
+                            "triggerAction",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        HandleActionRequest(
+                            writer,
+                            request);
+
+                        return;
+                    }
+
+                    if (string.Equals(
+                            command,
+                            "setSettingDirect",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        HandleDirectWriteRequest(
+                            writer,
+                            request);
+
+                        return;
+                    }
+
+                    if (string.Equals(
+                            command,
+                            "ping",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        writer.WriteLine(
+                            JsonConvert.SerializeObject(
                                 new
                                 {
-                                    ok = false,
-                                    error =
-                                        "Direct fallback is not allowed for " +
-                                        propertyName + "."
+                                    ok = true,
+                                    bridgeVersion =
+                                        BridgeVersion
                                 }));
-                        }
-                        else if (!targetInt.HasValue &&
-                                 !targetBool.HasValue)
-                        {
-                            writer.WriteLine(JsonConvert.SerializeObject(
-                                new
-                                {
-                                    ok = false,
-                                    error =
-                                        "targetInt or targetBool is required."
-                                }));
-                        }
-                        else
-                        {
-                            var direct =
-                                new DirectSettingRequest
-                                {
-                                    PropertyName = propertyName,
-                                    TargetInt = targetInt,
-                                    TargetBool = targetBool
-                                };
 
-                            _pendingDirectSets.Enqueue(direct);
+                        return;
+                    }
 
-                            if (!direct.Completed.Wait(3500))
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new
-                                    {
-                                        ok = false,
-                                        error =
-                                            "Timed out waiting for AZOM direct fallback " +
-                                            propertyName + "."
-                                    }));
-                            }
-                            else if (!string.IsNullOrWhiteSpace(direct.Error))
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new
-                                    {
-                                        ok = false,
-                                        error = direct.Error
-                                    }));
-                            }
-                            else
-                            {
-                                writer.WriteLine(JsonConvert.SerializeObject(
-                                    new
-                                    {
-                                        ok = true,
-                                        bridgeVersion = BridgeVersion,
-                                        propertyName,
-                                        method = direct.Method,
-                                        suppressed = direct.Suppressed
-                                    }));
-                            }
-                        }
-                    }
-                    else if (string.Equals(command, "ping", StringComparison.OrdinalIgnoreCase))
-                    {
-                        writer.WriteLine(JsonConvert.SerializeObject(new { ok = true, bridgeVersion = BridgeVersion }));
-                    }
-                    else
-                    {
-                        writer.WriteLine(JsonConvert.SerializeObject(new { ok = false, error = "Unknown command." }));
-                    }
+                    WriteError(
+                        writer,
+                        "Unknown command.");
+                }
+                catch (DecoderFallbackException)
+                {
+                    WriteError(
+                        writer,
+                        "Request was not valid UTF-8.");
+                }
+                catch (JsonException)
+                {
+                    WriteError(
+                        writer,
+                        "Request was not valid JSON.");
                 }
                 catch (Exception ex)
                 {
-                    writer.WriteLine(JsonConvert.SerializeObject(new { ok = false, error = ex.Message }));
+                    SimHub.Logging.Current.Error(
+                        "[Atomic Drift Tuner Bridge] Request handling failed: " +
+                        ex);
+
+                    WriteError(
+                        writer,
+                        SafeError(
+                            ex.GetBaseException().Message));
                 }
             }
+        }
+
+        private void HandleActionRequest(
+            StreamWriter writer,
+            JObject request)
+        {
+            var token =
+                request["actionName"];
+
+            if (token == null ||
+                token.Type != JTokenType.String)
+            {
+                WriteError(
+                    writer,
+                    "actionName is required.");
+
+                return;
+            }
+
+            var actionName =
+                ((string?)token ??
+                 "")
+                    .Trim();
+
+            string validationError;
+            if (!TryValidateActionName(
+                    actionName,
+                    out validationError))
+            {
+                WriteError(
+                    writer,
+                    validationError);
+
+                return;
+            }
+
+            var action =
+                new ActionRequest
+                {
+                    ActionName =
+                        actionName,
+
+                    DeadlineTick =
+                        unchecked(
+                            Environment.TickCount +
+                            ActionWaitTimeoutMs)
+                };
+
+            _pendingActions.Enqueue(
+                action);
+
+            if (!action.Completed.Wait(
+                    ActionWaitTimeoutMs))
+            {
+                if (action.TryCancelPending(
+                        "ADT bridge action request expired before SimHub began execution; no action was performed."))
+                {
+                    WriteError(
+                        writer,
+                        action.Error);
+
+                    return;
+                }
+
+                // If SimHub already claimed the request, we cannot promise that
+                // it did not execute. Report an explicitly uncertain timeout
+                // instead of returning a normal failure that might trigger a
+                // conflicting fallback.
+                if (action.IsExecuting)
+                {
+                    WriteError(
+                        writer,
+                        "Timed out waiting for SimHub action after execution began; outcome is uncertain.");
+
+                    return;
+                }
+
+                // Completion may have raced the timeout boundary.
+                action.Completed.Wait(
+                    50);
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                    action.Error))
+            {
+                WriteError(
+                    writer,
+                    action.Error);
+
+                return;
+            }
+
+            if (!action.IsCompleted)
+            {
+                WriteError(
+                    writer,
+                    "Timed out waiting for SimHub action completion; outcome is uncertain.");
+
+                return;
+            }
+
+            writer.WriteLine(
+                JsonConvert.SerializeObject(
+                    new
+                    {
+                        ok = true,
+                        bridgeVersion =
+                            BridgeVersion,
+                        action =
+                            actionName
+                    }));
+        }
+
+        private void HandleDirectWriteRequest(
+            StreamWriter writer,
+            JObject request)
+        {
+            var propertyToken =
+                request["propertyName"];
+
+            if (propertyToken == null ||
+                propertyToken.Type != JTokenType.String)
+            {
+                WriteError(
+                    writer,
+                    "propertyName is required.");
+
+                return;
+            }
+
+            var propertyName =
+                ((string?)propertyToken ??
+                 "")
+                    .Trim();
+
+            int? targetInt =
+                null;
+
+            bool? targetBool =
+                null;
+
+            var targetIntToken =
+                request["targetInt"];
+
+            if (targetIntToken != null &&
+                targetIntToken.Type != JTokenType.Null)
+            {
+                if (targetIntToken.Type !=
+                    JTokenType.Integer)
+                {
+                    WriteError(
+                        writer,
+                        "targetInt must be an integer or null.");
+
+                    return;
+                }
+
+                try
+                {
+                    targetInt =
+                        (int)targetIntToken;
+                }
+                catch
+                {
+                    WriteError(
+                        writer,
+                        "targetInt is outside the supported 32-bit integer range.");
+
+                    return;
+                }
+            }
+
+            var targetBoolToken =
+                request["targetBool"];
+
+            if (targetBoolToken != null &&
+                targetBoolToken.Type != JTokenType.Null)
+            {
+                if (targetBoolToken.Type !=
+                    JTokenType.Boolean)
+                {
+                    WriteError(
+                        writer,
+                        "targetBool must be a boolean or null.");
+
+                    return;
+                }
+
+                targetBool =
+                    (bool)targetBoolToken;
+            }
+
+            string validationError;
+            if (!TryValidateDirectTarget(
+                    propertyName,
+                    targetInt,
+                    targetBool,
+                    out validationError))
+            {
+                WriteError(
+                    writer,
+                    validationError);
+
+                return;
+            }
+
+            var direct =
+                new DirectSettingRequest
+                {
+                    PropertyName =
+                        propertyName,
+
+                    TargetInt =
+                        targetInt,
+
+                    TargetBool =
+                        targetBool,
+
+                    DeadlineTick =
+                        unchecked(
+                            Environment.TickCount +
+                            DirectWriteWaitTimeoutMs)
+                };
+
+            _pendingDirectSets.Enqueue(
+                direct);
+
+            if (!direct.Completed.Wait(
+                    DirectWriteWaitTimeoutMs))
+            {
+                if (direct.TryCancelPending(
+                        "ADT bridge direct-write request expired before SimHub began execution; no setting write was performed."))
+                {
+                    WriteError(
+                        writer,
+                        direct.Error);
+
+                    return;
+                }
+
+                if (direct.IsExecuting)
+                {
+                    WriteError(
+                        writer,
+                        "Timed out waiting for AZOM direct write after execution began; outcome is uncertain.");
+
+                    return;
+                }
+
+                direct.Completed.Wait(
+                    50);
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                    direct.Error))
+            {
+                WriteError(
+                    writer,
+                    direct.Error);
+
+                return;
+            }
+
+            if (!direct.IsCompleted)
+            {
+                WriteError(
+                    writer,
+                    "Timed out waiting for AZOM direct-write completion; outcome is uncertain.");
+
+                return;
+            }
+
+            writer.WriteLine(
+                JsonConvert.SerializeObject(
+                    new
+                    {
+                        ok = true,
+                        bridgeVersion =
+                            BridgeVersion,
+                        propertyName,
+                        method =
+                            direct.Method,
+                        suppressed =
+                            direct.Suppressed
+                    }));
+        }
+
+        private void CancelPendingRequests(
+            string reason)
+        {
+            while (_pendingActions.TryDequeue(
+                out var action))
+            {
+                action.TryCancelPending(
+                    reason);
+            }
+
+            while (_pendingDirectSets.TryDequeue(
+                out var direct))
+            {
+                direct.TryCancelPending(
+                    reason);
+            }
+        }
+
+        private static string? ReadBoundedLine(
+            StreamReader reader,
+            int maxChars)
+        {
+            if (maxChars <= 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxChars));
+
+            var builder =
+                new StringBuilder(
+                    Math.Min(
+                        maxChars,
+                        4096));
+
+            while (true)
+            {
+                int value =
+                    reader.Read();
+
+                if (value < 0)
+                {
+                    return builder.Length == 0
+                        ? null
+                        : builder.ToString();
+                }
+
+                char character =
+                    (char)value;
+
+                if (character == '\n')
+                {
+                    if (builder.Length > 0 &&
+                        builder[builder.Length - 1] == '\r')
+                    {
+                        builder.Length--;
+                    }
+
+                    return builder.ToString();
+                }
+
+                if (builder.Length >=
+                    maxChars)
+                {
+                    throw new InvalidDataException(
+                        "ADT bridge request exceeded the supported " +
+                        maxChars +
+                        "-character limit.");
+                }
+
+                builder.Append(
+                    character);
+            }
+        }
+
+        private static void WriteError(
+            StreamWriter writer,
+            string? error)
+        {
+            writer.WriteLine(
+                JsonConvert.SerializeObject(
+                    new
+                    {
+                        ok = false,
+                        bridgeVersion =
+                            BridgeVersion,
+                        error =
+                            SafeError(
+                                error)
+                    }));
+        }
+
+        private static string SafeError(
+            string? error)
+        {
+            if (error == null || string.IsNullOrWhiteSpace(error))
+            {
+                return
+                    "ADT SimHub Bridge operation failed.";
+            }
+
+            var cleaned =
+                error
+                    .Replace('\r', ' ')
+                    .Replace('\n', ' ')
+                    .Replace('\0', ' ')
+                    .Trim();
+
+            if (cleaned.Length >
+                MaxErrorMessageChars)
+            {
+                cleaned =
+                    cleaned.Substring(
+                        0,
+                        MaxErrorMessageChars) +
+                    "...";
+            }
+
+            return cleaned;
         }
 
         private object ReadSnapshot()
@@ -2014,12 +2748,9 @@ namespace AtomicDriftTuner.SimHubBridge
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var item in values)
                 {
-                    if (item is string s &&
-                        !string.IsNullOrWhiteSpace(s) &&
-                        seen.Add(s))
-                    {
+                    var s = item as string;
+                    if (s != null && !string.IsNullOrWhiteSpace(s) && seen.Add(s))
                         list.Add(s);
-                    }
                 }
                 list.Sort(StringComparer.OrdinalIgnoreCase);
                 return list;

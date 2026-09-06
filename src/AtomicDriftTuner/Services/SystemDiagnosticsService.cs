@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AtomicDriftTuner.Models;
 
 namespace AtomicDriftTuner.Services;
@@ -35,6 +36,92 @@ public sealed class SystemDiagnosticsService
             WriteIndented =
                 true
         };
+
+    private static readonly Regex AuthorizationHeaderRegex =
+        new(
+            @"(?im)\bAuthorization\s*:\s*(?:Bearer|Basic)\s+[^\s]+",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex BearerTokenRegex =
+        new(
+            @"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex SecretAssignmentRegex =
+        new(
+            @"(?ix)\b(?<name>api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|bot[_-]?token|discord[_-]?token|github[_-]?token|password|passwd|pwd|client[_-]?secret|secret|authorization)\b(?<separator>\s*[:=]\s*[\x22']?)(?<value>[^\s,\x22';]+)",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex UrlSecretQueryRegex =
+        new(
+            @"(?i)(?<prefix>[?&](?:token|key|api_key|apikey|access_token|refresh_token|auth|code|secret)=)[^&#\s]+",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex DiscordWebhookRegex =
+        new(
+            @"(?i)(?<prefix>https?://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/webhooks/\d+/)[^/\s?]+",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex GithubTokenRegex =
+        new(
+            @"\bgh[pousr]_[A-Za-z0-9_]{20,}\b",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex OpenAiStyleTokenRegex =
+        new(
+            @"\bsk-[A-Za-z0-9_-]{16,}\b",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex JwtLikeTokenRegex =
+        new(
+            @"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly Regex DiscordStyleTokenRegex =
+        new(
+            @"\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}\b",
+            RegexOptions.Compiled |
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(
+                100));
+
+    private static readonly string[] SensitiveEnvironmentVariableNames =
+    [
+        "DISCORD_TOKEN",
+        "GITHUB_TOKEN",
+        "GH_TOKEN",
+        "OPENAI_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "API_KEY",
+        "ACCESS_TOKEN",
+        "REFRESH_TOKEN",
+        "CLIENT_SECRET",
+        "PASSWORD"
+    ];
 
     public async Task<SystemDiagnosticsReport> CollectAsync(
         CancellationToken cancellationToken = default)
@@ -164,7 +251,8 @@ public sealed class SystemDiagnosticsService
                 $"{SanitizeDiagnosticValue(item.Value)}");
         }
 
-        return builder.ToString();
+        return RedactText(
+            builder.ToString());
     }
 
     public async Task<string> ExportSupportPackageAsync(
@@ -237,9 +325,8 @@ public sealed class SystemDiagnosticsService
                 WriteTextEntry(
                     archive,
                     "diagnostics.txt",
-                    RedactText(
-                        ToPlainText(
-                            report)));
+                    ToPlainText(
+                        report));
 
                 var redactedSettings =
                     new
@@ -619,6 +706,9 @@ public sealed class SystemDiagnosticsService
         long includedBytes =
             0;
 
+        var includedLogNumber =
+            0;
+
         foreach (var log in logs)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -663,9 +753,10 @@ public sealed class SystemDiagnosticsService
                         text;
                 }
 
+                includedLogNumber++;
+
                 var safeName =
-                    SafeArchiveFileName(
-                        log.Name);
+                    $"adt-log-{includedLogNumber:00}.log";
 
                 WriteTextEntry(
                     archive,
@@ -780,23 +871,32 @@ public sealed class SystemDiagnosticsService
             "Atomic Drift Tuner support package privacy information" +
             Environment.NewLine +
             Environment.NewLine +
-            "ADT attempts to redact the current Windows user-profile path, LocalAppData path, username, and computer name from included diagnostic text and logs." +
+            "This ZIP is created locally and is not uploaded automatically by ADT." +
             Environment.NewLine +
             Environment.NewLine +
-            "The package intentionally does not include:" +
+            "Included content is limited to diagnostics.json, diagnostics.txt, settings-redacted.json, package/privacy notes, and a bounded set of recent ADT .log tails." +
             Environment.NewLine +
-            "- saved ADT tune profiles" +
             Environment.NewLine +
-            "- telemetry CSV/session data" +
+            "ADT attempts to redact the current Windows user-profile path, LocalAppData path, username, computer name, selected secret-bearing environment-variable values, and common credential-looking text such as authorization headers, token/password assignments, GitHub/OpenAI-style tokens, JWT-like tokens, and Discord webhook/token patterns." +
+            Environment.NewLine +
+            Environment.NewLine +
+            "Recent log filenames are replaced with generic archive names so local filenames are not disclosed." +
+            Environment.NewLine +
+            Environment.NewLine +
+            "The exporter intentionally does not directly add:" +
+            Environment.NewLine +
+            "- saved ADT tune profile files" +
+            Environment.NewLine +
+            "- telemetry CSV/session files" +
             Environment.NewLine +
             "- Assetto Corsa setup files" +
             Environment.NewLine +
-            "- Desired Behavior profile contents" +
+            "- Desired Behavior profile files" +
             Environment.NewLine +
             "- arbitrary files from Assetto Corsa or SimHub folders" +
             Environment.NewLine +
             Environment.NewLine +
-            "Log inclusion is bounded and limited to recent ADT .log files. Logs are text-redacted before being added. Because free-form log messages can contain unexpected data, users should still review a support package before sharing it publicly.";
+            "Free-form log messages can still contain unexpected data that no automatic redactor can guarantee it will recognize. Review the ZIP contents before sharing it publicly or with another person.";
     }
 
     private static string BuildPackageInfo()
@@ -810,7 +910,11 @@ public sealed class SystemDiagnosticsService
             Environment.NewLine +
             $"Maximum bytes per log: {MaximumLogBytesPerFile}" +
             Environment.NewLine +
-            $"Maximum combined log bytes: {MaximumSupportPackageLogBytes}";
+            $"Maximum combined log bytes: {MaximumSupportPackageLogBytes}" +
+            Environment.NewLine +
+            "Log archive names: anonymized" +
+            Environment.NewLine +
+            "Redaction: identity/path tokens + common credential patterns";
     }
 
     private static string NormalizeOutputPath(
@@ -818,12 +922,35 @@ public sealed class SystemDiagnosticsService
     {
         try
         {
-            return Path.GetFullPath(
-                Environment
-                    .ExpandEnvironmentVariables(
-                        path
-                            .Trim()
-                            .Trim('"')));
+            var fullPath =
+                Path.GetFullPath(
+                    Environment
+                        .ExpandEnvironmentVariables(
+                            path
+                                .Trim()
+                                .Trim('"')));
+
+            var extension =
+                Path.GetExtension(
+                    fullPath);
+
+            if (string.IsNullOrWhiteSpace(
+                    extension))
+            {
+                return fullPath +
+                       ".zip";
+            }
+
+            if (!string.Equals(
+                    extension,
+                    ".zip",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    "ADT support packages must use the .zip file extension.");
+            }
+
+            return fullPath;
         }
         catch (Exception ex)
             when (
@@ -897,6 +1024,91 @@ public sealed class SystemDiagnosticsService
                     result,
                     machineName,
                     "%COMPUTERNAME%");
+        }
+
+        foreach (
+            var environmentVariableName in
+            SensitiveEnvironmentVariableNames)
+        {
+            var sensitiveValue =
+                Environment.GetEnvironmentVariable(
+                    environmentVariableName);
+
+            if (
+                string.IsNullOrWhiteSpace(
+                    sensitiveValue) ||
+                sensitiveValue.Length <
+                6)
+            {
+                continue;
+            }
+
+            result =
+                ReplaceSensitiveToken(
+                    result,
+                    sensitiveValue,
+                    $"%REDACTED_{environmentVariableName}%");
+        }
+
+        try
+        {
+            result =
+                AuthorizationHeaderRegex.Replace(
+                    result,
+                    "Authorization: [REDACTED]");
+
+            result =
+                BearerTokenRegex.Replace(
+                    result,
+                    "Bearer [REDACTED]");
+
+            result =
+                SecretAssignmentRegex.Replace(
+                    result,
+                    match =>
+                        match.Groups["name"].Value +
+                        match.Groups["separator"].Value +
+                        "[REDACTED]");
+
+            result =
+                UrlSecretQueryRegex.Replace(
+                    result,
+                    match =>
+                        match.Groups["prefix"].Value +
+                        "[REDACTED]");
+
+            result =
+                DiscordWebhookRegex.Replace(
+                    result,
+                    match =>
+                        match.Groups["prefix"].Value +
+                        "[REDACTED]");
+
+            result =
+                GithubTokenRegex.Replace(
+                    result,
+                    "[REDACTED_GITHUB_TOKEN]");
+
+            result =
+                OpenAiStyleTokenRegex.Replace(
+                    result,
+                    "[REDACTED_API_TOKEN]");
+
+            result =
+                JwtLikeTokenRegex.Replace(
+                    result,
+                    "[REDACTED_JWT]");
+
+            result =
+                DiscordStyleTokenRegex.Replace(
+                    result,
+                    "[REDACTED_TOKEN]");
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Identity/path/environment redaction above has already run.
+            // Never fail the entire support export because pattern-based
+            // best-effort redaction timed out on malformed free-form text.
         }
 
         return result;
@@ -1021,37 +1233,6 @@ public sealed class SystemDiagnosticsService
                 value));
     }
 
-    private static string SafeArchiveFileName(
-        string name)
-    {
-        if (string.IsNullOrWhiteSpace(
-                name))
-        {
-            return
-                $"adt-log-{Guid.NewGuid():N}.log";
-        }
-
-        var fileName =
-            Path.GetFileName(
-                name);
-
-        var cleaned =
-            new string(
-                fileName
-                    .Where(
-                        character =>
-                            !char.IsControl(
-                                character) &&
-                            character != '/' &&
-                            character != '\\')
-                    .ToArray());
-
-        return string.IsNullOrWhiteSpace(
-                cleaned)
-            ? $"adt-log-{Guid.NewGuid():N}.log"
-            : cleaned;
-    }
-
     private static DateTime SafeLastWriteTimeUtc(
         FileInfo file)
     {
@@ -1110,6 +1291,7 @@ public sealed class SystemDiagnosticsService
             ArgumentException or
             NotSupportedException or
             TimeoutException or
+            RegexMatchTimeoutException or
             System.ComponentModel.Win32Exception;
     }
 

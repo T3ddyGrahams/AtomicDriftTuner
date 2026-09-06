@@ -263,7 +263,7 @@ public sealed class CarBehaviorProfileStore
 
             if (info.Length == 0)
             {
-                return CreateDictionary();
+                throw new InvalidDataException("ADT behavior storage is empty or truncated. The original file has been left untouched.");
             }
 
             if (info.Length > MaxBehaviorFileBytes)
@@ -283,7 +283,7 @@ public sealed class CarBehaviorProfileStore
 
             if (stream.Length == 0)
             {
-                return CreateDictionary();
+                throw new InvalidDataException("ADT behavior storage is empty or truncated. The original file has been left untouched.");
             }
 
             if (stream.Length > MaxBehaviorFileBytes)
@@ -607,7 +607,7 @@ public sealed class CarBehaviorProfileStore
         var normalized =
             value.Trim();
 
-        if (ContainsInvalidControlCharacters(
+        if (normalized.Contains('|') || ContainsInvalidControlCharacters(
                 normalized))
         {
             throw new InvalidDataException(

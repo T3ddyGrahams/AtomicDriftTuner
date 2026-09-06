@@ -88,7 +88,16 @@ async function main() {
     assert.equal(fetched.summary.car, "Test Car");
     assert.equal(fetched.summary.wheelbase, "R12");
 
-    console.log(`PASS ${created.code}: create, dedupe, retrieve`);
+    const invalid = await fetch(`http://127.0.0.1:${port}/v1/shares`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload: "bad-code" })
+    });
+    assert.equal(invalid.status, 400);
+    fs.writeFileSync(data, "{broken registry");
+    const broken = await fetch(`http://127.0.0.1:${port}/v1/shares/${created.code}`);
+    assert.equal(broken.status, 500);
+    assert.deepEqual(await broken.json(), { error: "Internal server error." });
+    console.log(`PASS ${created.code}: create, dedupe, retrieve, validation, private storage errors`);
   } finally {
     child.kill("SIGTERM");
     fs.rmSync(temp, { recursive: true, force: true });

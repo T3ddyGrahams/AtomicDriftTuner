@@ -812,6 +812,19 @@ public sealed class ShareCodeService
                 "Share code car/pack identity does not match.");
         }
 
+        foreach (var id in new[] { payload.Input.Hardware.Id, payload.Input.Wheel.Id,
+                     payload.Input.Pack.Id, payload.Input.Car.Id, payload.Input.Car.PackId })
+        {
+            if (id.Contains('|') || id.Any(char.IsControl))
+                throw new InvalidDataException("Share code contains an invalid calibration identity.");
+        }
+
+        var folder = payload.Input.Car.SourceFolderName;
+        if (!string.IsNullOrWhiteSpace(folder) &&
+            (folder.Length > 120 || folder is "." or ".." ||
+             folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+            throw new InvalidDataException("Share code contains an invalid car folder name.");
+
         if (payload.CreatedUtc == default)
         {
             throw new InvalidDataException(

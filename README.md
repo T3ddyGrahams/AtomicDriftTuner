@@ -22,6 +22,8 @@ We're looking for feedback across different cars, drift packs, wheelbases, rims,
 
 ➡️ **[Read the ADT Beta Testing Guide](docs/BETA_TESTING.md)**
 
+For the current release, use the **[v0.8.3-beta.1 testing checklist](docs/testing/v0.8.3-beta.1-checklist.md)** and **[compatibility tracker](docs/testing/v0.8.3-beta.1-compatibility.md)**. The tracker records reviewed results for specific hardware, cars, software versions, and test cases.
+
 The guide explains how to:
 
 - establish a useful baseline;

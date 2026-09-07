@@ -1,5 +1,7 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
+**Testing v0.8.3-beta.1?** Follow the [release checklist](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-checklist.md) and review the [compatibility tracker](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-compatibility.md). This guide covers installation and the broader testing workflow.
+
 Thank you for testing Atomic Drift Tuner (ADT).
 
 ADT is currently in public beta. Your feedback helps identify hardware compatibility issues, tuning problems, telemetry inconsistencies, usability problems, and bugs before a stable release.

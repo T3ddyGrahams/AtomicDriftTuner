@@ -21,7 +21,7 @@ body:
     attributes:
       label: ADT version
       description: The version where you experienced the problem.
-      placeholder: v0.8.1-beta.1
+      placeholder: v0.8.3-beta.1
     validations:
       required: true
 
@@ -42,7 +42,7 @@ body:
     attributes:
       label: ADT SimHub Bridge version
       description: Found in System Diagnostics. Enter N/A if the issue does not involve SimHub/AZOM.
-      placeholder: v0.7.2 or N/A
+      placeholder: v0.8.3-beta.1, Unknown, or N/A
     validations:
       required: true
 
@@ -93,6 +93,24 @@ body:
       placeholder: Windows 11 24H2
     validations:
       required: true
+
+  - type: input
+    id: checklist_case
+    attributes:
+      label: Release checklist version and case ID
+      description: If found while following the release checklist, include its version and the failing case ID. Otherwise leave blank.
+      placeholder: v0.8.3-beta.1 / case ID
+
+  - type: textarea
+    id: display_setup
+    attributes:
+      label: Display setup and ADT window
+      description: For hidden controls or other UI issues, list each monitor's resolution, orientation, and Windows scaling. Include the affected page, approximate window size or maximized state, and whether ADT moved between monitors.
+      placeholder: |
+        Monitor 1: 1440 x 2560, portrait, 125%
+        Monitor 2: 3440 x 1440, landscape, 100%
+        ADT window and affected page:
+        Steps involving resizing or changing monitors:
 
   - type: input
     id: wheelbase

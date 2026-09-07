@@ -1,5 +1,7 @@
 # ADT Beta Testing Guide
 
+**Current test round: v0.8.3-beta.1.** Start with the [release checklist](testing/v0.8.3-beta.1-checklist.md), then use this guide for detailed instructions. See the [compatibility tracker](testing/v0.8.3-beta.1-compatibility.md) for coverage gaps and reviewed results. Include checklist case IDs and outcomes in your report; successful tests and skipped cases are useful too.
+
 Thank you for helping test Atomic Drift Tuner (ADT).
 
 ADT is currently in public beta, and real-world testing across different drivers, cars, drift packs, wheelbases, rims, and SimHub/AZOM configurations is extremely valuable.

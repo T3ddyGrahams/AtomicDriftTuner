@@ -1,6 +1,10 @@
 blank_issues_enabled: false
 
 contact_links:
+  - name: v0.8.3-beta.1 Test Checklist and Coverage
+    url: https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-checklist.md
+    about: Follow the current release checklist and open its linked compatibility tracker to see where testing is needed.
+
   - name: ADT README
     url: https://github.com/T3ddyGrahams/AtomicDriftTuner#readme
     about: Read setup, safety, installation, and general ADT information before filing an issue.

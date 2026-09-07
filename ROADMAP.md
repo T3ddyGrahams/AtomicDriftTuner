@@ -48,6 +48,8 @@ The current priority is proving ADT with real drivers, hardware, cars, and drift
 
 Tester Program
 
+Current round: [v0.8.3-beta.1 testing checklist](docs/testing/v0.8.3-beta.1-checklist.md) and [compatibility tracker](docs/testing/v0.8.3-beta.1-compatibility.md). The tracker separates untested configurations from reviewed, feature-specific results.
+
 Build a more organized testing process including:
 
 * Tester instructions

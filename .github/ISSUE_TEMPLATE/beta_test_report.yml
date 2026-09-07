@@ -17,11 +17,16 @@ body:
         Full testing guidance:
         https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/BETA_TESTING.md
 
+        Current release checklist (include case IDs and results below):
+        https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-checklist.md
+
+        Use N/A for hardware, cars, or integrations you did not use during this test.
+
   - type: input
     id: adt_version
     attributes:
       label: ADT version
-      placeholder: v0.8.1-beta.1
+      placeholder: v0.8.3-beta.1
     validations:
       required: true
 
@@ -36,6 +41,32 @@ body:
         - Unsure
     validations:
       required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows edition and version, or Unknown
+
+  - type: textarea
+    id: checklist_results
+    attributes:
+      label: Release checklist results
+      description: Include the checklist version and attempted case IDs with Pass, Fail, Blocked, Not run, or N/A. Explain failures and skipped cases; link related bugs and evidence. Leave blank for other tests.
+      placeholder: |
+        Checklist version:
+        Case ID | Outcome | Evidence or reason
+
+  - type: textarea
+    id: display_setup
+    attributes:
+      label: Display setup and ADT window
+      description: For UI testing, list each monitor's resolution, orientation, and Windows scaling. Include the affected page, approximate window size or maximized state, and whether ADT moved between monitors.
+      placeholder: |
+        Monitor 1: 1440 x 2560, portrait, 125%
+        Monitor 2: 3440 x 1440, landscape, 100%
+        ADT window and affected page:
+        Resizing / monitor moves tested:
 
   - type: input
     id: ac_version
@@ -130,6 +161,7 @@ body:
         - Tandem
         - Competition
         - Other / custom
+        - Not applicable - installation or UI test
     validations:
       required: true
 
@@ -288,9 +320,9 @@ body:
     attributes:
       label: Safety / validity checks
       options:
-        - label: I tested the wheelbase, wheel, pack, car, and track listed above.
+        - label: My report identifies what I tested and marks unused hardware, cars, or integrations as N/A.
           required: true
-        - label: I reviewed hardware-related values before applying them.
+        - label: I reviewed any hardware-related values I applied, or did not apply hardware changes.
           required: true
         - label: If a recommendation appeared unsafe, I stopped testing the problematic setting.
           required: true

@@ -2,8 +2,8 @@
 
 **Atomic Drift Tuner (ADT)** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, **MOZA + AZOM/SimHub live settings**, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets.
 
-> **Current public beta:** `v0.8.2-beta.1`<br>
-> **Bundled ADT SimHub Bridge:** `v0.8.2-beta.1` (update the bridge with this beta)<br>
+> **Current public beta:** `v0.8.3-beta.1`<br>
+> **Bundled ADT SimHub Bridge:** `v0.8.3-beta.1` (update the bridge with this beta)<br>
 > **Status:** Public beta / active development
 
 ADT is designed to answer a practical drifting question:

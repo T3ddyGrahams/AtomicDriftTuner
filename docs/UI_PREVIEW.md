@@ -1,6 +1,6 @@
 # v0.8.3-beta.1 UI and icon preview
 
-Local preview; not yet a published GitHub release.
+The maintainer reported successful testing of this preview and approved publication as v0.8.3-beta.1. See [release notes](releases/v0.8.3-beta.1.md) for the release summary.
 
 ## Changes
 
@@ -31,4 +31,4 @@ Existing regression suite: 18 scenarios passed, including 8,000 built-in tuning 
 4. Load a baseline, generate recommendations, and confirm Save ADT Setup remains visible. The original baseline is still preserved.
 5. Check Dashboard Save Profile, recording/session save, and the other tools at your usual Windows scaling.
 
-Report the page, window size, monitor scaling, and any obscured control before publishing this preview to testers. No real wheelbase Apply/Revert or installed SimHub bridge replacement was performed during this UI pass.
+Report the page, window size, monitor scaling, and any obscured control when reporting issues with this beta. No real wheelbase Apply/Revert or installed SimHub bridge replacement was performed during this UI pass.

@@ -8,6 +8,18 @@ through GitHub Releases.
 
 ---
 
+## v0.8.3-beta.1 — Adaptive UI & New App Icon
+
+- Reflow dashboard cards and car setup controls for narrow windows and portrait displays.
+- Keep Save actions accessible while tool content scrolls; improve wrapping and table overflow.
+- Add collapsible, adjustable navigation and preserve embedded-page styles and keyboard visibility.
+- Add per-monitor display scaling and monitor work-area sizing.
+- Add the new ADT application, shortcut, title-bar, and installer icon.
+- Pass 156 layout geometry assertions and all 18 existing regression scenarios; maintainer reported successful installed-preview testing.
+
+See [release notes](docs/releases/v0.8.3-beta.1.md) for downloads, upgrade guidance, and testing scope.
+
+---
 ## v0.8.2-beta.1 — Reliability & Recovery
 
 - Hardened saved settings, profiles, calibration, recovery records and update handling.

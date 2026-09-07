@@ -23,7 +23,7 @@ namespace AtomicDriftTuner.SimHubBridge
     public sealed class AtomicDriftTunerBridge : IPlugin, IDataPlugin
     {
         private const string PipeName = "AtomicDriftTuner.AzomBridge.v1";
-        private const string BridgeVersion = "0.8.2-beta.1";
+        private const string BridgeVersion = "0.8.3-beta.1";
 
         private const int MaxRequestChars = 16 * 1024;
         private const int MaxAzomNameLength = 256;

@@ -4,8 +4,8 @@
         Title="ADT • System Diagnostics"
         Width="1040"
         Height="720"
-        MinWidth="800"
-        MinHeight="560"
+        MinWidth="430"
+        MinHeight="430"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
@@ -16,7 +16,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
+        <ScrollViewer Grid.Row="0"
+                      MaxHeight="140"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
             <TextBlock Text="SYSTEM DIAGNOSTICS"
                        FontSize="24"
                        FontWeight="Bold"
@@ -33,6 +37,7 @@
                        TextWrapping="Wrap"
                        Margin="0,0,0,12"/>
         </StackPanel>
+        </ScrollViewer>
 
         <DataGrid Grid.Row="1"
                   x:Name="DiagnosticsGrid"
@@ -41,6 +46,8 @@
                   CanUserAddRows="False"
                   HeadersVisibility="Column"
                   GridLinesVisibility="Horizontal"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="ADT system diagnostics checks">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Status"
@@ -54,7 +61,14 @@
                                     Width="190"/>
                 <DataGridTextColumn Header="Value"
                                     Binding="{Binding Value, Mode=OneWay}"
-                                    Width="*"/>
+                                    MinWidth="240"
+                                    Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -65,19 +79,20 @@
                     Content="Refresh"
                     Click="Refresh_Click"
                     Padding="14,8"
-                    Margin="0,0,8,0"/>
+                    Margin="0,4,8,4"/>
 
             <Button x:Name="CopyButton"
                     Content="Copy Diagnostics"
                     Click="Copy_Click"
                     Padding="14,8"
-                    Margin="0,0,8,0"
+                    Margin="0,4,8,4"
                     IsEnabled="False"/>
 
             <Button x:Name="ExportButton"
                     Content="Export Support Package"
                     Click="Export_Click"
                     Padding="14,8"
+                    Margin="0,4,0,4"
                     FontWeight="Bold"/>
         </WrapPanel>
     </Grid>

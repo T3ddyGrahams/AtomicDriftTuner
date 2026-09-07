@@ -38,6 +38,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#RepoRoot}\src\AtomicDriftTuner\Assets\ADT.ico
 
 VersionInfoVersion={#MyVersionInfoVersion}
 VersionInfoTextVersion={#MyAppVersion}

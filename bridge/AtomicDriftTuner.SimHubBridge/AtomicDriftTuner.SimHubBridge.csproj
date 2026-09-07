@@ -14,8 +14,8 @@
     <!-- Development/default bridge version values.
          Release packaging overrides the standard MSBuild version properties
          explicitly through build-bridge.ps1. -->
-    <ADTVersion Condition="'$(ADTVersion)' == ''">0.8.2-beta.1</ADTVersion>
-    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.8.2.1</ADTVersionInfoVersion>
+    <ADTVersion Condition="'$(ADTVersion)' == ''">0.8.3-beta.1</ADTVersion>
+    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.8.3.1</ADTVersionInfoVersion>
 
     <Version>$(ADTVersion)</Version>
     <AssemblyVersion>$(ADTVersionInfoVersion)</AssemblyVersion>

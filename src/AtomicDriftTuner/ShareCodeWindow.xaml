@@ -4,8 +4,8 @@
         Title="ADT Share Codes"
         Width="900"
         Height="760"
-        MinWidth="760"
-        MinHeight="620"
+        MinWidth="430"
+        MinHeight="430"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
@@ -26,11 +26,14 @@
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
+        <ScrollViewer x:Name="ShareBodyScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
             <TextBlock Text="ADT SHARE CODES"
                        FontSize="25"
                        FontWeight="Bold"
@@ -38,6 +41,7 @@
 
             <TextBlock Text="Portable AT1 code • review first • regenerate locally"
                        Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"
                        Margin="0,3,0,8"/>
 
             <Border Background="{DynamicResource PanelBrush}"
@@ -52,13 +56,10 @@
                     locally through the normal Windows tuning engine.
                 </TextBlock>
             </Border>
-        </StackPanel>
-
-        <TabControl Grid.Row="1"
+        <TabControl x:Name="ShareTabs"
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}">
             <TabItem Header="CREATE / COPY">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="14">
                         <TextBlock Text="CURRENT GENERATED TUNE"
                                    FontWeight="Bold"
@@ -84,29 +85,14 @@
                                    Margin="0,5,0,6"
                                    TextWrapping="Wrap"/>
 
-                        <WrapPanel>
-                            <Button x:Name="CopyCodeButton"
-                                    Content="COPY SHARE CODE"
-                                    Click="CopyCode_Click"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Foreground="{DynamicResource AccentTextBrush}"
-                                    FontWeight="Bold"/>
-
-                            <Button x:Name="CopyPreviewButton"
-                                    Content="COPY PREVIEW"
-                                    Click="CopyPreview_Click"/>
-                        </WrapPanel>
-
                         <TextBlock Text="Portable AT1 codes are self-contained. Treat codes from other people as untrusted input: review the decoded preview before loading anything."
                                    TextWrapping="Wrap"
                                    Foreground="{DynamicResource SecondaryTextBrush}"
                                    Margin="0,8,0,0"/>
                     </StackPanel>
-                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="IMPORT">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="14">
                         <TextBlock Text="PASTE ADT SHARE CODE"
                                    FontWeight="Bold"
@@ -123,17 +109,6 @@
                                  AutomationProperties.Name="ADT share code to import"
                                  TextChanged="ImportCodeBox_TextChanged"/>
 
-                        <WrapPanel>
-                            <Button Content="DECODE + REVIEW"
-                                    Click="Decode_Click"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Foreground="{DynamicResource AccentTextBrush}"
-                                    FontWeight="Bold"/>
-
-                            <Button Content="PASTE FROM CLIPBOARD"
-                                    Click="Paste_Click"/>
-                        </WrapPanel>
-
                         <TextBlock Text="DECODED PREVIEW"
                                    FontWeight="Bold"
                                    Margin="0,12,0,4"/>
@@ -149,25 +124,86 @@
                                  AutomationProperties.Name="Decoded ADT share code preview"/>
 
                         <CheckBox x:Name="ImportBehaviorBox"
-                                  Content="Also save the shared Desired Behavior for this car"
-                                  Margin="0,12,0,4"/>
+                                  HorizontalContentAlignment="Stretch"
+                                  Margin="0,12,0,4">
+                            <TextBlock Text="Also save the shared Desired Behavior for this car"
+                                       TextWrapping="Wrap"/>
+                        </CheckBox>
 
                         <TextBlock Text="Off by default. When enabled, the shared bounded Desired Behavior targets are saved locally for the imported car. This is a persistent profile change, but it still does not write AZOM or the wheelbase."
                                    TextWrapping="Wrap"
                                    Foreground="{DynamicResource MutedTextBrush}"
                                    Margin="22,0,0,8"/>
 
-                        <Button x:Name="LoadContextButton"
-                                Content="LOAD CONTEXT + REGENERATE LOCALLY"
-                                Click="LoadContext_Click"
-                                IsEnabled="False"
-                                Background="{DynamicResource AccentBrush}"
-                                Foreground="{DynamicResource AccentTextBrush}"
-                                FontWeight="Bold"
-                                Height="44"/>
                     </StackPanel>
-                </ScrollViewer>
             </TabItem>
         </TabControl>
+        </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Row="1"
+              Margin="0,8,0,0">
+            <WrapPanel x:Name="ShareCopyActions">
+                <WrapPanel.Style>
+                    <Style TargetType="WrapPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedIndex, ElementName=ShareTabs}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </WrapPanel.Style>
+                <Button x:Name="CopyCodeButton"
+                        Content="COPY SHARE CODE"
+                        Click="CopyCode_Click"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        FontWeight="Bold"/>
+
+                <Button x:Name="CopyPreviewButton"
+                        Content="COPY PREVIEW"
+                        Click="CopyPreview_Click"/>
+            </WrapPanel>
+
+            <StackPanel x:Name="ShareImportActions">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedIndex, ElementName=ShareTabs}" Value="1">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <WrapPanel>
+                    <Button Content="DECODE + REVIEW"
+                            Click="Decode_Click"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="{DynamicResource AccentTextBrush}"
+                            FontWeight="Bold"/>
+
+                    <Button Content="PASTE FROM CLIPBOARD"
+                            Click="Paste_Click"/>
+                </WrapPanel>
+                <Button x:Name="LoadContextButton"
+                        Content="LOAD CONTEXT + REGENERATE LOCALLY"
+                        Click="LoadContext_Click"
+                        IsEnabled="False"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="{DynamicResource AccentTextBrush}"
+                        FontWeight="Bold"
+                        MinHeight="44">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

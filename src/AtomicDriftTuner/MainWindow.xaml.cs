@@ -56,6 +56,9 @@ public partial class MainWindow : Window
     private Window? _embeddedToolWindow;
     private readonly Dictionary<Window, UIElement> _embeddedContentCache = new();
     private readonly Dictionary<Window, string> _embeddedContextKeys = new();
+    private bool _sidebarVisible = true;
+    private bool _compactLayout;
+    private double _sidebarWidth = 220;
 
     public MainWindow()
     {
@@ -63,6 +66,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ApplyWindowVersionText();
         UpdateWindowStateUi();
+        Services.WindowBoundsService.Attach(this);
 
         HardwareBox.ItemsSource = _hardware;
         WheelBox.ItemsSource = _wheels;
@@ -161,6 +165,45 @@ public partial class MainWindow : Window
 
     private void Minimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
+
+    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (SidebarColumn is null) return;
+        bool compact = ActualWidth < 900;
+        if (compact != _compactLayout)
+        {
+            _compactLayout = compact;
+            _sidebarVisible = !compact;
+        }
+        UpdateResponsiveShell();
+    }
+
+    private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
+    {
+        _sidebarVisible = !_sidebarVisible;
+        UpdateResponsiveShell();
+    }
+
+    private void UpdateResponsiveShell()
+    {
+        if (SidebarPanel.Visibility == Visibility.Visible && SidebarColumn.ActualWidth >= 180)
+            _sidebarWidth = SidebarColumn.ActualWidth;
+        SidebarPanel.Visibility = _sidebarVisible ? Visibility.Visible : Visibility.Collapsed;
+        bool docked = _sidebarVisible && !_compactLayout;
+        SidebarDivider.Visibility = docked ? Visibility.Visible : Visibility.Collapsed;
+        SidebarColumn.MinWidth = docked ? 180 : 0;
+        SidebarColumn.Width = new GridLength(docked ? _sidebarWidth : 0);
+        SidebarDividerColumn.Width = new GridLength(docked ? 5 : 0);
+        Grid.SetColumnSpan(SidebarPanel, _compactLayout ? 3 : 1);
+        Panel.SetZIndex(SidebarPanel, 30);
+        SidebarPanel.HorizontalAlignment = _compactLayout ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        SidebarPanel.Width = _compactLayout ? Math.Min(_sidebarWidth, Math.Max(180, ActualWidth - 100)) : double.NaN;
+        // Compact navigation is an overlay: do not leave obscured tools in the tab order.
+        WorkspaceRoot.IsEnabled = !(_compactLayout && _sidebarVisible);
+        SidebarToggleButton.ToolTip = _sidebarVisible ? "Hide navigation" : "Show navigation";
+        BrandCaption.Visibility = ActualWidth < 700 ? Visibility.Collapsed : Visibility.Visible;
+        HeaderVersionBadge.Visibility = ActualWidth < 1100 ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private void Maximize_Click(object sender, RoutedEventArgs e) =>
         ToggleMaximize();
@@ -1451,6 +1494,15 @@ public partial class MainWindow : Window
             // Detach the tool's existing visual tree once. The backing Window and
             // all of its original code-behind/services remain authoritative.
             window.Content = null;
+            // Tools were designed as windows. Keep their local styles when their
+            // content moves into the shared workspace.
+            if (newContent is FrameworkElement element)
+            {
+                if (window.Resources.Count > 0)
+                    element.Resources.MergedDictionaries.Add(window.Resources);
+                if (NameScope.GetNameScope(window) is { } scope)
+                    NameScope.SetNameScope(element, scope);
+            }
             content = newContent;
             _embeddedContentCache[window] = content;
 
@@ -1469,6 +1521,11 @@ public partial class MainWindow : Window
         EmbeddedToolPanel.Visibility = Visibility.Visible;
         SetActiveNavigation(title);
         EmbeddedToolContent.Focus();
+        if (_compactLayout)
+        {
+            _sidebarVisible = false;
+            UpdateResponsiveShell();
+        }
     }
 
     private static string WorkspaceSubtitle(string title) => title switch

@@ -4,12 +4,16 @@
         Title="ADT • Tuning Assistant"
         Width="1320"
         Height="900"
-        MinWidth="1040"
-        MinHeight="700"
+        MinWidth="430"
+        MinHeight="430"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
+        <Style x:Key="AssistantTableText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
         <Style TargetType="Button"
                BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
@@ -37,12 +41,14 @@
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
+        <ScrollViewer x:Name="AssistantBodyScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
             <TextBlock Text="TELEMETRY-ASSISTED TUNING"
                        FontSize="26"
                        FontWeight="Bold"
@@ -55,8 +61,11 @@
 
             <Border Style="{StaticResource AssistantCard}">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
@@ -65,13 +74,14 @@
                                VerticalAlignment="Center"
                                FontWeight="Bold"/>
 
-                    <ComboBox Grid.Column="1"
+                    <ComboBox Grid.Row="1"
                               x:Name="SessionBox"
                               AutomationProperties.Name="Saved telemetry session"
                               SelectionChanged="SessionBox_SelectionChanged"
-                              Margin="8,0"/>
+                              Margin="0,4,8,4"/>
 
-                    <Button Grid.Column="2"
+                    <Button Grid.Row="1"
+                            Grid.Column="1"
                             x:Name="RefreshSessionsButton"
                             Content="Refresh Sessions"
                             ToolTip="Reload recent telemetry sessions matching this exact ADT hardware/car context."
@@ -90,10 +100,7 @@
                                Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
-        </StackPanel>
-
-        <TabControl Grid.Row="1"
-                    x:Name="AssistantTabs">
+        <TabControl x:Name="AssistantTabs">
             <TabItem Header="Assessment">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
@@ -120,6 +127,10 @@
 
                     <DataGrid Grid.Row="1"
                               x:Name="AssessmentGrid"
+                              MinHeight="180"
+                              MaxHeight="420"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               CanUserAddRows="False"
@@ -130,7 +141,7 @@
                             <DataGridTextColumn Header="Observed" Binding="{Binding Observed, Mode=OneWay}" Width="220"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status, Mode=OneWay}" Width="120"/>
                             <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence, Mode=OneWay}" Width="105"/>
-                            <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence, Mode=OneWay}" Width="*"/>
+                            <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence, Mode=OneWay}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="280" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -147,6 +158,7 @@
                     <Border Style="{StaticResource AssistantCard}">
                         <StackPanel>
                             <TextBlock Text="TEMPORARY AC SETUP GUIDANCE"
+                                       TextWrapping="Wrap"
                                        FontSize="18"
                                        FontWeight="Bold"/>
 
@@ -159,6 +171,10 @@
 
                     <DataGrid Grid.Row="1"
                               x:Name="RecommendationGrid"
+                              MinHeight="180"
+                              MaxHeight="420"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               CanUserAddRows="False"
@@ -166,8 +182,8 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Domain" Binding="{Binding Domain, Mode=OneWay}" Width="140"/>
                             <DataGridTextColumn Header="Priority" Binding="{Binding Priority, Mode=OneWay}" Width="90"/>
-                            <DataGridTextColumn Header="Recommended Change" Binding="{Binding Change, Mode=OneWay}" Width="320"/>
-                            <DataGridTextColumn Header="Why" Binding="{Binding Why, Mode=OneWay}" Width="*"/>
+                            <DataGridTextColumn Header="Recommended Change" Binding="{Binding Change, Mode=OneWay}" ElementStyle="{StaticResource AssistantTableText}" Width="320"/>
+                            <DataGridTextColumn Header="Why" Binding="{Binding Why, Mode=OneWay}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="280" Width="*"/>
                             <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence, Mode=OneWay}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -203,6 +219,10 @@
 
                     <DataGrid Grid.Row="1"
                               x:Name="ComparisonGrid"
+                              MinHeight="180"
+                              MaxHeight="420"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               CanUserAddRows="False"
@@ -212,19 +232,17 @@
                             <DataGridTextColumn Header="Previous" Binding="{Binding Previous, Mode=OneWay}" Width="120"/>
                             <DataGridTextColumn Header="Current" Binding="{Binding Current, Mode=OneWay}" Width="120"/>
                             <DataGridTextColumn Header="Change" Binding="{Binding Change, Mode=OneWay}" Width="120"/>
-                            <DataGridTextColumn Header="Interpretation" Binding="{Binding Interpretation, Mode=OneWay}" Width="*"/>
+                            <DataGridTextColumn Header="Interpretation" Binding="{Binding Interpretation, Mode=OneWay}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="280" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </TabItem>
         </TabControl>
+        </StackPanel>
+        </ScrollViewer>
 
-        <Grid Grid.Row="2"
-              Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <StackPanel Grid.Row="1"
+                    Margin="0,8,0,0">
 
             <TextBlock x:Name="StatusText"
                        VerticalAlignment="Center"
@@ -232,7 +250,7 @@
                        TextWrapping="Wrap"
                        Margin="0,0,12,0"/>
 
-            <WrapPanel Grid.Column="1">
+            <WrapPanel x:Name="AssistantActions">
                 <Button x:Name="ApplyCalibrationButton"
                         Content="Apply Calibration Recommendation"
                         ToolTip="Save the current report's bounded telemetry correction to ADT calibration for this exact hardware/car context."
@@ -246,6 +264,6 @@
                         IsEnabled="False"
                         FontWeight="Bold"/>
             </WrapPanel>
-        </Grid>
+        </StackPanel>
     </Grid>
 </Window>

@@ -4,13 +4,20 @@
         Title="ADT • Setup &amp; Paths"
         Width="940"
         Height="760"
-        MinWidth="780"
-        MinHeight="650"
+        MinWidth="430"
+        MinHeight="430"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="24">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer x:Name="SetupBodyScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
             <TextBlock Text="ADT SETUP &amp; PATHS"
                        FontSize="28"
                        FontWeight="Bold"/>
@@ -72,18 +79,19 @@
                                 Content="Auto Detect"
                                 Click="DetectSimHub_Click"
                                 Padding="14,8"
-                                Margin="0,0,8,0"/>
+                                Margin="0,0,8,8"/>
 
                         <Button x:Name="InstallBridgeButton"
                                 Content="Install / Repair Packaged Bridge"
                                 Click="InstallBridge_Click"
                                 Padding="14,8"
-                                Margin="0,0,8,0"/>
+                                Margin="0,0,8,8"/>
 
                         <Button x:Name="RefreshBridgeButton"
                                 Content="Refresh Bridge Status"
                                 Click="RefreshBridge_Click"
-                                Padding="14,8"/>
+                                Padding="14,8"
+                                Margin="0,0,0,8"/>
                     </WrapPanel>
 
                     <TextBlock x:Name="BridgeStatusText"
@@ -111,6 +119,7 @@
 
                     <TextBlock Text="Choose the Assetto Corsa install folder containing content\cars."
                                Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextWrapping="Wrap"
                                Margin="0,2,0,8"/>
 
                     <Grid>
@@ -191,31 +200,37 @@
                            Text="Test Everything is optional. Missing integrations do not prevent ADT from opening, and paths can be changed later."/>
             </Border>
 
-            <WrapPanel HorizontalAlignment="Right">
+        </StackPanel>
+        </ScrollViewer>
+
+            <WrapPanel Grid.Row="1"
+                       x:Name="SetupActions"
+                       Margin="0,8,0,0"
+                       HorizontalAlignment="Right">
                 <Button x:Name="DetectAllButton"
                         Content="Detect All"
                         Click="DetectAll_Click"
                         Padding="16,9"
-                        Margin="0,0,8,0"/>
+                        Margin="0,4,8,4"/>
 
                 <Button x:Name="TestEverythingButton"
                         Content="Test Everything"
                         Click="TestEverything_Click"
                         Padding="16,9"
-                        Margin="0,0,8,0"/>
+                        Margin="0,4,8,4"/>
 
                 <Button x:Name="CloseWithoutSavingButton"
                         Content="Close Without Saving"
                         Click="CloseWithoutSaving_Click"
                         Padding="16,9"
-                        Margin="0,0,8,0"/>
+                        Margin="0,4,8,4"/>
 
                 <Button x:Name="SaveButton"
                         Content="Save Paths"
                         Click="Save_Click"
                         Padding="18,9"
+                        Margin="0,4,0,4"
                         FontWeight="Bold"/>
             </WrapPanel>
-        </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </Window>

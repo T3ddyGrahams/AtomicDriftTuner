@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SimHubPath,
 
-    [string]$Version = "0.8.2-beta.1"
+    [string]$Version = "0.8.3-beta.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,7 +19,7 @@ function ConvertTo-WindowsVersion {
         '(?:\+(?<metadata>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$'
 
     if ($SemanticVersion -notmatch $pattern) {
-        throw "Version '$SemanticVersion' is not in a supported semantic-version format such as '0.8.2-beta.1' or '0.8.2'."
+        throw "Version '$SemanticVersion' is not in a supported semantic-version format such as '0.8.3-beta.1' or '0.8.2'."
     }
 
     $major = [int]$Matches["major"]

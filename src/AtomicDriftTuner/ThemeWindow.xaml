@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:AtomicDriftTuner.Controls"
         Title="Appearance • ADT"
-        Width="1280" Height="900" MinWidth="1080" MinHeight="720"
+        Width="1280" Height="900" MinWidth="430" MinHeight="430"
         Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
         <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}">
@@ -24,29 +24,28 @@
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <ScrollViewer x:Name="ThemeBodyScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
             <TextBlock Text="APPEARANCE + READABILITY" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock Text="Input fields, tables, tabs, checkboxes and dropdowns are controlled here. This window is modeless: leave it open beside other ADT windows. Valid color edits preview across the app without changing tuning, AZOM, telemetry, calibration, or car-setup state. Closing this window restores the last saved theme."
                        Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap"
                        Margin="0,4,0,12"/>
-        </StackPanel>
-
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="390"/>
-                <ColumnDefinition Width="18"/>
-                <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="18"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <controls:AdaptivePanel x:Name="ThemeColumns"
+                                MinItemWidth="340"
+                                MaxColumns="3"
+                                Spacing="18">
+            <ScrollViewer x:Name="ThemeFieldsScroll"
+                          MaxHeight="680"
+                          VerticalAlignment="Top"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <TextBlock Text="PRESET" FontWeight="Bold"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_SelectionChanged"/>
@@ -78,7 +77,7 @@
                     <TextBlock Text="Selected Row Text"/><TextBox x:Name="GridSelectedTextBox" Tag="GridSelectedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
                     <TextBlock Text="Grid Lines"/><TextBox x:Name="GridLineBox" Tag="GridLineBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
 
-                    <TextBlock Text="TAB / SECTION NAVIGATION COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Text="TAB / SECTION NAVIGATION COLORS" TextWrapping="Wrap" FontWeight="Bold" Margin="0,12,0,4"/>
                     <TextBlock Text="Tab Background"/><TextBox x:Name="TabBackgroundBox" Tag="TabBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
                     <TextBlock Text="Tab Text"/><TextBox x:Name="TabTextBox" Tag="TabTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
                     <TextBlock Text="Active Tab Background"/><TextBox x:Name="TabSelectedBackgroundBox" Tag="TabSelectedBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
@@ -102,12 +101,14 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="14">
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="14" VerticalAlignment="Top">
                 <StackPanel>
                     <TextBlock Text="COLOR WHEEL" FontSize="19" FontWeight="Bold"/>
                     <TextBlock Text="Editing:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0"/>
                     <ComboBox x:Name="ColorTargetBox" SelectionChanged="ColorTargetBox_SelectionChanged"/>
-                    <controls:ColorWheelPicker x:Name="ColorWheel" ColorChanged="ColorWheel_ColorChanged" HorizontalAlignment="Center"/>
+                    <Viewbox MaxWidth="292" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                        <controls:ColorWheelPicker x:Name="ColorWheel" ColorChanged="ColorWheel_ColorChanged"/>
+                    </Viewbox>
                     <TextBlock Text="READABILITY CHECK" FontWeight="Bold" Margin="4,12,4,0"/>
                     <TextBlock x:Name="ContrastText"
                                Foreground="{DynamicResource SecondaryTextBrush}"
@@ -116,7 +117,11 @@
                 </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="ThemePreviewScroll"
+                          MaxHeight="680"
+                          VerticalAlignment="Top"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <TextBlock Text="LIVE PREVIEW" FontSize="19" FontWeight="Bold"/>
                     <TextBlock Text="The wheel and valid typed colors preview immediately. Save Theme persists them throughout ADT; closing restores the last saved theme."
@@ -139,15 +144,17 @@
                             Padding="12"
                             Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="Full AZOM-style table preview" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Text="Full AZOM-style table preview" TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,8"/>
                             <DataGrid x:Name="PreviewGrid"
                                       AutoGenerateColumns="False"
                                       IsReadOnly="True"
                                       Height="185"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                                       SelectedIndex="1">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="95"/>
-                                    <DataGridTextColumn Header="Setting" Binding="{Binding Setting}" Width="*"/>
+                                    <DataGridTextColumn Header="Setting" Binding="{Binding Setting}" MinWidth="160" Width="*"/>
                                     <DataGridTextColumn Header="Live" Binding="{Binding Live}" Width="70"/>
                                     <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="70"/>
                                 </DataGrid.Columns>
@@ -163,9 +170,13 @@
                             Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="Checkbox readability" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <CheckBox Content="Include preference toggles/settings" IsChecked="True"/>
+                            <CheckBox HorizontalContentAlignment="Stretch" IsChecked="True">
+                                <TextBlock Text="Include preference toggles/settings" TextWrapping="Wrap"/>
+                            </CheckBox>
                             <CheckBox Content="Hands-Off Protection" IsChecked="False"/>
-                            <CheckBox Content="Retain Game FFB at Soft Limit" IsChecked="{x:Null}" IsThreeState="True"/>
+                            <CheckBox HorizontalContentAlignment="Stretch" IsChecked="{x:Null}" IsThreeState="True">
+                                <TextBlock Text="Retain Game FFB at Soft Limit" TextWrapping="Wrap"/>
+                            </CheckBox>
                             <TextBlock Text="Checkbox label text, box background, border and check mark are all independent theme colors."
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        TextWrapping="Wrap"
@@ -216,21 +227,29 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
-        </Grid>
+        </controls:AdaptivePanel>
+        </StackPanel>
+        </ScrollViewer>
 
-        <WrapPanel Grid.Row="2" Margin="0,14,0,0">
-            <Button Content="Apply Preview" Click="ApplyPreview_Click"/>
-            <Button Content="Save Theme"
+        <StackPanel Grid.Row="1" Margin="0,8,0,0">
+            <ScrollViewer MaxHeight="64"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <TextBlock x:Name="StatusText"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,4"/>
+            </ScrollViewer>
+        <WrapPanel x:Name="ThemeActions">
+            <Button x:Name="ApplyPreviewButton" Content="Apply Preview" Click="ApplyPreview_Click"/>
+            <Button x:Name="SaveThemeButton" Content="Save Theme"
                     Click="SaveTheme_Click"
                     Background="{DynamicResource AccentBrush}"
                     Foreground="{DynamicResource AccentTextBrush}"
                     FontWeight="Bold"/>
-            <Button Content="Preview Default Theme" Click="ResetTheme_Click"/>
-            <Button Content="Close" Click="Close_Click"/>
-            <TextBlock x:Name="StatusText"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource SecondaryTextBrush}"
-                       Margin="8,0,0,0"/>
+            <Button x:Name="ResetThemeButton" Content="Preview Default Theme" Click="ResetTheme_Click"/>
+            <Button x:Name="CloseButton" Content="Close" Click="Close_Click"/>
         </WrapPanel>
+        </StackPanel>
     </Grid>
 </Window>

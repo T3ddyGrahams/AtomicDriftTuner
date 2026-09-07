@@ -2,6 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
+        <Style TargetType="Window">
+            <Setter Property="Icon" Value="pack://application:,,,/AtomicDriftTuner;component/Assets/ADT.ico"/>
+        </Style>
         <!-- General application colors -->
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0E1116"/>
         <SolidColorBrush x:Key="SurfaceBrush" Color="#171B22"/>

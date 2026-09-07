@@ -1,5 +1,13 @@
 # ADT regression checks
 
+Responsive layout checks (Windows, run from repository root):
+
+```powershell
+dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/layout-checks
+```
+
+This suite loads production XAML and styles without business event handlers, saved-user-data access, or hardware services. It measures action bounds at narrow, portrait, short, and ultrawide dimensions; exercises tab visibility and card reflow; and writes PNG previews under the chosen output directory. A passing result complements real monitor/DPI and keyboard interaction testing.
+
 Run from the repository root on Windows with the .NET SDK installed:
 
 ```powershell

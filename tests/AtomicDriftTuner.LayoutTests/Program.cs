@@ -13,17 +13,28 @@ internal static class Program
     private static readonly XNamespace X = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static int _checks;
 
+    private static void Progress(string message)
+    {
+        Console.WriteLine($"[{DateTimeOffset.UtcNow:O}] {message}");
+        Console.Out.Flush();
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
         try
         {
+            Progress($"START layout tests; process {Environment.ProcessId}; {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
             var repo = Path.GetFullPath(args.FirstOrDefault() ?? ".");
             var output = Path.GetFullPath(args.Skip(1).FirstOrDefault() ?? Path.Combine(repo, "artifacts", "layout-checks"));
             Directory.CreateDirectory(output);
+            Progress($"Repository: {repo}; diagnostics: {output}");
+            Progress("Creating WPF application");
             var app = new AtomicDriftTuner.App();
+            Progress("Initializing WPF resources");
             app.InitializeComponent();
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
             {
@@ -40,10 +51,13 @@ internal static class Program
             };
             foreach (var (name, buttons) in cases)
             {
+                Progress($"Loading {name}");
                 var root = LoadContent(Path.Combine(repo, "src", "AtomicDriftTuner", name + ".xaml"));
+                Progress($"Seeding {name}");
                 Seed(root);
                 foreach (var size in new[] { new Size(430, 300), new Size(430, 430), new Size(680, 900), new Size(1200, 540), new Size(1800, 900) })
                 {
+                    Progress($"Checking {name} at {size.Width}x{size.Height}");
                     Layout(root, size);
                     foreach (var button in buttons) AssertVisible(root, button, size);
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
@@ -61,12 +75,14 @@ internal static class Program
                     Layout(root, size);
                     if (size.Width is 430 or 1800) Render(root, size, Path.Combine(output, $"{name}-{size.Width}-{size.Height}.png"));
                 }
-                Console.WriteLine($"PASS {name}: narrow, portrait, short landscape, ultrawide");
+                Progress($"PASS {name}: narrow, portrait, short landscape, ultrawide");
             }
+            Progress("Loading dashboard");
             var main = LoadContent(Path.Combine(repo, "src", "AtomicDriftTuner", "MainWindow.xaml"));
             Seed(main);
             foreach (var size in new[] { new Size(560, 480), new Size(800, 900), new Size(1280, 720), new Size(2560, 1080) })
             {
+                Progress($"Checking dashboard at {size.Width}x{size.Height}");
                 var sidebar = (FrameworkElement)main.FindName("SidebarPanel");
                 var column = (ColumnDefinition)main.FindName("SidebarColumn");
                 var divider = (FrameworkElement)main.FindName("SidebarDivider");
@@ -83,7 +99,7 @@ internal static class Program
                 scroll.ScrollToHome(); Layout(main, size);
                 Render(main, size, Path.Combine(output, $"Dashboard-{size.Width}.png"));
             }
-            Console.WriteLine($"PASS dashboard action bar at all sizes, including after scrolling. {_checks} geometry assertions passed.");
+            Progress($"PASS dashboard action bar at all sizes, including after scrolling. {_checks} geometry assertions passed.");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
@@ -93,7 +109,9 @@ internal static class Program
     // measures real WPF controls/styles without opening services or user data.
     private static FrameworkElement LoadContent(string path)
     {
+        Progress($"Reading markup: {Path.GetFileName(path)}");
         var xml = XElement.Load(path);
+        Progress("Discovering and removing business event handlers");
         var eventNames = new[] { typeof(Window).Assembly, typeof(UIElement).Assembly, typeof(AdaptivePanel).Assembly }
             .Distinct().SelectMany(a => a.GetTypes()).Where(t => typeof(DependencyObject).IsAssignableFrom(t))
             .SelectMany(t => t.GetEvents()).Select(e => e.Name).ToHashSet();
@@ -106,6 +124,7 @@ internal static class Program
             }
         }
         var markup = xml.ToString().Replace("clr-namespace:AtomicDriftTuner.Controls", "clr-namespace:AtomicDriftTuner.Controls;assembly=AtomicDriftTuner");
+        Progress("Parsing WPF markup");
         var window = (Window)XamlReader.Parse(markup, new ParserContext
         { BaseUri = new Uri("pack://application:,,,/AtomicDriftTuner;component/") });
         var root = (FrameworkElement)window.Content;
@@ -123,9 +142,12 @@ internal static class Program
     {
         for (var i = 0; i < 4; i++)
         {
+            Progress($"Layout pass {i + 1}/4: measure and arrange");
             root.InvalidateMeasure();
             root.Measure(size); root.Arrange(new Rect(size)); root.UpdateLayout();
+            Progress($"Layout pass {i + 1}/4: waiting for dispatcher idle");
             System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Progress($"Layout pass {i + 1}/4: complete");
         }
     }
 
@@ -156,10 +178,12 @@ internal static class Program
 
     private static void Render(FrameworkElement root, Size size, string path)
     {
+        Progress($"Rendering {Path.GetFileName(path)}");
         var target = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
         target.Render(root);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(target));
         using var stream = File.Create(path); encoder.Save(stream);
+        Progress($"Saved {Path.GetFileName(path)}");
     }
 
     private static void CheckAdaptivePanel()

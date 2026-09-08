@@ -15,6 +15,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       ADT_RELEASE_VERSION: ${{ inputs.version }}
       SIMHUB_VERSION: "9.12.4"
@@ -27,17 +28,35 @@ jobs:
             throw "Invalid ADT release version."
           }
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
       - name: Run regression tests
+        timeout-minutes: 10
         shell: pwsh
         run: dotnet run --project .\tests\AtomicDriftTuner.RegressionTests\AtomicDriftTuner.RegressionTests.csproj -c Release
-      - name: Run layout tests
+      - name: Build layout tests
+        timeout-minutes: 10
         shell: pwsh
-        run: dotnet run --project .\tests\AtomicDriftTuner.LayoutTests\AtomicDriftTuner.LayoutTests.csproj -c Release
+        run: dotnet build .\tests\AtomicDriftTuner.LayoutTests\AtomicDriftTuner.LayoutTests.csproj -c Release --verbosity minimal
+      - name: Run layout tests
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .\artifacts\layout-checks | Out-Null
+          dotnet run --project .\tests\AtomicDriftTuner.LayoutTests\AtomicDriftTuner.LayoutTests.csproj -c Release --no-build --no-restore 2>&1 | Tee-Object -FilePath .\artifacts\layout-checks\layout-tests.log
+          exit $LASTEXITCODE
+      - name: Upload layout diagnostics
+        if: ${{ always() }}
+        timeout-minutes: 3
+        uses: actions/upload-artifact@v6
+        with:
+          name: "adt-layout-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: artifacts/layout-checks/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Download pinned SimHub build references
         shell: pwsh
         run: |
@@ -77,7 +96,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256
       - name: Upload unsigned release artifact
         id: upload-unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: "adt-unsigned-${{ inputs.version }}"
           path: |

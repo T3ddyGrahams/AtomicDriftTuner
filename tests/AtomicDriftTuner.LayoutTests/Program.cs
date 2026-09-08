@@ -13,6 +13,22 @@ internal static class Program
     private static readonly XNamespace X = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static int _checks;
 
+    // Application queues OnStartup in its constructor, even without Run().
+    // Pumping the dispatcher for layout must not launch ADT's MainWindow,
+    // services, first-run dialogs, or user settings. Load the real XAML resources
+    // into a plain Application; never construct the production App here.
+    private sealed class LayoutTestApplication : Application
+    {
+        public bool StartupIntercepted { get; private set; }
+
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            StartupIntercepted = true;
+            Progress("Intercepted application startup; production startup is disabled for layout tests");
+            // No production startup or event handlers are needed by this harness.
+        }
+    }
+
     private static void Progress(string message)
     {
         Console.WriteLine($"[{DateTimeOffset.UtcNow:O}] {message}");
@@ -30,10 +46,17 @@ internal static class Program
             Directory.CreateDirectory(output);
             Progress($"Repository: {repo}; diagnostics: {output}");
             Progress("Creating WPF application");
-            var app = new AtomicDriftTuner.App();
+            var app = new LayoutTestApplication();
             Progress("Initializing WPF resources");
-            app.InitializeComponent();
+            app.Resources = LoadApplicationResources(Path.Combine(repo, "src", "AtomicDriftTuner", "App.xaml"));
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Progress("Verifying isolated application startup");
+            app.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            if (!app.StartupIntercepted || app.MainWindow != null || app.Windows.Count != 0)
+                throw new Exception("Layout harness must intercept startup without creating application windows.");
+            if (!app.Resources.Contains("AppBackgroundBrush"))
+                throw new Exception("Production application resources were not loaded.");
+            Progress("PASS startup isolation: no application windows; production resources loaded");
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
@@ -103,6 +126,19 @@ internal static class Program
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+    }
+
+    private static ResourceDictionary LoadApplicationResources(string path)
+    {
+        var application = XElement.Load(path);
+        var ns = application.Name.Namespace;
+        var resources = application.Element(ns + "Application.Resources")
+            ?? throw new Exception("Application.Resources is missing from production App.xaml.");
+        var dictionary = new XElement(ns + "ResourceDictionary",
+            application.Attributes().Where(a => a.IsNamespaceDeclaration),
+            resources.Elements());
+        return (ResourceDictionary)XamlReader.Parse(dictionary.ToString(), new ParserContext
+        { BaseUri = new Uri("pack://application:,,,/AtomicDriftTuner;component/") });
     }
 
     // Load the production markup without its business event handlers. This

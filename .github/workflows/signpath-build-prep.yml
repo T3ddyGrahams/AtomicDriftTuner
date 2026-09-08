@@ -57,19 +57,71 @@ jobs:
           path: artifacts/layout-checks/
           if-no-files-found: warn
           retention-days: 14
-      - name: Download pinned SimHub build references
+      - name: Download and verify pinned SimHub installer
+        timeout-minutes: 10
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $zip = Join-Path $env:RUNNER_TEMP "SimHub.$env:SIMHUB_VERSION.zip"
-          $extract = Join-Path $env:RUNNER_TEMP "SimHub"
+          $extract = Join-Path $env:RUNNER_TEMP "SimHubInstaller"
           Invoke-WebRequest -Uri "https://github.com/SHWotever/SimHub/releases/download/$env:SIMHUB_VERSION/SimHub.$env:SIMHUB_VERSION.zip" -OutFile $zip
           $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $env:SIMHUB_SHA256) { throw "SimHub archive SHA256 mismatch. Expected $env:SIMHUB_SHA256, got $actual" }
           Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
-          $plugin = Get-ChildItem -Path $extract -Filter "SimHub.Plugins.dll" -File -Recurse | Select-Object -First 1
-          if (-not $plugin) { throw "Could not locate SimHub.Plugins.dll in the pinned SimHub archive." }
-          "SIMHUB_PATH=$($plugin.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $installer = Join-Path $extract "SimHubSetup_$env:SIMHUB_VERSION.exe"
+          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            Get-ChildItem -LiteralPath $extract -Recurse -File | Select-Object FullName, Length
+            throw "Expected SimHub installer was not found in the verified archive: $installer"
+          }
+          Write-Host "Verified SimHub $env:SIMHUB_VERSION archive and located its setup executable."
+      - name: Install SimHub build references on temporary runner
+        timeout-minutes: 5
+        env:
+          SIMHUB_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:SIMHUB_RUNNER_ENVIRONMENT -ne 'github-hosted') {
+            throw "SimHub CI installation is restricted to GitHub-hosted runners."
+          }
+          $installer = Join-Path $env:RUNNER_TEMP "SimHubInstaller\SimHubSetup_$env:SIMHUB_VERSION.exe"
+          $installPath = Join-Path $env:RUNNER_TEMP "SimHubBuildReferences"
+          $diagnostics = Join-Path $env:GITHUB_WORKSPACE "artifacts\simhub-diagnostics"
+          New-Item -ItemType Directory -Path $diagnostics -Force | Out-Null
+          $log = Join-Path $diagnostics "setup.log"
+          $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOICONS', '/TASKS=""', '/NOCLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS', "/DIR=`"$installPath`"", "/LOG=`"$log`"")
+          Write-Host "Installing verified SimHub build references in $installPath"
+          $process = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -PassThru
+          try {
+            if (-not $process.WaitForExit(240000)) {
+              $process.Kill($true)
+              throw "SimHub setup exceeded four minutes; inspect the setup log artifact."
+            }
+            if ($process.ExitCode -ne 0) { throw "SimHub setup failed with exit code $($process.ExitCode)." }
+          } finally {
+            $process.Dispose()
+            if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 40 }
+          }
+          $required = @('SimHub.Plugins.dll', 'GameReaderCommon.dll', 'SimHub.Logging.dll', 'Newtonsoft.Json.dll', 'log4net.dll')
+          foreach ($name in $required) {
+            $reference = Join-Path $installPath $name
+            if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) {
+              Get-ChildItem -LiteralPath $installPath -File | Select-Object Name, Length
+              throw "Required SimHub build reference missing after setup: $name"
+            }
+            $identity = [System.Reflection.AssemblyName]::GetAssemblyName($reference)
+            Write-Host "Verified build reference: $($identity.FullName)"
+          }
+          "SIMHUB_PATH=$installPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Upload SimHub setup diagnostics
+        if: ${{ always() }}
+        timeout-minutes: 3
+        uses: actions/upload-artifact@v6
+        with:
+          name: "adt-simhub-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: artifacts/simhub-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Locate or install Inno Setup 6
         shell: pwsh
         run: |

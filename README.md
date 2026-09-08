@@ -5,6 +5,10 @@
 > **Current public beta:** `v0.8.3-beta.1`<br>
 > **Bundled ADT SimHub Bridge:** `v0.8.3-beta.1` (update the bridge with this beta)<br>
 > **Status:** Public beta / active development
+>
+> **Code signing policy:** [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)<br>
+> **Signing status:** Preparation only; SignPath signing is not enabled.<br>
+> **Privacy policy:** [PRIVACY.md](PRIVACY.md)
 
 ADT is designed to answer a practical drifting question:
 

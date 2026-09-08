@@ -6,6 +6,9 @@
     <OutputType>Library</OutputType>
 
     <RootNamespace>AtomicDriftTuner.SimHubBridge</RootNamespace>
+
+    <Product>Atomic Drift Tuner</Product>
+    <Description>Atomic Drift Tuner SimHub integration bridge.</Description>
     <AssemblyName>AtomicDriftTuner.SimHubBridge</AssemblyName>
 
     <LangVersion>latest</LangVersion>

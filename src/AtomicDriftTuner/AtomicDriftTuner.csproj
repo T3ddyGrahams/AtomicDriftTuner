@@ -10,6 +10,9 @@
 
     <AssemblyName>AtomicDriftTuner</AssemblyName>
     <RootNamespace>AtomicDriftTuner</RootNamespace>
+
+    <Product>Atomic Drift Tuner</Product>
+    <Description>Open-source Windows tuning assistant for Assetto Corsa drifting.</Description>
     <ApplicationIcon>Assets\ADT.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 

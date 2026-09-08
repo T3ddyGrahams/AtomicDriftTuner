@@ -1,0 +1,91 @@
+name: SignPath Build Prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "ADT version to build, without leading v"
+        required: true
+        default: "0.8.3-beta.1"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      ADT_RELEASE_VERSION: ${{ inputs.version }}
+      SIMHUB_VERSION: "9.12.4"
+      SIMHUB_SHA256: "1a27063f1748177f97a9785e2155c1e27b1f5dd640dc1a2b23c4d76104612f54"
+    steps:
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          if ($env:ADT_RELEASE_VERSION -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') {
+            throw "Invalid ADT release version."
+          }
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Run regression tests
+        shell: pwsh
+        run: dotnet run --project .\tests\AtomicDriftTuner.RegressionTests\AtomicDriftTuner.RegressionTests.csproj -c Release
+      - name: Run layout tests
+        shell: pwsh
+        run: dotnet run --project .\tests\AtomicDriftTuner.LayoutTests\AtomicDriftTuner.LayoutTests.csproj -c Release
+      - name: Download pinned SimHub build references
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $zip = Join-Path $env:RUNNER_TEMP "SimHub.$env:SIMHUB_VERSION.zip"
+          $extract = Join-Path $env:RUNNER_TEMP "SimHub"
+          Invoke-WebRequest -Uri "https://github.com/SHWotever/SimHub/releases/download/$env:SIMHUB_VERSION/SimHub.$env:SIMHUB_VERSION.zip" -OutFile $zip
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:SIMHUB_SHA256) { throw "SimHub archive SHA256 mismatch. Expected $env:SIMHUB_SHA256, got $actual" }
+          Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
+          $plugin = Get-ChildItem -Path $extract -Filter "SimHub.Plugins.dll" -File -Recurse | Select-Object -First 1
+          if (-not $plugin) { throw "Could not locate SimHub.Plugins.dll in the pinned SimHub archive." }
+          "SIMHUB_PATH=$($plugin.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Locate or install Inno Setup 6
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $candidates = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe")
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { choco install innosetup -y --no-progress; $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1 }
+          if (-not $iscc) { throw "Inno Setup 6 was not found after installation." }
+          "INNO_SETUP_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build ADT release artifacts
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+          .\build-github-release.ps1 -Version "$env:ADT_RELEASE_VERSION" -SimHubPath "$env:SIMHUB_PATH" -InnoSetupPath "$env:INNO_SETUP_PATH"
+      - name: Verify expected release files
+        shell: pwsh
+        run: |
+          $version = $env:ADT_RELEASE_VERSION
+          $portable = ".\artifacts\release\AtomicDriftTuner-$version-portable.zip"
+          $installer = ".\artifacts\release\AtomicDriftTuner-$version-setup.exe"
+          if (-not (Test-Path $portable)) { throw "Missing $portable" }
+          if (-not (Test-Path $installer)) { throw "Missing $installer" }
+          Get-FileHash $portable -Algorithm SHA256
+          Get-FileHash $installer -Algorithm SHA256
+      - name: Upload unsigned release artifact
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: "adt-unsigned-${{ inputs.version }}"
+          path: |
+            artifacts/release/AtomicDriftTuner-${{ inputs.version }}-portable.zip
+            artifacts/release/AtomicDriftTuner-${{ inputs.version }}-setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      # SignPath submission is intentionally not enabled yet.
+      # Add signpath/github-action-submit-signing-request@v2 after acceptance
+      # and use steps.upload-unsigned.outputs.artifact-id.

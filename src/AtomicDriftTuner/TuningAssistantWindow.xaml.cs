@@ -12,6 +12,11 @@ public partial class TuningAssistantWindow : Window
         5.0;
 
     private readonly TuneInput _input;
+    private readonly RunHistoryStore _history = new();
+    private bool _bindingHistory;
+    private bool _bindingBaselines;
+    private readonly Dictionary<string, (string Rating, string Notes)> _reviewDrafts = [];
+    private string? _draftRunId;
 
     private readonly TelemetrySessionStore _sessionStore =
         new();
@@ -56,6 +61,17 @@ public partial class TuningAssistantWindow : Window
         _input =
             input;
 
+        _bindingHistory = true;
+        try
+        {
+            HistoryDriverBox.ItemsSource = new[] { new DriverIdentity { Id = "", Name = "All drivers / legacy" } }.Concat(_history.ListDrivers()).ToList();
+            HistoryDriverBox.SelectedIndex = 0;
+            DriverRatingBox.ItemsSource = new[] { "Not rated", "Better", "Worse", "No noticeable difference", "Tradeoff" };
+            DriverRatingBox.SelectedIndex = 0;
+        }
+        catch (Exception ex) { QualityText.Text = "Driver history could not load: " + ex.Message; }
+        finally { _bindingHistory = false; }
+
         SetupText.Text =
             $"{input.Hardware.Model} • " +
             $"{input.Wheel.Model} • " +
@@ -74,6 +90,64 @@ public partial class TuningAssistantWindow : Window
         RoutedEventArgs e)
     {
         RefreshSessions();
+    }
+
+    private void HistoryDriver_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_bindingHistory && _input is not null) RefreshSessions();
+    }
+    private void BaselineSession_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_bindingBaselines && SessionBox.SelectedItem is SavedTelemetrySession selected)
+        {
+            PreserveReviewDraft(); RestoreReviewDraft(selected); BuildReportForSelection(selected);
+        }
+    }
+    private void TuneHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_bindingHistory || TuneHistoryBox.SelectedItem is not TuneVersion tune) return;
+        TuneHistoryText.Text = $"{tune.DisplayName}\n{tune.Source}\nAttached AC setup: {(tune.SetupFileName.Length == 0 ? "none" : tune.SetupFileName)}. Values below are this immutable snapshot.";
+        TuneChangesGrid.ItemsSource = tune.Settings.Select(p => new AssistantComparisonRow { Metric = p.Key, Previous = $"{p.Value:0.###}", Current = "—",
+            Interpretation = p.Key.StartsWith("ACSetup.", StringComparison.Ordinal) ? "Captured AC setup-file value" : "Generated ADT target, not a live measurement" }).ToList();
+    }
+    private void ReviewHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_bindingHistory || ReviewHistoryBox.SelectedItem is not RunReview review) return;
+        ReviewHistoryText.Text = $"{review.DisplayName}\n{review.Conclusion}\nRun: {review.SessionId}\nBaseline: {review.BaselineSessionId}\n{review.Comparison.Summary}\nDriver notes: {review.Notes}\n" +
+            string.Join("\n", review.Comparison.Limitations);
+    }
+    private void ShowComparedTunes_Click(object sender, RoutedEventArgs e)
+    {
+        TuneHistoryBox.SelectedIndex = -1;
+        TuneChangesGrid.ItemsSource = _report?.Outcome.TuneChanges;
+        TuneHistoryText.Text = "Changes between the selected run and its baseline. Generated values are targets; attached AC setup values are file snapshots.";
+    }
+
+    private void PreserveReviewDraft()
+    {
+        if (_draftRunId is not null) _reviewDrafts[_draftRunId] = (DriverRatingBox.SelectedItem as string ?? "Not rated", DriverNotesBox.Text);
+    }
+    private void RestoreReviewDraft(SavedTelemetrySession selected)
+    {
+        _draftRunId = selected.Session.Id + "|" + (FindPreviousSession(selected)?.Session.Id ?? "");
+        var draft = _reviewDrafts.GetValueOrDefault(_draftRunId, ("Not rated", ""));
+        DriverNotesBox.Text = draft.Item2;
+        DriverRatingBox.SelectedItem = draft.Item1;
+    }
+    private void SaveRunReview_Click(object sender, RoutedEventArgs e)
+    {
+        if (_report is null || _reportSession?.Session.Context is not RunContext { Tune: not null } context) return;
+        try
+        {
+            var review = new RunReview { SessionId = _reportSession.Session.Id, BaselineSessionId = FindPreviousSession(_reportSession)?.Session.Id ?? "",
+                DriverId = context.DriverId, ContextKey = context.Tune.ContextKey, DriverRating = DriverRatingBox.SelectedItem as string ?? "Not rated",
+                Notes = DriverNotesBox.Text.Trim(), Comparison = RunHistoryStore.Clone(_report.Outcome) };
+            _history.SaveReview(review);
+            ReviewHistoryBox.ItemsSource = _history.ListReviews(_input, context.DriverId);
+            ReviewHistoryBox.SelectedItem = ((List<RunReview>)ReviewHistoryBox.ItemsSource).FirstOrDefault(x => x.Id == review.Id);
+            StatusText.Text = "Run review saved. Driver feedback and measured outcome are retained separately; earlier reviews remain available.";
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Save Run Review", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     private void RefreshSessions()
@@ -98,7 +172,10 @@ public partial class TuningAssistantWindow : Window
             var sessions =
                 _sessionStore.ListRecent(
                     _input,
-                    30);
+                    200);
+
+            if (HistoryDriverBox.SelectedItem is DriverIdentity { Id.Length: > 0 } driver)
+                sessions = sessions.Where(s => s.Session.Context?.DriverId == driver.Id).ToList();
 
             _sessions =
                 sessions ??
@@ -117,6 +194,12 @@ public partial class TuningAssistantWindow : Window
                     "Open the Telemetry Recorder, record a representative drift session, click Save Session, then return here.",
                     "No telemetry guidance available yet.",
                     "A saved telemetry session is required.");
+
+                var driverId = (HistoryDriverBox.SelectedItem as DriverIdentity)?.Id;
+                if (string.IsNullOrEmpty(driverId)) driverId = null;
+                TuneHistoryBox.ItemsSource = _history.ListTunes(_input, driverId);
+                ReviewHistoryBox.ItemsSource = _history.ListReviews(_input, driverId);
+                TuneHistoryText.Text = "Saved versions remain available even when their telemetry run is not in the recent-session list. Choose a version to inspect it.";
 
                 return;
             }
@@ -188,6 +271,9 @@ public partial class TuningAssistantWindow : Window
             return;
         }
 
+        PreserveReviewDraft();
+        _draftRunId = null;
+
         if (
             SessionBox.SelectedItem is not SavedTelemetrySession selected)
         {
@@ -200,6 +286,14 @@ public partial class TuningAssistantWindow : Window
             return;
         }
 
+        _bindingBaselines = true;
+        var candidates = _sessions.Where(s => s.Session.Id != selected.Session.Id && s.Session.StartedUtc < selected.Session.StartedUtc &&
+            s.Session.Context?.DriverId == selected.Session.Context?.DriverId).ToList();
+        BaselineSessionBox.ItemsSource = candidates;
+        BaselineSessionBox.SelectedItem = candidates.FirstOrDefault(s => s.Session.Id == selected.Session.Context?.RecommendationSessionId) ??
+            candidates.FirstOrDefault(s => s.Session.Context?.TrackId == selected.Session.Context?.TrackId && s.Session.Context?.Conditions == selected.Session.Context?.Conditions);
+        _bindingBaselines = false;
+        RestoreReviewDraft(selected);
         BuildReportForSelection(
             selected);
     }
@@ -279,15 +373,7 @@ public partial class TuningAssistantWindow : Window
     private SavedTelemetrySession? FindPreviousSession(
         SavedTelemetrySession selected)
     {
-        var index =
-            _sessions.IndexOf(
-                selected);
-
-        return
-            index >= 0 &&
-            index + 1 < _sessions.Count
-                ? _sessions[index + 1]
-                : null;
+        return BaselineSessionBox.SelectedItem is SavedTelemetrySession baseline && baseline.Session.Id != selected.Session.Id ? baseline : null;
     }
 
     private void LoadBehavior()
@@ -304,7 +390,7 @@ public partial class TuningAssistantWindow : Window
     private void RenderDesiredBehavior()
     {
         DesiredBehaviorText.Text =
-            $"Front bite {Signed(_behavior.FrontEndBite)} • " +
+            $"Current saved profile: front bite {Signed(_behavior.FrontEndBite)} • " +
             $"Rear grip {Signed(_behavior.RearGrip)} • " +
             $"Self-steer {Signed(_behavior.SelfSteerSpeed)} • " +
             $"Transition {Signed(_behavior.TransitionSpeed)} • " +
@@ -341,6 +427,27 @@ public partial class TuningAssistantWindow : Window
         ComparisonGrid.ItemsSource =
             report.Comparison;
 
+        PhaseGrid.ItemsSource = selected.Analysis.Diagnosis.Events;
+        QualityText.Text = string.Join("\n", selected.Analysis.Diagnosis.QualityNotes) +
+            $"\nDrift exposure: left {selected.Analysis.Diagnosis.LeftDriftSeconds:0.0}s / right {selected.Analysis.Diagnosis.RightDriftSeconds:0.0}s; " +
+            $"below 50 km/h {selected.Analysis.Diagnosis.LowSpeedSeconds:0.0}s / 50–90 {selected.Analysis.Diagnosis.MediumSpeedSeconds:0.0}s / above 90 {selected.Analysis.Diagnosis.HighSpeedSeconds:0.0}s.";
+        var driverId = selected.Session.Context?.DriverId;
+        _bindingHistory = true;
+        try
+        {
+            _history.Warnings.Clear();
+            TuneHistoryBox.ItemsSource = _history.ListTunes(_input, driverId);
+            ReviewHistoryBox.ItemsSource = _history.ListReviews(_input, driverId);
+            TuneChangesGrid.ItemsSource = report.Outcome.TuneChanges;
+            TuneHistoryText.Text = "Compared tune changes are shown below. Choose a saved version to inspect all its captured settings. Generated values are not hardware readback.";
+            var reviews = (List<RunReview>)ReviewHistoryBox.ItemsSource;
+            var latest = reviews.FirstOrDefault(r => r.SessionId == selected.Session.Id && r.BaselineSessionId == previous?.Session.Id);
+            ReviewHistoryText.Text = (latest is null ? "Save your feedback below to assess whether this change helped you. Draft notes survive run switching in this window; click Save Run Review to keep them after closing." :
+                $"Latest saved review for this comparison: {latest.Conclusion}\nDriver rating: {latest.DriverRating}\n{latest.Notes}") + "\n" + string.Join("\n", _history.Warnings);
+            SaveReviewButton.IsEnabled = selected.Session.Context?.Tune is not null;
+        }
+        finally { _bindingHistory = false; }
+
         OverallText.Text =
             report.OverallAssessment;
 
@@ -354,15 +461,13 @@ public partial class TuningAssistantWindow : Window
         if (previous is null)
         {
             ComparisonHeaderText.Text =
-                "No earlier matching saved session exists yet. " +
-                "Save another run after testing a recommendation to unlock before/after comparison.";
+                "Select an earlier baseline above when available. Save a baseline and another run after testing a recommendation to compare them.";
         }
         else
         {
             ComparisonHeaderText.Text =
-                $"Current: {selected.SessionUtc.ToLocalTime():g} • " +
-                $"Previous: {previous.SessionUtc.ToLocalTime():g}. " +
-                "Comparison is most useful when the same car, track, conditions, and driving task were used.";
+                $"After: {selected.DisplayName}\nBaseline: {previous.DisplayName}\n" +
+                report.Outcome.Summary + "\n\n" + string.Join("\n", report.Outcome.Limitations.Select(x => "• " + x));
         }
 
         UpdateActionAvailability(
@@ -398,7 +503,7 @@ public partial class TuningAssistantWindow : Window
         OpenSetupButton.IsEnabled =
             _guidedSetupWindow is null &&
             currentReport &&
-            _report!.HasSuggestedBehaviorChange &&
+            !_report!.SuggestedBehaviorTarget.IsNeutral && _report.OverallConfidence != AssistantConfidence.Low &&
             _input.Car.IsInstalled &&
             !string.IsNullOrWhiteSpace(
                 _input.Car.SourceFolderName);
@@ -424,6 +529,13 @@ public partial class TuningAssistantWindow : Window
 
         ComparisonGrid.ItemsSource =
             null;
+
+        PhaseGrid.ItemsSource = null;
+        TuneChangesGrid.ItemsSource = null;
+        TuneHistoryBox.ItemsSource = null;
+        ReviewHistoryBox.ItemsSource = null;
+        QualityText.Text = "Select a run to inspect phase evidence.";
+        SaveReviewButton.IsEnabled = false;
 
         OverallText.Text =
             overall;
@@ -591,7 +703,7 @@ public partial class TuningAssistantWindow : Window
             !ReferenceEquals(
                 _reportSession,
                 selected) ||
-            !_report.HasSuggestedBehaviorChange)
+            _report.SuggestedBehaviorTarget.IsNeutral || _report.OverallConfidence == AssistantConfidence.Low)
         {
             return;
         }

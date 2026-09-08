@@ -4,6 +4,13 @@ namespace AtomicDriftTuner.Models;
 
 public sealed class TelemetrySample
 {
+    public TelemetrySample Copy() => (TelemetrySample)MemberwiseClone();
+    public bool HasExtendedSignals { get; set; }
+    public bool InvalidSourceSignals { get; set; }
+    public bool PitLimiterOn { get; set; }
+    public bool IsAiControlled { get; set; }
+    public int WheelsOutsideTrack { get; set; }
+    public double DamageTotal { get; set; }
     public double TimeSeconds { get; set; }
 
     public int PacketId { get; set; }
@@ -45,6 +52,8 @@ public sealed class TelemetrySample
 
 public sealed class TelemetrySession
 {
+    // Additive metadata: legacy v0.5 sessions remain readable, with unknown context.
+    public RunContext? Context { get; set; }
     public const string CurrentSchema =
         "atomic-drift-tuner/telemetry-v0.5.0";
 
@@ -167,6 +176,7 @@ public sealed class TelemetrySession
 
 public sealed class TelemetryAnalysis
 {
+    public DriftDiagnosis Diagnosis { get; set; } = new();
     private string _assessment =
         string.Empty;
 

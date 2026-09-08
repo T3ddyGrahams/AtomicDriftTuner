@@ -10,6 +10,9 @@
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
         <Style x:Key="AssistantTableText" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
@@ -59,6 +62,9 @@
                        TextWrapping="Wrap"
                        Margin="0,4,0,10"/>
 
+            <TextBlock Text="Driver history filter" FontWeight="Bold"/>
+            <ComboBox x:Name="HistoryDriverBox" DisplayMemberPath="Name" AutomationProperties.Name="Driver history filter"
+                      SelectionChanged="HistoryDriver_SelectionChanged" Margin="0,4,0,10"/>
             <Border Style="{StaticResource AssistantCard}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -204,6 +210,21 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Phase Evidence">
+                <StackPanel Margin="12">
+                    <TextBlock x:Name="QualityText" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <DataGrid x:Name="PhaseGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="180" MaxHeight="420"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="180"/>
+                            <DataGridTextColumn Header="Start (s)" Binding="{Binding StartSeconds, StringFormat=F2}" Width="100"/>
+                            <DataGridTextColumn Header="Duration (s)" Binding="{Binding DurationSeconds, StringFormat=F2}" Width="110"/>
+                            <DataGridTextColumn Header="Speed (km/h)" Binding="{Binding SpeedKmh, StringFormat=F1}" Width="120"/>
+                            <DataGridTextColumn Header="Evidence / limitations" Binding="{Binding Evidence}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="280" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </TabItem>
             <TabItem Header="Before / After">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
@@ -211,11 +232,15 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
+                    <StackPanel>
+                    <TextBlock Text="Baseline run (choose an earlier run by this driver)" TextWrapping="Wrap" FontWeight="Bold"/>
+                    <ComboBox x:Name="BaselineSessionBox" AutomationProperties.Name="Baseline run" SelectionChanged="BaselineSession_SelectionChanged" Margin="0,4,0,8"/>
                     <TextBlock x:Name="ComparisonHeaderText"
-                               Text="ADT compares the selected session with the previous saved session for this exact wheelbase + wheel + pack + car when one exists."
+                               Text="Choose an earlier baseline. ADT checks the recorded driver, track, conditions, tune and Desired Behavior."
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>
+                    </StackPanel>
 
                     <DataGrid Grid.Row="1"
                               x:Name="ComparisonGrid"
@@ -236,6 +261,31 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
+            </TabItem>
+            <TabItem Header="Tune &amp; Run History">
+                <StackPanel Margin="12">
+                    <TextBlock Text="Tune snapshots for this driver and car" FontWeight="Bold"/>
+                    <ComboBox x:Name="TuneHistoryBox" DisplayMemberPath="DisplayName" SelectionChanged="TuneHistory_SelectionChanged" AutomationProperties.Name="Tune version history" Margin="0,4,0,8"/>
+                    <TextBlock x:Name="TuneHistoryText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button Content="Show Compared Tune Changes" Click="ShowComparedTunes_Click" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    <DataGrid x:Name="TuneChangesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="120" MaxHeight="280"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Setting" Binding="{Binding Metric}" Width="260"/>
+                            <DataGridTextColumn Header="Baseline / value" Binding="{Binding Previous}" Width="140"/>
+                            <DataGridTextColumn Header="After" Binding="{Binding Current}" Width="110"/>
+                            <DataGridTextColumn Header="Meaning" Binding="{Binding Interpretation}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="240" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Driver feedback for the selected run" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <ComboBox x:Name="DriverRatingBox" AutomationProperties.Name="Driver outcome rating"/>
+                    <TextBox x:Name="DriverNotesBox" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="4000" MinHeight="60" MaxHeight="120"
+                             VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Driver feedback notes" Margin="0,6"/>
+                    <Button x:Name="SaveReviewButton" Content="Save Run Review" Click="SaveRunReview_Click" HorizontalAlignment="Left"/>
+                    <TextBlock Text="Saved reviews (append-only; choose one to read)" TextWrapping="Wrap" Margin="0,8,0,4"/>
+                    <ComboBox x:Name="ReviewHistoryBox" DisplayMemberPath="DisplayName" SelectionChanged="ReviewHistory_SelectionChanged" AutomationProperties.Name="Saved run reviews"/>
+                    <TextBlock x:Name="ReviewHistoryText" TextWrapping="Wrap" Margin="0,6"/>
+                </StackPanel>
             </TabItem>
         </TabControl>
         </StackPanel>

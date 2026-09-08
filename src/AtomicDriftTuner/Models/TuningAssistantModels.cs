@@ -91,6 +91,7 @@ public sealed class SavedTelemetrySession
 
             return
                 $"{timestamp} • " +
+                (Session.Context is null ? "Legacy • " : $"{Session.Context.DriverName} • {Session.Context.Tune?.Label ?? "No tune"} • ") +
                 $"{carName} • " +
                 $"{Math.Max(0, Analysis.DriftTimeSeconds):0}s drift • " +
                 $"{Math.Max(0, Analysis.TransitionCount)} transitions";
@@ -426,6 +427,7 @@ public sealed class AssistantComparisonRow
 
 public sealed class TuningAssistantReport
 {
+    public RunComparison Outcome { get; set; } = new();
     private string _overallAssessment =
         string.Empty;
 

@@ -14,6 +14,8 @@ to:
 
 ADT is currently in public beta, so priorities may change as real-world testing exposes new problems and opportunities.
 
+Development update (September 8, 2026): the local 0.9.0-preview.1 build implements phase diagnosis tied to recorded Desired Behavior, driver-scoped tune/run history, explicit before/after comparisons and saved outcome reviews. See the [telemetry intelligence preview and driving test guide](docs/TELEMETRY_INTELLIGENCE.md). This work is ready for driving validation; it has not been published as a new public beta and does not yet provide learned optimal setups or prove tuning causation.
+
 ⸻
 
 📌 Status

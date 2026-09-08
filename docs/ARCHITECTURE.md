@@ -1,5 +1,15 @@
 # Atomic Drift Tuner v0.3 architecture
 
+## Current telemetry intelligence extension (0.9 preview)
+
+`TelemetrySession + RunContext -> DriftDiagnosisEngine -> DriftAssistantReportBuilder -> RunComparisonEngine -> RunReview`
+
+`TelemetryAnalyzer` and `TelemetryTuningAssistantEngine` remain public facades. Diagnosis uses contiguous, time-weighted frames and event phases; reports read the Desired Behavior snapshot captured with the run. RunComparisonEngine separates comparability, goal-relative observations and recommendation attribution. RunReview combines the stored comparison with an independent driver rating without erasing disagreements.
+
+`RunHistoryStore` writes driver identities, immutable tune versions and append-only reviews. Tune snapshots capture generated FFB/AZOM targets and optional AC setup numeric values/fingerprint; they do not claim live hardware readback. TelemetrySessionStore preserves the existing raw-session schema with additive context and reanalyzes raw samples on read. Unknown/malformed context cannot authorize comparison. See [implementation limits and user workflow](TELEMETRY_INTELLIGENCE.md).
+
+The sections below document the earlier layers that this extension builds on.
+
 ## Main tuning pipeline
 
 `TuneInput -> TuningEngine -> TuneResult`

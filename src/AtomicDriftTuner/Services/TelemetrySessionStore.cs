@@ -310,6 +310,9 @@ public sealed class TelemetrySessionStore
                 return null;
             }
 
+            bool invalidContext = session.Context is not null && !RunHistoryStore.ValidContext(session.Context);
+            if (invalidContext) session.Context = null;
+
             // Always analyze the stored raw samples again using the current
             // ADT analyzer.
             //
@@ -332,6 +335,8 @@ public sealed class TelemetrySessionStore
                 // current engine should not prevent other sessions loading.
                 return null;
             }
+
+            if (invalidContext) analysis.Diagnosis.QualityNotes.Add("The saved run context is damaged or uses an unsupported schema. Raw telemetry was retained; historical identity and goals are unknown.");
 
             return new SavedTelemetrySession
             {

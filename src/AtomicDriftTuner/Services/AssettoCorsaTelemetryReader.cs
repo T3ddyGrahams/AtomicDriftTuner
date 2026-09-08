@@ -137,6 +137,15 @@ public sealed class AssettoCorsaTelemetryReader : IDisposable
 
         return new TelemetrySample
         {
+            HasExtendedSignals = true,
+            // Keep display/export values finite, but do not let sanitization fabricate evidence.
+            InvalidSourceSignals = !new[] { physics.SpeedKmh, physics.SteerAngle, physics.Gas, physics.Brake, physics.Clutch, physics.FinalFF }.All(float.IsFinite) ||
+                !FiniteArray(physics.LocalVelocity, 3) || !FiniteArray(physics.LocalAngularVelocity, 3) ||
+                !FiniteArray(physics.AccG, 3) || !FiniteArray(physics.WheelSlip, 4),
+            PitLimiterOn = physics.PitLimiterOn != 0,
+            IsAiControlled = physics.IsAIControlled != 0,
+            WheelsOutsideTrack = physics.NumberOfTyresOut,
+            DamageTotal = physics.CarDamage?.Sum(x => Math.Max(0, ToFinite(x))) ?? 0,
             TimeSeconds =
                 elapsedSeconds,
 
@@ -216,6 +225,8 @@ public sealed class AssettoCorsaTelemetryReader : IDisposable
                     3)
         };
     }
+
+    private static bool FiniteArray(float[]? values, int count) => values is not null && values.Length >= count && values.Take(count).All(float.IsFinite);
 
     public void ResetDerivativeState()
     {

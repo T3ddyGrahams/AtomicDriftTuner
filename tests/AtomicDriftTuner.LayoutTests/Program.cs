@@ -83,12 +83,26 @@ internal static class Program
                     Progress($"Checking {name} at {size.Width}x{size.Height}");
                     Layout(root, size);
                     foreach (var button in buttons) AssertVisible(root, button, size);
+                    if (name == "TelemetryWindow")
+                        foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox" })
+                            AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
                     {
                         for (int i = 0; i < tab.Items.Count; i++)
                         {
                             tab.SelectedIndex = i;
                             Layout(root, size);
+                            if (name == "TuningAssistantWindow")
+                            {
+                                var header = ((TabItem)tab.Items[i]).Header?.ToString();
+                                if (header == "Before / After") AssertReachableByScrolling(root, "AssistantBodyScroll", "BaselineSessionBox", size);
+                                if (header == "Tune & Run History")
+                                {
+                                    foreach (var field in new[] { "DriverRatingBox", "DriverNotesBox", "SaveReviewButton", "ReviewHistoryBox" })
+                                        AssertReachableByScrolling(root, "AssistantBodyScroll", field, size);
+                                    if (size.Width is 430 or 1800) Render(root, size, Path.Combine(output, $"RunHistory-{size.Width}-{size.Height}.png"));
+                                }
+                            }
                             if (name == "AzomSettingsWindow") AssertVisible(root, "SavePreferencesButton", size);
                             if (name == "ShareCodeWindow")
                                 AssertVisible(root, i == 0 ? "ShareCopyActions" : "ShareImportActions", size);
@@ -195,6 +209,19 @@ internal static class Program
         if (bounds.Width < 1 || bounds.Height < 1 || bounds.Left < -1 || bounds.Top < -1 || bounds.Right > root.RenderSize.Width + 1 || bounds.Bottom > root.RenderSize.Height + 1)
             throw new Exception($"Unreachable {name} at {size}: {bounds}");
         _checks++;
+    }
+
+    private static void AssertReachableByScrolling(FrameworkElement root, string scrollName, string name, Size size)
+    {
+        var scroll = (ScrollViewer)root.FindName(scrollName);
+        var field = (FrameworkElement)root.FindName(name);
+        scroll.ScrollToHome(); Layout(root, size);
+        var bounds = field.TransformToAncestor(scroll).TransformBounds(new Rect(field.RenderSize));
+        scroll.ScrollToVerticalOffset(Math.Max(0, bounds.Top - 4)); Layout(root, size);
+        AssertVisible(root, name, size);
+        bounds = field.TransformToAncestor(scroll).TransformBounds(new Rect(field.RenderSize));
+        if (bounds.Top < -1 || bounds.Bottom > scroll.ViewportHeight + 1)
+            throw new Exception($"{name} is clipped by its scrolling viewport at {size}: {bounds}; viewport {scroll.ViewportHeight}");
     }
 
     private static void Seed(FrameworkElement root)

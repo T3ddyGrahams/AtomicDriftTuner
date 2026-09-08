@@ -51,6 +51,39 @@
                        Foreground="{DynamicResource MutedTextBrush}"
                        Margin="0,4,0,12"
                        TextWrapping="Wrap"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel x:Name="RunCapturePanel">
+                    <TextBlock Text="DRIVER, TUNE AND COMPARISON CONTEXT" FontWeight="Bold"/>
+                    <TextBlock Text="Each recording keeps its own Desired Behavior and tune snapshot. Use the same conditions and driving task for before/after tests."
+                               TextWrapping="Wrap" Margin="0,6" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <layout:AdaptivePanel MinItemWidth="250" MaxColumns="2" Spacing="10">
+                        <StackPanel>
+                            <TextBlock Text="Driver profile (choose or type a name)"/>
+                            <ComboBox x:Name="DriverBox" IsEditable="True" DisplayMemberPath="Name" Text="Local driver" AutomationProperties.Name="Driver profile"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Tune version name"/>
+                            <TextBox x:Name="TuneLabelBox" Text="Baseline" MaxLength="160" AutomationProperties.Name="Tune version name"/>
+                        </StackPanel>
+                    </layout:AdaptivePanel>
+                    <TextBlock Text="Track layout, conditions and driving task (reuse the same description for comparable runs)" TextWrapping="Wrap" Margin="0,8,0,2"/>
+                    <TextBox x:Name="ConditionsBox" MaxLength="240" AutomationProperties.Name="Conditions and driving task"/>
+                    <TextBlock x:Name="RunTrackText" Text="Track is captured from the active AC session when recording starts." TextWrapping="Wrap" Margin="0,5"/>
+                    <WrapPanel>
+                        <Button x:Name="AttachSetupButton" Content="Attach AC Setup Snapshot..." Click="AttachSetup_Click"/>
+                        <Button Content="Clear Attachment" Click="ClearSetupAttachment_Click"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="SetupSnapshotText" Text="No AC setup attached. Generated ADT targets are captured; live hardware settings are not read." TextWrapping="Wrap"/>
+                    <CheckBox x:Name="TuneInUseCheck" Margin="0,8">
+                        <TextBlock Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <TextBlock Text="Recommendation baseline (optional; leave empty for a baseline run)" TextWrapping="Wrap"/>
+                    <ComboBox x:Name="RecommendationRunBox" AutomationProperties.Name="Recommendation baseline run"/>
+                    <Button Content="Clear Recommendation Baseline" Click="ClearRecommendationBaseline_Click" HorizontalAlignment="Left"/>
+                    <TextBlock Text="Change actually tested / recommendation followed (optional)" TextWrapping="Wrap"/>
+                    <TextBox x:Name="TestedChangeBox" MaxLength="1000" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="45" MaxHeight="90" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Change actually tested"/>
+                </StackPanel>
+            </Border>
         <layout:AdaptivePanel x:Name="TelemetryColumns"
                               MinItemWidth="360"
                               MaxColumns="2"

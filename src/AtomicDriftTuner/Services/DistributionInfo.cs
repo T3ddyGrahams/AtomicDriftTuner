@@ -8,7 +8,7 @@ public static class DistributionInfo
 
     public static string DisplayVersion { get; } = CreateDisplayVersion(Version);
 
-    public const string Channel = "Public Beta";
+    public static string Channel => Version.Contains("preview", StringComparison.OrdinalIgnoreCase) ? "Development Preview" : "Public Beta";
 
     public const string SupportSchema = "atomic-drift-tuner/support/v1";
 

@@ -18,6 +18,10 @@ This dependency-free console suite exits nonzero on failure. It uses generated f
 
 Coverage: telemetry recovery/freshness, session preservation, behavior storage and identity, setup baseline consistency, saved-tune and portable-share round trips, calibration backup recovery, and the AZOM stale-source guard. An output-range sweep covers all 8,000 built-in hardware/wheel/car/intent combinations; it is not a driving-quality test.
 
+The intelligence preview adds 22 scenarios (40 total): complete initiations/transitions, sample-rate invariance, phase-aware oscillation, missing axle evidence, invalid/frozen frames, excluded driving states, impacts/restarts, low-confidence gating, driver/car/track/goal mismatch, direction-aware comparison, control tradeoffs, recorded-goal preservation, conflicting driver feedback, setup-file fingerprints, append-only tune/review storage, corrupted entries and legacy context. These are synthetic fixtures, not evidence of real-car tuning improvement.
+
+Layout checks now include scrolling the new recorder and run-history fields into view, including Save Run Review, for 201 geometry assertions. The harness also writes RunHistory PNGs. It does not execute production event handlers or verify physical monitor/DPI transitions.
+
 Other checks:
 
 ```powershell

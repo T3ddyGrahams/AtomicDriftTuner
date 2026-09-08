@@ -14,6 +14,11 @@ public partial class TelemetryWindow : Window
         2.0;
 
     private readonly TuneInput _input;
+    private readonly RunHistoryStore _history = new();
+    private readonly AssettoCorsaSessionIdentityReader _identityReader = new();
+    private string? _setupSnapshotPath;
+    private double _lastIdentityCheck;
+    private double? _recordingSourceStart;
     private readonly TelemetryHubService _telemetry;
 
     private readonly TelemetryAnalyzer _analyzer =
@@ -72,6 +77,13 @@ public partial class TelemetryWindow : Window
         _session =
             NewSession();
 
+        try
+        {
+            DriverBox.ItemsSource = _history.ListDrivers();
+            RecommendationRunBox.ItemsSource = _sessionStore.ListRecent(_input, 100);
+        }
+        catch (Exception ex) { RunTrackText.Text = "History could not be loaded: " + ex.Message; }
+
         SetupText.Text =
             $"{input.Hardware.Model} • " +
             $"{input.Wheel.Model} • " +
@@ -117,6 +129,46 @@ public partial class TelemetryWindow : Window
                 50
         };
 
+    private RunContext CaptureRunContext()
+    {
+        var identity = _identityReader.TryRead();
+        if (identity is not null && !string.IsNullOrWhiteSpace(_input.Car.SourceFolderName) &&
+            !string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The active AC car differs from this recorder's car. Reopen the recorder for the active car.");
+        var conditions = ConditionsBox.Text.Trim();
+        if (conditions.Length == 0) throw new InvalidOperationException("Describe the track layout, conditions and driving task before recording (for example: dry practice, layout A, solo transitions).");
+        var driver = _history.GetOrCreateDriver(DriverBox.Text);
+        var baseline = RecommendationRunBox.SelectedItem as SavedTelemetrySession;
+        if (baseline is not null && baseline.Session.Context?.DriverId != driver.Id)
+            throw new InvalidOperationException("Choose a recommendation baseline recorded by this driver, or clear the baseline selection.");
+        var version = _history.CaptureTune(_input, driver, TuneLabelBox.Text, new CarBehaviorProfileStore().Load(_input),
+            _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), _setupSnapshotPath, new AppSettingsStore().Load().AzomPreferences);
+        RunTrackText.Text = identity is null ? "Car/track identity unknown; this run cannot establish improvement." : $"Recorded track: {identity.Track} • Tune: {version.Label}";
+        return new RunContext
+        {
+            DriverId = driver.Id, DriverName = driver.Name, TrackId = identity?.Track ?? "", Conditions = conditions,
+            CarIdentityVerified = identity is not null && string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase),
+            Tune = version, TuneConfirmedInUse = TuneInUseCheck.IsChecked == true,
+            RecommendationSessionId = baseline?.Session.Id ?? "",
+            TestedRecommendations = TestedChangeBox.Text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList()
+        };
+    }
+
+    private void AttachSetup_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Select the AC setup used for this run", Filter = "AC setup (*.ini)|*.ini", CheckFileExists = true };
+        if (dialog.ShowDialog() != true) return;
+        _setupSnapshotPath = dialog.FileName;
+        SetupSnapshotText.Text = "Attached: " + Path.GetFileName(dialog.FileName) + ". Numeric values are snapshotted when recording starts.";
+        TuneInUseCheck.IsChecked = false;
+    }
+    private void ClearSetupAttachment_Click(object sender, RoutedEventArgs e)
+    {
+        _setupSnapshotPath = null; TuneInUseCheck.IsChecked = false;
+        SetupSnapshotText.Text = "No AC setup attached. Generated ADT targets are captured; live hardware settings are not read.";
+    }
+    private void ClearRecommendationBaseline_Click(object sender, RoutedEventArgs e) => RecommendationRunBox.SelectedIndex = -1;
+
     private void Connect_Click(
         object sender,
         RoutedEventArgs e)
@@ -146,6 +198,9 @@ public partial class TelemetryWindow : Window
 
             StatusText.Text =
                 "Connected to Assetto Corsa shared memory. Live telemetry is active.";
+
+            var identity = _identityReader.TryRead();
+            RunTrackText.Text = identity is null ? "Active car/track identity is unavailable; comparisons will remain inconclusive." : $"Active car: {identity.CarModel} • Track: {identity.Track}";
 
             _timer.Start();
         }
@@ -204,8 +259,12 @@ public partial class TelemetryWindow : Window
                 return;
             }
 
-            _session =
-                NewSession();
+            var context = CaptureRunContext();
+            _session = NewSession();
+            _session.Context = context;
+            RunCapturePanel.IsEnabled = false;
+            _lastIdentityCheck = 0;
+            _recordingSourceStart = null;
 
             _session.StartedUtc =
                 DateTime.UtcNow;
@@ -303,6 +362,15 @@ public partial class TelemetryWindow : Window
     {
         try
         {
+            if (_recording && _clock.Elapsed.TotalSeconds - _lastIdentityCheck >= 1)
+            {
+                _lastIdentityCheck = _clock.Elapsed.TotalSeconds;
+                var identity = _identityReader.TryRead();
+                if (identity is not null && _session.Context?.CarIdentityVerified == true &&
+                    (!string.Equals(identity.CarModel, _session.CarFolder, StringComparison.OrdinalIgnoreCase) ||
+                     !string.Equals(identity.Track, _session.Context.TrackId, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("Active car or track changed. This recording was stopped to preserve its original context.");
+            }
             var hub =
                 _telemetry.GetSnapshot();
 
@@ -326,8 +394,10 @@ public partial class TelemetryWindow : Window
                 _lastPacketId !=
                 sample.PacketId)
             {
-                _session.Samples.Add(
-                    sample);
+                _recordingSourceStart ??= sample.TimeSeconds;
+                var captured = sample.Copy();
+                captured.TimeSeconds -= _recordingSourceStart.Value;
+                _session.Samples.Add(captured);
 
                 _lastPacketId =
                     sample.PacketId;
@@ -409,6 +479,10 @@ public partial class TelemetryWindow : Window
     {
         _recording =
             false;
+
+        RunCapturePanel.IsEnabled = true;
+        TuneInUseCheck.IsChecked = false;
+        if (_session.Context is not null) _session.Context.Interrupted = interrupted;
 
         _clock.Stop();
 
@@ -616,6 +690,15 @@ public partial class TelemetryWindow : Window
 
             StatusText.Text =
                 $"Saved session JSON and CSV to: {Path.GetDirectoryName(paths.JsonPath)}";
+            // The just-saved run is immediately available as the next test's baseline.
+            var previousId = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id;
+            try
+            {
+                var recent = _sessionStore.ListRecent(_input, 100);
+                RecommendationRunBox.ItemsSource = recent;
+                RecommendationRunBox.SelectedItem = recent.FirstOrDefault(s => s.Session.Id == previousId);
+            }
+            catch (Exception ex) { StatusText.Text += " Baseline list refresh failed: " + ex.Message; }
         }
         catch (Exception ex)
         {

@@ -37,6 +37,8 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
+            <TextBlock x:Name="RecorderStepsText" Text="Connect → attach setup and confirm context → Record → Stop → Save Session → Review / Compare" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
+            <Button x:Name="CompareSavedRunButton" Content="Review / Compare Saved Run" Click="CompareSavedRun_Click" IsEnabled="False" HorizontalAlignment="Left" Margin="0,0,0,8"/>
             <TextBlock Text="TELEMETRY RECORDER + DRIFT SESSION ANALYZER"
                        FontSize="24"
                        FontWeight="Bold"

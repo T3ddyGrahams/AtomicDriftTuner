@@ -236,7 +236,7 @@ internal static class IntelligenceChecks
         second.Context.Tune!.Id = Guid.NewGuid().ToString("N"); second.Context.Tune.Settings["ACSetup.DAMP_REBOUND_LR"] = 8;
         return (new SavedTelemetrySession { Session = first, Analysis = new TelemetryAnalyzer().Analyze(first) }, new SavedTelemetrySession { Session = second, Analysis = new TelemetryAnalyzer().Analyze(second) });
     }
-    private static TelemetrySession Session(int hz = 50, bool oscillate = false)
+    internal static TelemetrySession Session(int hz = 50, bool oscillate = false)
     {
         var driver = Guid.NewGuid().ToString("N");
         var s = new TelemetrySession { CarFolder = "fixture-car", CarName = "Fixture Car", DriftPack = "Fixture Pack", Wheelbase = "Fixture Base", SteeringWheel = "Fixture Rim", DriftTarget = "Tandem",

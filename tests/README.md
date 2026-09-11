@@ -1,5 +1,7 @@
 # ADT regression checks
 
+The guided-workflow preview brings the suite to **50 scenarios** and layout coverage to **252 geometry assertions**. New checks cover workflow ordering, generated-versus-ready state, changed goals/settings, optional integration guidance, installed/offline distinctions, driver/car/intent isolation, reopening, reset/corruption preservation and incomplete recordings. See [guided test steps](../docs/GUIDED_WORKFLOW.md). Historical counts below describe the earlier intelligence milestone.
+
 Responsive layout checks (Windows, run from repository root):
 
 ```powershell

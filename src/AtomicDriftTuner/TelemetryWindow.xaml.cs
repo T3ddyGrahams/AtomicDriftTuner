@@ -260,6 +260,7 @@ public partial class TelemetryWindow : Window
             }
 
             var context = CaptureRunContext();
+            CompareSavedRunButton.IsEnabled = false;
             _session = NewSession();
             _session.Context = context;
             RunCapturePanel.IsEnabled = false;
@@ -699,6 +700,7 @@ public partial class TelemetryWindow : Window
                 RecommendationRunBox.SelectedItem = recent.FirstOrDefault(s => s.Session.Id == previousId);
             }
             catch (Exception ex) { StatusText.Text += " Baseline list refresh failed: " + ex.Message; }
+            NotifySavedRun(paths.JsonPath);
         }
         catch (Exception ex)
         {

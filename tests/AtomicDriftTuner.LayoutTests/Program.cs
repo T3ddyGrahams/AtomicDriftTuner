@@ -84,8 +84,11 @@ internal static class Program
                     Layout(root, size);
                     foreach (var button in buttons) AssertVisible(root, button, size);
                     if (name == "TelemetryWindow")
-                        foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox" })
+                        foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox", "CompareSavedRunButton" })
                             AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);
+                    if (name == "SetupWizardWindow")
+                        foreach (var field in new[] { "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })
+                            AssertReachableByScrolling(root, "SetupBodyScroll", field, size);
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
                     {
                         for (int i = 0; i < tab.Items.Count; i++)
@@ -95,6 +98,7 @@ internal static class Program
                             if (name == "TuningAssistantWindow")
                             {
                                 var header = ((TabItem)tab.Items[i]).Header?.ToString();
+                                if (header == "Recommendations") AssertReachableByScrolling(root, "AssistantBodyScroll", "TestRecommendationButton", size);
                                 if (header == "Before / After") AssertReachableByScrolling(root, "AssistantBodyScroll", "BaselineSessionBox", size);
                                 if (header == "Tune & Run History")
                                 {
@@ -131,6 +135,9 @@ internal static class Program
                 ((FrameworkElement)main.FindName("HeaderVersionBadge")).Visibility = size.Width < 1100 ? Visibility.Collapsed : Visibility.Visible;
                 Layout(main, size);
                 AssertVisible(main, "SaveProfileButton", size);
+                ((CheckBox)main.FindName("GuidedReadyCheck")).Visibility = Visibility.Visible;
+                foreach (var field in new[] { "GuidedDriverBox", "GuidedNextButton", "GuidedCheckButton", "GuidedReadyCheck" })
+                    AssertReachableByScrolling(main, "DashboardScroll", field, size);
                 var scroll = (ScrollViewer)main.FindName("DashboardScroll");
                 scroll.ScrollToEnd(); Layout(main, size); AssertVisible(main, "SaveProfileButton", size);
                 scroll.ScrollToHome(); Layout(main, size);
@@ -226,6 +233,14 @@ internal static class Program
 
     private static void Seed(FrameworkElement root)
     {
+        if (root.FindName("GuidedStepText") is TextBlock guided)
+        {
+            guided.Text = "3 · Prepare your baseline tune";
+            ((TextBlock)root.FindName("GuidedInstructionsText")).Text = "Example installed car · Driver: Tester\nGenerate and review your recommendation. Load your chosen AC setup in the game and enter the recommended FFB/wheelbase settings before confirming below. Generating and saving a profile do not apply settings.";
+            ((TextBlock)root.FindName("GuidedIntegrationText")).Text = "Manual workflow: save the AC setup file, load it from AC's Setup menu, and enter the recommended AC FFB settings. Use your wheelbase's software for supported settings. SimHub/AZOM live control is optional.";
+            ((TextBlock)root.FindName("GuidedProgressText")).Text = "Car ✓ → Goals ✓ → Prepare ○ → Baseline ○ → Test ○ → Compare ○ → Review ○";
+            ((Button)root.FindName("GuidedNextButton")).Content = "Confirm Tune Is Ready";
+        }
         foreach (var text in Descendants(root).OfType<TextBlock>().Where(t => t.Name.EndsWith("StatusText") || t.Name == "SetupText"))
             text.Text = "R12 / CS Pro • Example drift car • A longer status message to check wrapping and action visibility.";
         foreach (var combo in Descendants(root).OfType<ComboBox>().Where(c => c.Items.Count == 0))

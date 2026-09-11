@@ -198,7 +198,9 @@
                             Style="{StaticResource AssistantCard}"
                             Margin="0,12,0,0">
                         <StackPanel>
-                            <TextBlock Text="SAFETY / CONTROL"
+                            <TextBlock Text="Select one recommendation above, then create a test plan. ADT will remember your driver, baseline, conditions and selected change for the recorder." TextWrapping="Wrap" Margin="0,6"/>
+                            <Button x:Name="TestRecommendationButton" Content="Test This Recommendation" Click="TestRecommendation_Click" HorizontalAlignment="Left"/>
+                            <TextBlock Text="WHAT HAPPENS NEXT"
                                        FontWeight="Bold"/>
 
                             <TextBlock Text="Apply Calibration saves bounded telemetry deltas into ADT's calibration profile only; it does not directly write AZOM. Open AC Setup with Guidance passes temporary Desired Behavior values into the existing range-safe car setup tuner; it does not save a behavior profile or setup file automatically."

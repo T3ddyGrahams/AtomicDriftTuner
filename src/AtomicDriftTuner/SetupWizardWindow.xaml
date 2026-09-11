@@ -35,7 +35,26 @@
                        TextWrapping="Wrap"
                        Margin="0,6,0,18"/>
 
-            <Border Background="{DynamicResource SurfaceBrush}"
+            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
+                    <TextBlock Text="Driver name (used for your run history)"/>
+                    <TextBox x:Name="InterviewDriverBox" MaxLength="80" TextChanged="InterviewTextChanged" AutomationProperties.Name="Driver name" Margin="0,3,0,8"/>
+                    <TextBlock Text="Do you have SimHub installed?"/>
+                    <ComboBox x:Name="SimHubChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="SimHub installed" Margin="0,3,0,8"/>
+                    <TextBlock Text="Do you have the AZOM plugin for SimHub installed?" TextWrapping="Wrap"/>
+                    <ComboBox x:Name="AzomChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="AZOM installed" Margin="0,3,0,8"/>
+                    <CheckBox x:Name="UseLiveGuidanceBox" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
+                        <TextBlock Text="Help me connect supported wheelbase settings through SimHub + AZOM" TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <Button x:Name="CheckGuidedConnectionButton" Content="Check My Connection / Check Again" Click="CheckGuidedConnection_Click" HorizontalAlignment="Left" Margin="0,8"/>
+                    <TextBlock x:Name="InterviewDetectionText" Text="Nothing has been checked yet. Installation and live connection are checked separately." TextWrapping="Wrap" Margin="0,4"/>
+                    <TextBlock x:Name="InterviewInstructionsText" TextWrapping="Wrap" Margin="0,6"/>
+                    <TextBlock Text="Save &amp; Continue below remembers these choices. You can change them later in Setup &amp; Paths." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+            <Border x:Name="OptionalSimHubCard" Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
@@ -226,7 +245,7 @@
                         Margin="0,4,8,4"/>
 
                 <Button x:Name="SaveButton"
-                        Content="Save Paths"
+                        Content="Save &amp; Continue"
                         Click="Save_Click"
                         Padding="18,9"
                         Margin="0,4,0,4"

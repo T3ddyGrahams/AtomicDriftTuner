@@ -9,6 +9,7 @@ namespace AtomicDriftTuner;
 
 public partial class CarSetupWindow : Window
 {
+    public event Action<string>? SetupFileSaved;
     private readonly TuneInput _input;
     private readonly AssettoCorsaSetupService _service = new();
     private readonly CarSetupTuningEngine _engine = new();
@@ -80,7 +81,7 @@ public partial class CarSetupWindow : Window
             UpdateBehaviorLabels();
 
             BehaviorStatusText.Text =
-                "Telemetry Assistant guidance loaded TEMPORARILY. Generate uses these values immediately, but they are not saved for this car unless you click Save for This Car." +
+                "Telemetry Assistant guidance loaded TEMPORARILY. Generate uses these values immediately, but they are not saved for this car unless you click Save Desired Behavior." +
                 (string.IsNullOrWhiteSpace(note)
                     ? ""
                     : " " + note);
@@ -535,6 +536,7 @@ public partial class CarSetupWindow : Window
 
             SetupStatusText.Text =
                 $"Saved ADT setup: {written}";
+            SetupFileSaved?.Invoke(written);
 
             MessageBox.Show(
                 "ADT setup saved as a separate file. Load it from Assetto Corsa's Setup menu and test it before further calibration.",
@@ -726,7 +728,7 @@ public partial class CarSetupWindow : Window
                 $"Desired Behavior preset changed to {preset}.");
 
             BehaviorStatusText.Text =
-                $"{preset} preset loaded. Generate uses it immediately; click Save for This Car to persist it.";
+                $"{preset} preset loaded. Generate uses it immediately; click Save Desired Behavior to persist it.";
         }
         finally
         {
@@ -762,7 +764,7 @@ public partial class CarSetupWindow : Window
                 "Desired Behavior changed after the last generation.");
 
             BehaviorStatusText.Text =
-                "Custom behavior target has unsaved changes. Generate will use the current slider values; Save for This Car makes them persistent.";
+                "Custom behavior target has unsaved changes. Generate will use the current slider values; Save Desired Behavior makes them persistent.";
         }
         finally
         {

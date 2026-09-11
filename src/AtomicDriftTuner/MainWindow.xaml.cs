@@ -95,6 +95,7 @@ public partial class MainWindow : Window
 
         _activeCarTimer.Tick += ActiveCarTimer_Tick;
         Loaded += MainWindow_Loaded;
+        InitializeGuidedWorkflow();
 
         _remoteServer.StateChanged += (_, _) =>
             Dispatcher.BeginInvoke(
@@ -300,6 +301,9 @@ public partial class MainWindow : Window
                 return;
 
             var settings = _appSettingsStore.Load();
+            GuidedDriverBox.Text = _workflow.Preferences().DriverName;
+            _guidedConnection = null;
+            RefreshGuidedWorkflow();
 
             _azomPreferences =
                 settings.AzomPreferences ??
@@ -915,6 +919,7 @@ public partial class MainWindow : Window
             _currentCalibration = _calibrationStore.Get(_calibrationEngine.BuildKey(input));
             _lastResult = _engine.Generate(input, _currentCalibration, _azomPreferences);
             Render(input, _lastResult);
+            TrackGeneratedForGuide(input);
         }
         catch (Exception ex)
         {
@@ -1167,6 +1172,11 @@ public partial class MainWindow : Window
                 };
 
             _carSetupWindow = window;
+            window.SetupFileSaved += path =>
+            {
+                try { _workflow.Update(input, CurrentGuidedDriver().Id, j => j.SetupPath = path); RefreshGuidedWorkflow(); }
+                catch (Exception ex) { GuidedInstructionsText.Text = "Setup saved; workflow could not remember its path: " + ex.Message; }
+            };
             TrackEmbeddedContext(window, input);
             window.Closed += (_, _) => _carSetupWindow = null;
             ShowEmbeddedTool(window, "AC Car Setup Tuner");
@@ -1215,6 +1225,7 @@ public partial class MainWindow : Window
             {
                 if (EmbeddedContextMatches(_telemetryWindow, input))
                 {
+                    _telemetryWindow.UseRecordingPlan(GuidedRecordingPlan(input));
                     RestoreAndActivate(_telemetryWindow);
                     return;
                 }
@@ -1230,6 +1241,13 @@ public partial class MainWindow : Window
                 };
 
             _telemetryWindow = window;
+            window.UseRecordingPlan(GuidedRecordingPlan(input));
+            window.SessionSaved += saved => TrackSavedRun(input, saved);
+            window.CompareRequested += saved =>
+            {
+                RequireGuidedContext(input); TrackSavedRun(input, saved); OpenTuningAssistant_Click(this, new RoutedEventArgs());
+                if (saved.Session.Context is { } context) _tuningAssistantWindow?.FocusGuidedSession(context.DriverId, saved.Session.Id);
+            };
             TrackEmbeddedContext(window, input);
 
             window.Closed += (_, _) =>
@@ -1260,6 +1278,8 @@ public partial class MainWindow : Window
             {
                 if (EmbeddedContextMatches(_tuningAssistantWindow, input))
                 {
+                    var journey = _workflow.Journey(input, CurrentGuidedDriver().Id);
+                    _tuningAssistantWindow.FocusGuidedSession(CurrentGuidedDriver().Id, journey.AfterId.Length > 0 ? journey.AfterId : journey.BaselineId);
                     RestoreAndActivate(_tuningAssistantWindow);
                     return;
                 }
@@ -1275,6 +1295,19 @@ public partial class MainWindow : Window
                 };
 
             _tuningAssistantWindow = window;
+            window.RecommendationTestRequested += (run, recommendation) => HandleRecommendation(input, run, recommendation);
+            window.GuidedSetupSaved += (run, path) =>
+            {
+                if (run.Session.Context is { } context) _workflow.Update(input, context.DriverId, j => j.SetupPath = path);
+                RefreshGuidedWorkflow();
+            };
+            window.RunReviewSaved += review =>
+            {
+                _workflow.Update(input, review.DriverId, j => { if (j.AfterId == review.SessionId && j.BaselineId == review.BaselineSessionId) j.Reviewed = review.DriverRating != "Not rated"; });
+                RefreshGuidedWorkflow();
+            };
+            var selectedJourney = _workflow.Journey(input, CurrentGuidedDriver().Id);
+            window.FocusGuidedSession(CurrentGuidedDriver().Id, selectedJourney.AfterId.Length > 0 ? selectedJourney.AfterId : selectedJourney.BaselineId);
             TrackEmbeddedContext(window, input);
 
             window.Closed += (_, _) =>
@@ -1591,6 +1624,7 @@ public partial class MainWindow : Window
 
     private void ShowDashboardSection(FrameworkElement section)
     {
+        RefreshGuidedWorkflow();
         EmbeddedToolContent.Content = null;
         _embeddedToolWindow = null;
         EmbeddedToolPanel.Visibility = Visibility.Collapsed;
@@ -1612,6 +1646,7 @@ public partial class MainWindow : Window
 
     private void ReturnToDashboard_Click(object sender, RoutedEventArgs e)
     {
+        RefreshGuidedWorkflow();
         // Do not close the active tool. Dashboard navigation simply hides it so
         // returning later restores the exact same workspace state.
         EmbeddedToolContent.Content = null;
@@ -1984,6 +2019,7 @@ public partial class MainWindow : Window
 
     private void UpdateRemoteContextSafely()
     {
+        RefreshGuidedWorkflow();
         try
         {
             if (HardwareBox.SelectedItem is null ||

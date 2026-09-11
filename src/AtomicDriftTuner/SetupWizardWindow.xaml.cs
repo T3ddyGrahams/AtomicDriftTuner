@@ -49,6 +49,8 @@ public partial class SetupWizardWindow : Window
         _settings =
             _store.Load();
 
+        InitializeGuidedInterview();
+
         ModeText.Text =
             firstRun
                 ? "FIRST-RUN / MACHINE SETUP"
@@ -62,7 +64,7 @@ public partial class SetupWizardWindow : Window
         SaveButton.Content =
             firstRun
                 ? "Save & Continue"
-                : "Save Paths";
+                : "Save & Continue";
 
         CloseWithoutSavingButton.Content =
             firstRun
@@ -667,6 +669,9 @@ public partial class SetupWizardWindow : Window
             var unresolved =
                 BuildUnresolvedPathMessages();
 
+            var preferences = InterviewPreferences();
+            if (string.IsNullOrWhiteSpace(preferences.DriverName)) throw new InvalidDataException("Enter a driver name before saving your workflow.");
+
             if (unresolved.Count > 0)
             {
                 var answer =
@@ -706,6 +711,8 @@ public partial class SetupWizardWindow : Window
 
             _store.Save(
                 candidate);
+
+            _guidedStore.SavePreferences(preferences);
 
             _settings =
                 candidate;
@@ -912,7 +919,7 @@ public partial class SetupWizardWindow : Window
             new List<string>();
 
         if (
-            !string.IsNullOrWhiteSpace(
+            UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && !string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text) &&
             !SafeIsValidSimHubRoot(
                 SimHubPathBox.Text))
@@ -921,7 +928,7 @@ public partial class SetupWizardWindow : Window
                 "The SimHub folder is not currently valid.");
         }
         else if (
-            string.IsNullOrWhiteSpace(
+            UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text))
         {
             messages.Add(

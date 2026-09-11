@@ -146,6 +146,8 @@ public partial class TuningAssistantWindow : Window
             ReviewHistoryBox.ItemsSource = _history.ListReviews(_input, context.DriverId);
             ReviewHistoryBox.SelectedItem = ((List<RunReview>)ReviewHistoryBox.ItemsSource).FirstOrDefault(x => x.Id == review.Id);
             StatusText.Text = "Run review saved. Driver feedback and measured outcome are retained separately; earlier reviews remain available.";
+            try { RunReviewSaved?.Invoke(review); }
+            catch (Exception ex) { StatusText.Text += " Review saved; guided progress could not update: " + ex.Message; }
         }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Save Run Review", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
@@ -732,6 +734,7 @@ public partial class TuningAssistantWindow : Window
 
             var owner =
                 ResolveVisibleOwner();
+            window.SetupFileSaved += path => GuidedSetupSaved?.Invoke(selected, path);
 
             if (owner is not null)
             {

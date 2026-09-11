@@ -202,7 +202,7 @@
         <WrapPanel VerticalAlignment="Center" Margin="14,8,8,4" x:Name="DashboardActions" Visibility="{Binding Visibility, ElementName=DashboardScroll}">
           <Button Content="Open Telemetry" Style="{StaticResource ModernButtonStyle}" Click="OpenTelemetry_Click" Margin="0,0,8,4" />
           <Button Content="Generate Tune" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0,0,8,4" />
-          <Button Content="Save Profile" Style="{StaticResource ModernButtonStyle}" Click="Save_Click" Margin="0,0,8,4" x:Name="SaveProfileButton" />
+          <Button Content="Save ADT Profile" ToolTip="Remember selections and recommendations; this does not apply settings to AC or the wheelbase." Style="{StaticResource ModernButtonStyle}" Click="Save_Click" Margin="0,0,8,4" x:Name="SaveProfileButton" />
           <Button Content="Load Profile" Style="{StaticResource ModernButtonStyle}" Click="Load_Click" Margin="0,0,8,4" />
         </WrapPanel>
         <ScrollViewer x:Name="DashboardScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
@@ -214,69 +214,34 @@
                 <TextBlock Text="Follow the drift-tuning loop from car detection through refinement and final AC setup." Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
-            <!-- Guided tuning workflow -->
-            <Border Style="{StaticResource PanelCard}" Margin="0,0,0,14">
+            <!-- Resumable guided tuning workflow -->
+            <Border x:Name="GuidedWorkflowCard" Style="{StaticResource PanelCard}" Margin="0,0,0,14">
               <StackPanel>
-                <StackPanel Margin="0,0,0,12">
-                  <StackPanel>
-                    <TextBlock Text="ADT TUNING LOOP" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                    <TextBlock Text="From detected car to refined drift tune" Style="{StaticResource SectionTitle}" Margin="0,3,0,0" TextWrapping="Wrap" />
-                    <TextBlock Text="Work left to right. You can jump into any stage without losing the state of the others." Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <Border Background="{DynamicResource PanelAltBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="6" Padding="10,5" VerticalAlignment="Center">
-                    <TextBlock Text="CAR → TARGET → TUNE → DRIVE → REFINE → SETUP" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
-                  </Border>
-                </StackPanel>
-                <layout:AdaptivePanel MinItemWidth="170" MaxColumns="6" Spacing="12">
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="01" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="Car &amp; Rig" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Confirm the detected car, wheelbase and drift pack." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Review" Style="{StaticResource ModernButtonStyle}" Click="FocusCarRig_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="02" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="Drift Target" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Choose the high-level drift behavior ADT should prioritize." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Set Target" Style="{StaticResource ModernButtonStyle}" Click="FocusDesiredBehavior_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="03" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="Generate Tune" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Build the recommendation from your current car and intent." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Generate" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="04" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="Drive &amp; Record" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Take it on track and capture what the car is actually doing." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Telemetry" Style="{StaticResource ModernButtonStyle}" Click="OpenTelemetry_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="05" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="Refine" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Use telemetry and driver feedback to iterate without starting over." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Refine Tune" Style="{StaticResource ModernButtonStyle}" Click="OpenTuningAssistant_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource WorkflowStepCard}" Margin="0">
-                    <StackPanel>
-                      <TextBlock Text="06" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
-                      <TextBlock Text="AC Setup" FontWeight="SemiBold" FontSize="14" Margin="0,4,0,3" TextWrapping="Wrap" />
-                      <TextBlock Text="Turn the refined target into car-level Assetto Corsa setup guidance." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="10" Margin="0,0,0,10" />
-                      <Button Content="Open AC Setup" Style="{StaticResource ModernButtonStyle}" Click="OpenCarSetup_Click" Margin="0" />
-                    </StackPanel>
-                  </Border>
-                </layout:AdaptivePanel>
+                <TextBlock Text="YOUR NEXT STEP" Style="{StaticResource CardKicker}"/>
+                <TextBlock x:Name="GuidedStepText" Text="Start your guided tuning workflow" Style="{StaticResource SectionTitle}" TextWrapping="Wrap" Margin="0,5"/>
+                <TextBlock x:Name="GuidedInstructionsText" TextWrapping="Wrap" Margin="0,5"/>
+                <TextBlock x:Name="GuidedProgressText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,5,0,10"/>
+                <TextBlock Text="Driver — progress is remembered for this car, rig and driver" TextWrapping="Wrap"/>
+                <ComboBox x:Name="GuidedDriverBox" IsEditable="True" DisplayMemberPath="Name" Text="Local driver" AutomationProperties.Name="Guided workflow driver" Margin="0,4"/>
+                <WrapPanel>
+                  <Button Content="Use This Driver" Click="SaveGuidedDriver_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                  <Button Content="Change My Setup" Click="OpenSetup_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                  <Button x:Name="GuidedCheckButton" Content="Check My Connection" Click="CheckDashboardIntegration_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                </WrapPanel>
+                <TextBlock x:Name="GuidedIntegrationText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6"/>
+                <CheckBox x:Name="GuidedReadyCheck" Visibility="Collapsed" Margin="0,8">
+                  <TextBlock Text="I reviewed the recommendations, loaded my chosen AC setup and entered/applied the settings I intend to test." TextWrapping="Wrap"/>
+                </CheckBox>
+                <WrapPanel>
+                  <Button x:Name="GuidedNextButton" Content="Next Step" Click="GuidedNext_Click" Style="{StaticResource PrimaryButtonStyle}" Margin="0,4,8,4"/>
+                  <Button x:Name="GuidedEditSetupButton" Content="Edit Desired Behavior / AC Setup" Click="OpenCarSetup_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                  <Button x:Name="GuidedPrepareChangeButton" Content="Review / Prepare Selected Change" Click="OpenTuningAssistant_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                  <Button x:Name="GuidedWheelbaseButton" Content="Wheelbase Settings" Click="OpenAzomSettings_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
+                  <Button x:Name="GuidedResetButton" Content="Start a New Baseline" Click="NewGuidedBaseline_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4" ToolTip="Restart guided progress for this car and driver. Saved runs, tunes and reviews remain available."/>
+                </WrapPanel>
+                <Expander Foreground="{DynamicResource PrimaryTextBrush}" Header="What does each Save or Apply button do?" Margin="0,10,0,0">
+                  <TextBlock Text="Save ADT Profile remembers your selections and generated recommendations.&#10;Save Desired Behavior remembers how you want this car to feel.&#10;Save AC Setup File creates a separate file: load it from AC's Setup menu.&#10;Apply Wheelbase Settings explicitly sends supported changes through a connected integration and checks readback.&#10;Save Session stores a recording. Save Run Review stores your rating and the comparison.&#10;Generating a recommendation does not apply it. You can use the sidebar tools at any time." TextWrapping="Wrap" Margin="0,8"/>
+                </Expander>
               </StackPanel>
             </Border>
             <!-- Primary dashboard row -->
@@ -386,6 +351,7 @@
                   </StackPanel>
                   <WrapPanel VerticalAlignment="Center" Margin="0,8,0,0">
                     <Button Content="Full AZOM" Style="{StaticResource ModernButtonStyle}" Click="OpenAzomSettings_Click" />
+                    <Button Content="Back to My Next Step" Click="BackToGuided_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
                     <Button Content="Generate New Tune" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0" />
                   </WrapPanel>
                 </StackPanel>

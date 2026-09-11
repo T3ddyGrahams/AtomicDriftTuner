@@ -2,6 +2,8 @@
 
 Recording controls, AC telemetry status and **Your Next Step** inside Assetto Corsa.
 
+Companion **0.1.0-preview.2** fixes the missing in-game window in preview 1. After installing or updating the companion, exit the current driving session and launch a new session so CSP reloads its app manifest. Desktop ADT preview 4 remains compatible.
+
 Requires desktop **ADT 0.9.0-preview.4 or newer** running on the same PC, and Custom Shaders Patch with Lua app support. The public ADT preview 3 does not have these companion endpoints. No SimHub/AZOM installation is needed for AC telemetry recording.
 
 ## Install with Content Manager

@@ -8,14 +8,14 @@
         <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}"><Setter Property="Margin" Value="0,3,0,8"/><Setter Property="Padding" Value="7"/></Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}"><Setter Property="Margin" Value="0,3,8,3"/><Setter Property="MinWidth" Value="170"/></Style>
         <Style TargetType="CheckBox" BasedOn="{StaticResource AtomicCheckBoxStyle}"><Setter Property="Margin" Value="0,6,0,6"/></Style>
-        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,5,8,5"/><Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Style>
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,5,8,5"/><Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/></Style>
         <Style TargetType="DataGrid" BasedOn="{StaticResource AtomicDataGridStyle}"><Setter Property="GridLinesVisibility" Value="Horizontal"/></Style>
     </Window.Resources>
     <Grid x:Name="AzomLayoutRoot" Margin="18">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer MaxHeight="110" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="FULL AZOM BASE SETTINGS" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="FULL AZOM BASE SETTINGS" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
             <TextBlock x:Name="SetupText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,8" TextWrapping="Wrap"/>
             <TextBlock Text="TUNED = generated per hardware/car/drift target. PREFERENCE = preserved unless you explicitly include it in a live apply." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
         </StackPanel>
@@ -24,10 +24,10 @@
             <TabItem Header="Live AZOM"><ScrollViewer x:Name="LiveAzomScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="10">
                 <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="14" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Text="SIMHUB + AZOM LIVE BRIDGE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="SIMHUB + AZOM LIVE BRIDGE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
                         <TextBlock Text="Every Live Apply is serialized and verified against AZOM readback. ADT uses the guarded exact AZOM Base-setting commit path first, then documented SimHub/AZOM action fallbacks only when needed." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,4"/>
                         <TextBlock Text="WRITE SAFETY: stop driving before Apply/Revert • explicit Apply only • one write batch at a time • duplicate live targets are suppressed • direct commits are spaced and verified • interactive writes are coordinated with Apply/Revert." Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                        <TextBlock Text="SimHubWPF.exe"/><TextBox x:Name="SimHubPathBox"/>
+                        <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="SimHubWPF.exe"/><TextBox x:Name="SimHubPathBox"/>
                         <WrapPanel>
                             <Button x:Name="AutoDetectSimHubButton" Content="Auto Detect SimHub" Click="AutoDetectSimHub_Click"/>
                             <Button x:Name="BrowseSimHubButton" Content="Browse..." Click="BrowseSimHub_Click"/>
@@ -39,7 +39,7 @@
                 <StackPanel Margin="0,0,0,10">
                     <WrapPanel>
                         <CheckBox x:Name="IncludePreferencesBox" VerticalAlignment="Center" Margin="0,7,16,7" Checked="IncludePreferencesBox_Changed" Unchecked="IncludePreferencesBox_Changed">
-                            <TextBlock Text="Include preference toggles/settings" TextWrapping="Wrap" Width="180"/>
+                            <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Include preference toggles/settings" TextWrapping="Wrap" Width="180"/>
                         </CheckBox>
                         <Button x:Name="RefreshComparisonButton" Content="Refresh Comparison" Click="RefreshComparison_Click"/>
                         <Button x:Name="ApplySelectedButton" Content="APPLY SELECTED" Click="ApplyLiveAzom_Click" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold"/>
@@ -95,40 +95,40 @@
                 </DataGrid>
             </StackPanel></ScrollViewer></TabItem>
             <TabItem Header="Core + Effects"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="10">
-                <TextBlock Text="CORE SETTINGS  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="CoreText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
-                <TextBlock Text="WHEELBASE EFFECTS  •  TUNED / FIXED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="WheelbaseText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
-                <TextBlock Text="GAME EFFECTS  •  FIXED STARTING BASELINE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="GameEffectsText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
-                <TextBlock Text="PROTECTION  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="ProtectionText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
-                <TextBlock Text="HIGH SPEED DAMPING  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="HighSpeedText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
-                <TextBlock Text="SOFT LIMIT  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock x:Name="SoftLimitText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="CORE SETTINGS  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="CoreText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="WHEELBASE EFFECTS  •  TUNED / FIXED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="WheelbaseText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="GAME EFFECTS  •  FIXED STARTING BASELINE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="GameEffectsText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PROTECTION  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="ProtectionText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HIGH SPEED DAMPING  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="HighSpeedText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="SOFT LIMIT  •  TUNED + PREFERENCE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="SoftLimitText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,18"/>
             </StackPanel></ScrollViewer></TabItem>
             <TabItem Header="Equalizer + Curve"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="10">
-                <TextBlock Text="FFB EQUALIZER  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="FFB EQUALIZER  •  TUNED" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
                 <TextBlock Text="ADT only auto-writes the six-band EQ when AZOM reports six-band/legacy firmware. 10-band EQ is read but currently left untouched for frequency safety." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,8" TextWrapping="Wrap"/>
-                <TextBlock x:Name="EqualizerText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,4,0,18"/>
-                <TextBlock Text="FFB OUTPUT CURVE  •  FIXED LINEAR DRIFT BASELINE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
-                <TextBlock x:Name="CurveText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,10"/>
+                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="EqualizerText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,4,0,18"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="FFB OUTPUT CURVE  •  FIXED LINEAR DRIFT BASELINE" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" x:Name="CurveText" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,8,0,10"/>
                 <TextBlock Text="Available AZOM curve modes: Linear, S Curve, Exponential, Parabolic. ADT currently recommends Linear for predictable drift response." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
             </StackPanel></ScrollViewer></TabItem>
             <TabItem Header="Preferences"><ScrollViewer x:Name="AzomPreferencesScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="AzomPreferencesPanel" Margin="10" MaxWidth="520" HorizontalAlignment="Stretch">
-                <TextBlock Text="GEARSHIFT VIBRATION" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
-                <TextBlock Text="Shift Intensity (0–5)"/><TextBox x:Name="ShiftIntensityBox"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="GEARSHIFT VIBRATION" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Shift Intensity (0–5)"/><TextBox x:Name="ShiftIntensityBox"/>
                 <CheckBox x:Name="VibrateNeutralBox" Content="Vibrate on Neutral"/>
-                <TextBlock Text="Shift Debounce (0–1000 ms)"/><TextBox x:Name="ShiftDebounceBox"/>
+                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Shift Debounce (0–1000 ms)"/><TextBox x:Name="ShiftDebounceBox"/>
                 <Separator Margin="0,10"/>
-                <TextBlock Text="PROTECTION / SOFT LIMIT" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PROTECTION / SOFT LIMIT" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
                 <CheckBox x:Name="HandsOffBox" Content="Hands-Off Protection"/>
-                <CheckBox x:Name="RetainGameFfbBox"><TextBlock Text="Retain Game FFB at Soft Limit" TextWrapping="Wrap"/></CheckBox>
+                <CheckBox x:Name="RetainGameFfbBox"><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Retain Game FFB at Soft Limit" TextWrapping="Wrap"/></CheckBox>
                 <Separator Margin="0,10"/>
-                <TextBlock Text="MISCELLANEOUS" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
-                <CheckBox x:Name="FfbReversalBox" ><TextBlock Text="Force Feedback Reversal" TextWrapping="Wrap"/></CheckBox>
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="MISCELLANEOUS" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                <CheckBox x:Name="FfbReversalBox" ><TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Force Feedback Reversal" TextWrapping="Wrap"/></CheckBox>
                 <CheckBox x:Name="StandbyModeBox" Content="Standby Mode"/>
-                <TextBlock Text="Standby After (AZOM dropdown value; not exposed for live control)" TextWrapping="Wrap"/><TextBox x:Name="StandbyAfterBox"/>
+                <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Standby After (AZOM dropdown value; not exposed for live control)" TextWrapping="Wrap"/><TextBox x:Name="StandbyAfterBox"/>
                 <CheckBox x:Name="BaseStatusLedBox" Content="Base Status LED"/>
                 <CheckBox x:Name="BluetoothBox" Content="Bluetooth"/>
                 <TextBlock Text="ADT does not change these per car. Live Apply ignores them unless you check Include preference toggles/settings." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
             </StackPanel></ScrollViewer></TabItem>
-            <TabItem Header="All Settings"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="AllSettingsText" Margin="10" FontFamily="Consolas" TextWrapping="Wrap"/></ScrollViewer></TabItem>
+            <TabItem Header="All Settings"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AllSettingsText" Margin="10" FontFamily="Consolas" TextWrapping="Wrap"/></ScrollViewer></TabItem>
         </TabControl>
         <StackPanel x:Name="AzomSaveFooter" Grid.Row="2">
             <WrapPanel>

@@ -14,6 +14,8 @@ to:
 
 ADT is currently in public beta, so priorities may change as real-world testing exposes new problems and opportunities.
 
+September 11 appearance update: **0.9.0-preview.3** fixes heading colors and adds 35 color controls (72 total), including expanders, button states, scrollbars, sliders, tooltips and menus. Remote follows the saved palette after refresh. See [Appearance and readability](docs/APPEARANCE.md). Validation passed 167 theme assertions, 252 layout assertions and 50 regression scenarios; hands-on acceptance remains.
+
 September 11 development update: **0.9.0-preview.2** adds adaptive SimHub/AZOM onboarding, a saved Next Step workflow, clearer Save/Apply instructions, and recommendation → recording → comparison handoffs. See the [guided workflow and tonight's test steps](docs/GUIDED_WORKFLOW.md). Local preview validation is complete; hands-on acceptance and a public release remain separate steps.
 
 Development update (September 8, 2026): the local 0.9.0-preview.1 build implements phase diagnosis tied to recorded Desired Behavior, driver-scoped tune/run history, explicit before/after comparisons and saved outcome reviews. See the [telemetry intelligence preview and driving test guide](docs/TELEMETRY_INTELLIGENCE.md). This work is ready for driving validation; it has not been published as a new public beta and does not yet provide learned optimal setups or prove tuning causation.

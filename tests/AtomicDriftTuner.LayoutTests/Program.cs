@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 using System.Xml.Linq;
 using AtomicDriftTuner.Controls;
 
-internal static class Program
+internal static partial class Program
 {
     private static readonly XNamespace X = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static int _checks;
@@ -57,6 +57,7 @@ internal static class Program
             if (!app.Resources.Contains("AppBackgroundBrush"))
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
+            CheckThemeCoverage(repo, output);
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
@@ -155,9 +156,10 @@ internal static class Program
         var ns = application.Name.Namespace;
         var resources = application.Element(ns + "Application.Resources")
             ?? throw new Exception("Application.Resources is missing from production App.xaml.");
-        var dictionary = new XElement(ns + "ResourceDictionary",
+        var dictionary = resources.Element(ns + "ResourceDictionary") ?? new XElement(ns + "ResourceDictionary",
             application.Attributes().Where(a => a.IsNamespaceDeclaration),
             resources.Elements());
+        dictionary.SetAttributeValue(XNamespace.Xmlns + "x", X.NamespaceName);
         return (ResourceDictionary)XamlReader.Parse(dictionary.ToString(), new ParserContext
         { BaseUri = new Uri("pack://application:,,,/AtomicDriftTuner;component/") });
     }
@@ -193,7 +195,7 @@ internal static class Program
     }
 
     private static void TextElementForeground(FrameworkElement root) =>
-        root.SetValue(System.Windows.Documents.TextElement.ForegroundProperty, Brushes.White);
+        root.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, "FieldLabelBrush");
 
     private static void Layout(FrameworkElement root, Size size)
     {
@@ -258,6 +260,9 @@ internal static class Program
     {
         Progress($"Rendering {Path.GetFileName(path)}");
         var target = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+        var backdrop = new DrawingVisual();
+        using (var drawing = backdrop.RenderOpen()) drawing.DrawRectangle((Brush)Application.Current.Resources["AppBackgroundBrush"], null, new Rect(size));
+        target.Render(backdrop);
         target.Render(root);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(target));
         using var stream = File.Create(path); encoder.Save(stream);

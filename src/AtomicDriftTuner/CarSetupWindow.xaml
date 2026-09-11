@@ -8,7 +8,7 @@
     <Window.Resources>
         <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}"><Setter Property="Padding" Value="7"/><Setter Property="Margin" Value="0,4,0,8"/></Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}"><Setter Property="Padding" Value="7"/><Setter Property="Margin" Value="0,4,0,8"/></Style>
-        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Style>
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/></Style>
     </Window.Resources>
     <Grid x:Name="CarSetupLayoutRoot" Margin="18">
         <Grid.RowDefinitions>
@@ -18,14 +18,14 @@
         <ScrollViewer x:Name="CarSetupScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <StackPanel>
-                    <TextBlock Text="ASSETTO CORSA CAR SETUP TUNER" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSETTO CORSA CAR SETUP TUNER" FontSize="24" FontWeight="Bold" Visibility="Collapsed"/>
                     <TextBlock x:Name="CarSummaryText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <Border CornerRadius="10" Padding="14" Margin="0,0,0,12">
                     <layout:AdaptivePanel x:Name="BaselineControlsPanel" MinItemWidth="300" MaxColumns="2" Spacing="12">
                         <StackPanel>
-                            <TextBlock Text="Baseline saved setup (.ini)" FontWeight="Bold"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Baseline saved setup (.ini)" FontWeight="Bold"/>
                             <ComboBox x:Name="BaselineBox" SelectionChanged="BaselineBox_SelectionChanged"/>
                             <WrapPanel>
                                 <Button Content="Refresh AC Setups" Click="RefreshSetups_Click"/>
@@ -35,7 +35,7 @@
                             <TextBlock x:Name="RangeStatusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <StackPanel x:Name="GenerationControls">
-                            <TextBlock Text="Tuning aggressiveness" FontWeight="Bold"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Tuning aggressiveness" FontWeight="Bold"/>
                             <ComboBox x:Name="AggressivenessBox" SelectionChanged="AggressivenessBox_SelectionChanged"/>
                             <Button Content="GENERATE CAR SETUP" Click="GenerateSetup_Click" FontWeight="Bold" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}"/>
                         </StackPanel>
@@ -46,7 +46,7 @@
                 <Expander IsExpanded="True" Margin="0,0,0,12" HorizontalContentAlignment="Stretch">
                     <Expander.Header>
                         <WrapPanel>
-                            <TextBlock Text="DESIRED CAR BEHAVIOR" FontWeight="Bold"/>
+                            <TextBlock Foreground="{DynamicResource ExpanderHeaderBrush}" Text="DESIRED CAR BEHAVIOR" FontWeight="Bold"/>
                             <TextBlock Text="  • saved per car" Foreground="{DynamicResource SecondaryTextBrush}"/>
                         </WrapPanel>
                     </Expander.Header>
@@ -54,7 +54,7 @@
                         <StackPanel>
                             <WrapPanel Margin="0,0,0,8">
                                 <StackPanel Width="210" Margin="0,0,8,0">
-                                    <TextBlock Text="Behavior preset" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Behavior preset" FontWeight="Bold"/>
                                     <ComboBox x:Name="BehaviorPresetBox" SelectionChanged="BehaviorPresetBox_SelectionChanged"/>
                                 </StackPanel>
                                 <Button Content="Reset Neutral" Click="ResetBehavior_Click" VerticalAlignment="Bottom"/>
@@ -62,7 +62,7 @@
 
                             <layout:AdaptivePanel x:Name="BehaviorSliders" MinItemWidth="300" MaxColumns="2" Spacing="22">
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Front-end bite" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Front-end bite" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Calmer" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -73,7 +73,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Rear grip" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Rear grip" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Loose" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -84,7 +84,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Self-steer speed" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Self-steer speed" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Slower" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -95,7 +95,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Transition speed" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Transition speed" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Smooth" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -106,7 +106,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Angle stability" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Angle stability" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Lively" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -117,7 +117,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Throttle steering" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Throttle steering" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Less rotation" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -128,7 +128,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="0,4,0,8">
-                                    <TextBlock Text="Initiation" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Initiation" FontWeight="Bold"/>
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Progressive" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
@@ -139,7 +139,7 @@
                                 </StackPanel>
                             </layout:AdaptivePanel>
 
-                            <TextBlock x:Name="BehaviorStatusText" Margin="0,8,0,0" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="BehaviorStatusText" Margin="0,8,0,0" FontWeight="Bold" TextWrapping="Wrap"/>
 
                             <Border Background="{DynamicResource PanelBrush}"
                                     BorderThickness="1"
@@ -147,7 +147,7 @@
                                     Padding="10"
                                     Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="BEHAVIOR BLEND" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="BEHAVIOR BLEND" FontWeight="Bold"/>
                                     <TextBlock x:Name="BehaviorBlendPreviewText"
                                                Foreground="{DynamicResource SecondaryTextBrush}"
                                                TextWrapping="Wrap"
@@ -191,7 +191,7 @@
                     <Button x:Name="SaveGeneratedButton" Content="Save AC Setup File..." Click="SaveGenerated_Click" FontWeight="Bold" IsEnabled="False" ToolTip="Write the generated recommendations as a separate Assetto Corsa setup file."/>
                 </WrapPanel>
                 <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <TextBlock x:Name="SetupStatusText" Text="Load a baseline setup to begin." FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="SetupStatusText" Text="Load a baseline setup to begin." FontWeight="Bold" TextWrapping="Wrap"/>
                 </ScrollViewer>
             </StackPanel>
         </Border>

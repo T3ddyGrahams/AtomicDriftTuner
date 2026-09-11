@@ -16,9 +16,9 @@
         <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,5,8,5"/>
-            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
         </Style>
     </Window.Resources>
 
@@ -32,8 +32,8 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="APPEARANCE + READABILITY" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
-            <TextBlock Text="Input fields, tables, tabs, checkboxes and dropdowns are controlled here. This window is modeless: leave it open beside other ADT windows. Valid color edits preview across the app without changing tuning, AZOM, telemetry, calibration, or car-setup state. Closing this window restores the last saved theme."
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="APPEARANCE + READABILITY" FontSize="25" FontWeight="Bold" Visibility="Collapsed"/>
+            <TextBlock Text="Headings, labels, buttons, sliders, scrollbars, tooltips, inputs, tables and navigation colors are controlled here. Choose an element in Editing or scroll the color fields. Colors are shared by role across ADT; Windows file dialogs, window borders and the logo artwork keep their own colors. This window is modeless: leave it open beside other ADT windows. Valid color edits preview across the app without changing tuning, AZOM, telemetry, calibration, or car-setup state. Closing this window restores the last saved theme."
                        Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap"
                        Margin="0,4,0,12"/>
@@ -47,69 +47,73 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBlock Text="PRESET" FontWeight="Bold"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PRESET" FontWeight="Bold"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_SelectionChanged"/>
 
-                    <TextBlock Text="GENERAL COLORS" FontWeight="Bold" Margin="0,8,0,4"/>
-                    <TextBlock Text="Background"/><TextBox x:Name="BackgroundBox" Tag="BackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Sidebar / Surface"/><TextBox x:Name="SurfaceBox" Tag="SurfaceBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Panel"/><TextBox x:Name="PanelBox" Tag="PanelBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Alternate Panel"/><TextBox x:Name="PanelAltBox" Tag="PanelAltBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Border"/><TextBox x:Name="BorderBox" Tag="BorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Primary Text"/><TextBox x:Name="PrimaryTextBox" Tag="PrimaryTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Secondary Text"/><TextBox x:Name="SecondaryTextBox" Tag="SecondaryTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Muted Text"/><TextBox x:Name="MutedTextBox" Tag="MutedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Accent"/><TextBox x:Name="AccentBox" Tag="AccentBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Accent Text"/><TextBox x:Name="AccentTextBox" Tag="AccentTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HEADINGS + CONTROL DETAILS" FontWeight="Bold" Margin="0,8,0,4"/>
+                    <TextBlock Text="For the dark Core Settings / Effects headings, choose Section headings. Save Theme remembers your changes." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <StackPanel x:Name="AdditionalColorsPanel"/>
 
-                    <TextBlock Text="INPUT / FIELD COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
-                    <TextBlock Text="Field Background"/><TextBox x:Name="InputBox" Tag="InputBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Field Text"/><TextBox x:Name="InputTextBox" Tag="InputTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Field Border"/><TextBox x:Name="InputBorderBox" Tag="InputBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="GENERAL COLORS" FontWeight="Bold" Margin="0,8,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Background"/><TextBox x:Name="BackgroundBox" Tag="BackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Sidebar / Surface"/><TextBox x:Name="SurfaceBox" Tag="SurfaceBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Panel"/><TextBox x:Name="PanelBox" Tag="PanelBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Alternate Panel"/><TextBox x:Name="PanelAltBox" Tag="PanelAltBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Border"/><TextBox x:Name="BorderBox" Tag="BorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Primary Text"/><TextBox x:Name="PrimaryTextBox" Tag="PrimaryTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Secondary Text"/><TextBox x:Name="SecondaryTextBox" Tag="SecondaryTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Muted Text"/><TextBox x:Name="MutedTextBox" Tag="MutedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Accent"/><TextBox x:Name="AccentBox" Tag="AccentBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Accent Text"/><TextBox x:Name="AccentTextBox" Tag="AccentTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
 
-                    <TextBlock Text="TABLE / GRID COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
-                    <TextBlock Text="Row Background"/><TextBox x:Name="GridBackgroundBox" Tag="GridBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Alternate Row"/><TextBox x:Name="GridAlternateBox" Tag="GridAlternateBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Cell Text"/><TextBox x:Name="GridTextBox" Tag="GridTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Header Background"/><TextBox x:Name="GridHeaderBackgroundBox" Tag="GridHeaderBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Header Text"/><TextBox x:Name="GridHeaderTextBox" Tag="GridHeaderTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Selected Row Background"/><TextBox x:Name="GridSelectedBackgroundBox" Tag="GridSelectedBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Selected Row Text"/><TextBox x:Name="GridSelectedTextBox" Tag="GridSelectedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Grid Lines"/><TextBox x:Name="GridLineBox" Tag="GridLineBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="INPUT / FIELD COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Field Background"/><TextBox x:Name="InputBox" Tag="InputBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Field Text"/><TextBox x:Name="InputTextBox" Tag="InputTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Field Border"/><TextBox x:Name="InputBorderBox" Tag="InputBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
 
-                    <TextBlock Text="TAB / SECTION NAVIGATION COLORS" TextWrapping="Wrap" FontWeight="Bold" Margin="0,12,0,4"/>
-                    <TextBlock Text="Tab Background"/><TextBox x:Name="TabBackgroundBox" Tag="TabBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Tab Text"/><TextBox x:Name="TabTextBox" Tag="TabTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Active Tab Background"/><TextBox x:Name="TabSelectedBackgroundBox" Tag="TabSelectedBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Active Tab Text"/><TextBox x:Name="TabSelectedTextBox" Tag="TabSelectedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Tab Border"/><TextBox x:Name="TabBorderBox" Tag="TabBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TABLE / GRID COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Row Background"/><TextBox x:Name="GridBackgroundBox" Tag="GridBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Alternate Row"/><TextBox x:Name="GridAlternateBox" Tag="GridAlternateBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Cell Text"/><TextBox x:Name="GridTextBox" Tag="GridTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Header Background"/><TextBox x:Name="GridHeaderBackgroundBox" Tag="GridHeaderBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Header Text"/><TextBox x:Name="GridHeaderTextBox" Tag="GridHeaderTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Selected Row Background"/><TextBox x:Name="GridSelectedBackgroundBox" Tag="GridSelectedBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Selected Row Text"/><TextBox x:Name="GridSelectedTextBox" Tag="GridSelectedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Grid Lines"/><TextBox x:Name="GridLineBox" Tag="GridLineBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
 
-                    <TextBlock Text="CHECKBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
-                    <TextBlock Text="Label / Text"/><TextBox x:Name="CheckBoxTextBox" Tag="CheckBoxTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Box Background"/><TextBox x:Name="CheckBoxBackgroundBox" Tag="CheckBoxBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Box Border"/><TextBox x:Name="CheckBoxBorderBox" Tag="CheckBoxBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Check Mark"/><TextBox x:Name="CheckBoxCheckMarkBox" Tag="CheckBoxCheckMarkBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TAB / SECTION NAVIGATION COLORS" TextWrapping="Wrap" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Tab Background"/><TextBox x:Name="TabBackgroundBox" Tag="TabBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Tab Text"/><TextBox x:Name="TabTextBox" Tag="TabTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Active Tab Background"/><TextBox x:Name="TabSelectedBackgroundBox" Tag="TabSelectedBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Active Tab Text"/><TextBox x:Name="TabSelectedTextBox" Tag="TabSelectedTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Tab Border"/><TextBox x:Name="TabBorderBox" Tag="TabBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
 
-                    <TextBlock Text="DROPDOWN / COMBOBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
-                    <TextBlock Text="Closed Background"/><TextBox x:Name="ComboBackgroundBox" Tag="ComboBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Closed Text"/><TextBox x:Name="ComboTextBox" Tag="ComboTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Popup Background"/><TextBox x:Name="ComboDropBackgroundBox" Tag="ComboDropBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Popup Text"/><TextBox x:Name="ComboDropTextBox" Tag="ComboDropTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Selected / Hover Highlight"/><TextBox x:Name="ComboHighlightBox" Tag="ComboHighlightBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Highlight Text"/><TextBox x:Name="ComboHighlightTextBox" Tag="ComboHighlightTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
-                    <TextBlock Text="Dropdown Border"/><TextBox x:Name="ComboBorderBox" Tag="ComboBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="CHECKBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Label / Text"/><TextBox x:Name="CheckBoxTextBox" Tag="CheckBoxTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Box Background"/><TextBox x:Name="CheckBoxBackgroundBox" Tag="CheckBoxBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Box Border"/><TextBox x:Name="CheckBoxBorderBox" Tag="CheckBoxBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Check Mark"/><TextBox x:Name="CheckBoxCheckMarkBox" Tag="CheckBoxCheckMarkBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="DROPDOWN / COMBOBOX COLORS" FontWeight="Bold" Margin="0,12,0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Closed Background"/><TextBox x:Name="ComboBackgroundBox" Tag="ComboBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Closed Text"/><TextBox x:Name="ComboTextBox" Tag="ComboTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Popup Background"/><TextBox x:Name="ComboDropBackgroundBox" Tag="ComboDropBackgroundBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Popup Text"/><TextBox x:Name="ComboDropTextBox" Tag="ComboDropTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Selected / Hover Highlight"/><TextBox x:Name="ComboHighlightBox" Tag="ComboHighlightBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Highlight Text"/><TextBox x:Name="ComboHighlightTextBox" Tag="ComboHighlightTextBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Dropdown Border"/><TextBox x:Name="ComboBorderBox" Tag="ComboBorderBox" GotFocus="ColorBox_GotFocus" TextChanged="ColorBox_TextChanged"/>
                 </StackPanel>
             </ScrollViewer>
 
             <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="14" Padding="14" VerticalAlignment="Top">
                 <StackPanel>
-                    <TextBlock Text="COLOR WHEEL" FontSize="19" FontWeight="Bold"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="COLOR WHEEL" FontSize="19" FontWeight="Bold"/>
                     <TextBlock Text="Editing:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0"/>
                     <ComboBox x:Name="ColorTargetBox" SelectionChanged="ColorTargetBox_SelectionChanged"/>
                     <Viewbox MaxWidth="292" StretchDirection="DownOnly" HorizontalAlignment="Center">
                         <controls:ColorWheelPicker x:Name="ColorWheel" ColorChanged="ColorWheel_ColorChanged"/>
                     </Viewbox>
-                    <TextBlock Text="READABILITY CHECK" FontWeight="Bold" Margin="4,12,4,0"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="READABILITY CHECK" FontWeight="Bold" Margin="4,12,4,0"/>
                     <TextBlock x:Name="ContrastText"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
@@ -123,7 +127,7 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBlock Text="LIVE PREVIEW" FontSize="19" FontWeight="Bold"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="LIVE PREVIEW" FontSize="19" FontWeight="Bold"/>
                     <TextBlock Text="The wheel and valid typed colors preview immediately. Save Theme persists them throughout ADT; closing restores the last saved theme."
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
@@ -131,7 +135,7 @@
 
                     <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="Input field readability" FontWeight="Bold"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Input field readability" FontWeight="Bold"/>
                             <TextBlock Text="Example value field" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,5,0,2"/>
                             <TextBox Text="Maximum Wheel Speed = 142%"/>
                         </StackPanel>
@@ -144,7 +148,7 @@
                             Padding="12"
                             Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="Full AZOM-style table preview" TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Full AZOM-style table preview" TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,8"/>
                             <DataGrid x:Name="PreviewGrid"
                                       AutoGenerateColumns="False"
                                       IsReadOnly="True"
@@ -169,13 +173,13 @@
                             Padding="14"
                             Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="Checkbox readability" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Checkbox readability" FontWeight="Bold" Margin="0,0,0,8"/>
                             <CheckBox HorizontalContentAlignment="Stretch" IsChecked="True">
-                                <TextBlock Text="Include preference toggles/settings" TextWrapping="Wrap"/>
+                                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Include preference toggles/settings" TextWrapping="Wrap"/>
                             </CheckBox>
                             <CheckBox Content="Hands-Off Protection" IsChecked="False"/>
                             <CheckBox HorizontalContentAlignment="Stretch" IsChecked="{x:Null}" IsThreeState="True">
-                                <TextBlock Text="Retain Game FFB at Soft Limit" TextWrapping="Wrap"/>
+                                <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Retain Game FFB at Soft Limit" TextWrapping="Wrap"/>
                             </CheckBox>
                             <TextBlock Text="Checkbox label text, box background, border and check mark are all independent theme colors."
                                        Foreground="{DynamicResource SecondaryTextBrush}"
@@ -191,16 +195,16 @@
                             Padding="12"
                             Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="Tab readability" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Tab readability" FontWeight="Bold" Margin="0,0,0,8"/>
                             <TabControl Height="130">
                                 <TabItem Header="Live AZOM">
-                                    <TextBlock Text="Selected-tab content remains on the normal surface." Margin="12" TextWrapping="Wrap"/>
+                                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Selected-tab content remains on the normal surface." Margin="12" TextWrapping="Wrap"/>
                                 </TabItem>
                                 <TabItem Header="Last Batch">
-                                    <TextBlock Text="Unselected and selected headers use separate colors." Margin="12" TextWrapping="Wrap"/>
+                                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Unselected and selected headers use separate colors." Margin="12" TextWrapping="Wrap"/>
                                 </TabItem>
                                 <TabItem Header="Core + Effects">
-                                    <TextBlock Text="All section tabs use the same global theme resources." Margin="12" TextWrapping="Wrap"/>
+                                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="All section tabs use the same global theme resources." Margin="12" TextWrapping="Wrap"/>
                                 </TabItem>
                             </TabControl>
                         </StackPanel>
@@ -212,7 +216,7 @@
                             CornerRadius="10"
                             Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Dropdown readability" FontWeight="Bold"/>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Dropdown readability" FontWeight="Bold"/>
                             <TextBlock Text="Open this menu to preview popup, hover and selection colors."
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        Margin="0,4,0,8"

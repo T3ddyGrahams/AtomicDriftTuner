@@ -22,7 +22,7 @@
     <Style x:Key="SectionTitle" TargetType="TextBlock">
       <Setter Property="FontSize" Value="16" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource SectionHeadingBrush}" />
     </Style>
     <Style x:Key="CardKicker" TargetType="TextBlock">
       <Setter Property="FontSize" Value="10" />
@@ -48,39 +48,15 @@
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="Padding" Value="12" />
     </Style>
-    <Style x:Key="ModernButtonStyle" TargetType="Button">
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-      <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Style x:Key="ModernButtonStyle" TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}">
+      <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="13,8" />
       <Setter Property="Margin" Value="0,0,8,0" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="ButtonBorder" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True" />
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-              </Trigger>
-              <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.78" />
-              </Trigger>
-              <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="2" />
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.4" />
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
     </Style>
     <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
       <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
@@ -96,7 +72,7 @@
       <Setter Property="FontWeight" Value="Normal" />
     </Style>
     <Style x:Key="ActiveNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
-      <Setter Property="Background" Value="{DynamicResource PanelAltBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
@@ -138,7 +114,7 @@
           <Image Source="Assets/ADT.png" Width="34" Height="34" Margin="8,0,0,0" AutomationProperties.Name="Atomic Drift Tuner" />
         </StackPanel>
         <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" x:Name="BrandCaption">
-          <TextBlock Text="ATOMIC DRIFT TUNER" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ATOMIC DRIFT TUNER" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
           <TextBlock Text="TUNE  •  ANALYZE  •  PERFECT" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
         </StackPanel>
         <Border Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PanelAltBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="5" Padding="9,4" x:Name="HeaderVersionBadge">
@@ -210,7 +186,7 @@
             <!-- Page heading -->
             <Grid Margin="0,0,0,16">
               <StackPanel>
-                <TextBlock Text="Dashboard" FontSize="27" FontWeight="Bold" TextWrapping="Wrap" />
+                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Dashboard" FontSize="27" FontWeight="Bold" TextWrapping="Wrap" />
                 <TextBlock Text="Follow the drift-tuning loop from car detection through refinement and final AC setup." Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
@@ -219,9 +195,9 @@
               <StackPanel>
                 <TextBlock Text="YOUR NEXT STEP" Style="{StaticResource CardKicker}"/>
                 <TextBlock x:Name="GuidedStepText" Text="Start your guided tuning workflow" Style="{StaticResource SectionTitle}" TextWrapping="Wrap" Margin="0,5"/>
-                <TextBlock x:Name="GuidedInstructionsText" TextWrapping="Wrap" Margin="0,5"/>
+                <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="GuidedInstructionsText" TextWrapping="Wrap" Margin="0,5"/>
                 <TextBlock x:Name="GuidedProgressText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,5,0,10"/>
-                <TextBlock Text="Driver — progress is remembered for this car, rig and driver" TextWrapping="Wrap"/>
+                <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver — progress is remembered for this car, rig and driver" TextWrapping="Wrap"/>
                 <ComboBox x:Name="GuidedDriverBox" IsEditable="True" DisplayMemberPath="Name" Text="Local driver" AutomationProperties.Name="Guided workflow driver" Margin="0,4"/>
                 <WrapPanel>
                   <Button Content="Use This Driver" Click="SaveGuidedDriver_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
@@ -230,7 +206,7 @@
                 </WrapPanel>
                 <TextBlock x:Name="GuidedIntegrationText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6"/>
                 <CheckBox x:Name="GuidedReadyCheck" Visibility="Collapsed" Margin="0,8">
-                  <TextBlock Text="I reviewed the recommendations, loaded my chosen AC setup and entered/applied the settings I intend to test." TextWrapping="Wrap"/>
+                  <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="I reviewed the recommendations, loaded my chosen AC setup and entered/applied the settings I intend to test." TextWrapping="Wrap"/>
                 </CheckBox>
                 <WrapPanel>
                   <Button x:Name="GuidedNextButton" Content="Next Step" Click="GuidedNext_Click" Style="{StaticResource PrimaryButtonStyle}" Margin="0,4,8,4"/>
@@ -240,7 +216,7 @@
                   <Button x:Name="GuidedResetButton" Content="Start a New Baseline" Click="NewGuidedBaseline_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4" ToolTip="Restart guided progress for this car and driver. Saved runs, tunes and reviews remain available."/>
                 </WrapPanel>
                 <Expander Foreground="{DynamicResource PrimaryTextBrush}" Header="What does each Save or Apply button do?" Margin="0,10,0,0">
-                  <TextBlock Text="Save ADT Profile remembers your selections and generated recommendations.&#10;Save Desired Behavior remembers how you want this car to feel.&#10;Save AC Setup File creates a separate file: load it from AC's Setup menu.&#10;Apply Wheelbase Settings explicitly sends supported changes through a connected integration and checks readback.&#10;Save Session stores a recording. Save Run Review stores your rating and the comparison.&#10;Generating a recommendation does not apply it. You can use the sidebar tools at any time." TextWrapping="Wrap" Margin="0,8"/>
+                  <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Save ADT Profile remembers your selections and generated recommendations.&#10;Save Desired Behavior remembers how you want this car to feel.&#10;Save AC Setup File creates a separate file: load it from AC's Setup menu.&#10;Apply Wheelbase Settings explicitly sends supported changes through a connected integration and checks readback.&#10;Save Session stores a recording. Save Run Review stores your rating and the comparison.&#10;Generating a recommendation does not apply it. You can use the sidebar tools at any time." TextWrapping="Wrap" Margin="0,8"/>
                 </Expander>
               </StackPanel>
             </Border>
@@ -277,7 +253,7 @@
                   <Border Style="{StaticResource InsetPanel}" Margin="0,2,0,10">
                     <StackPanel>
                       <TextBlock Text="Generated behavior estimate" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                      <TextBlock x:Name="BehaviorText" Margin="0,7,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" Text="Generate a tune to see behavior scores." />
+                      <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="BehaviorText" Margin="0,7,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" Text="Generate a tune to see behavior scores." />
                     </StackPanel>
                   </Border>
                   <Button Content="Open Tuning Assistant" Style="{StaticResource PrimaryButtonStyle}" Click="OpenTuningAssistant_Click" Margin="0,0,0,7" />
@@ -326,13 +302,13 @@
                     <Border Grid.Column="0" Style="{StaticResource InsetPanel}" Margin="0,0,6,0">
                       <StackPanel>
                         <TextBlock Text="STEERING" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                        <TextBlock x:Name="TelemetrySteeringText" Text="—" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="TelemetrySteeringText" Text="—" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
                       </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource InsetPanel}" Margin="6,0,0,0">
                       <StackPanel>
                         <TextBlock Text="THROTTLE / FFB" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                        <TextBlock x:Name="TelemetryThrottleFfbText" Text="—" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="TelemetryThrottleFfbText" Text="—" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap" />
                       </StackPanel>
                     </Border>
                   </Grid>
@@ -358,21 +334,21 @@
                 <layout:AdaptivePanel MinItemWidth="270" MaxColumns="3" Spacing="12">
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="AZOM / MOZA" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
-                      <TextBlock x:Name="AzomText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="AZOM / MOZA" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AzomText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="ASSETTO CORSA FFB" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
-                      <TextBlock x:Name="AcText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSETTO CORSA FFB" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AcText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="CAR DATA CONFIDENCE" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="CAR DATA CONFIDENCE" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
                       <TextBlock x:Name="ConfidenceScoreText" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" Margin="0,7,0,8" TextWrapping="Wrap" />
-                      <TextBlock x:Name="ConfidenceText" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="ConfidenceText" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>
                 </layout:AdaptivePanel>
@@ -390,7 +366,7 @@
                   <Button Content="Reset Saved Calibration" Style="{StaticResource ModernButtonStyle}" Click="ResetCalibration_Click" Margin="0" />
                 </StackPanel>
                 <StackPanel>
-                  <TextBlock Text="Self-steer speed" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Self-steer speed" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
                   <Grid Margin="0,2,0,8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="70" />
@@ -401,7 +377,7 @@
                     <Slider Grid.Column="1" x:Name="SelfSteerSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
                     <TextBlock Grid.Column="2" Text="Too fast" Style="{StaticResource LabelText}" VerticalAlignment="Center" TextAlignment="Right" TextWrapping="Wrap" />
                   </Grid>
-                  <TextBlock Text="FFB strength" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="FFB strength" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
                   <Grid Margin="0,2,0,8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="70" />
@@ -412,7 +388,7 @@
                     <Slider Grid.Column="1" x:Name="StrengthSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
                     <TextBlock Grid.Column="2" Text="Too strong" Style="{StaticResource LabelText}" VerticalAlignment="Center" TextAlignment="Right" TextWrapping="Wrap" />
                   </Grid>
-                  <TextBlock Text="Steering weight" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Steering weight" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
                   <Grid Margin="0,2,0,8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="70" />
@@ -423,7 +399,7 @@
                     <Slider Grid.Column="1" x:Name="WeightSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
                     <TextBlock Grid.Column="2" Text="Too heavy" Style="{StaticResource LabelText}" VerticalAlignment="Center" TextAlignment="Right" TextWrapping="Wrap" />
                   </Grid>
-                  <TextBlock Text="Detail / texture" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Detail / texture" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
                   <Grid Margin="0,2,0,8">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="70" />
@@ -434,7 +410,7 @@
                     <Slider Grid.Column="1" x:Name="DetailSlider" Minimum="-2" Maximum="2" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" Margin="8,0" />
                     <TextBlock Grid.Column="2" Text="Noisy" Style="{StaticResource LabelText}" VerticalAlignment="Center" TextAlignment="Right" TextWrapping="Wrap" />
                   </Grid>
-                  <TextBlock Text="Oscillation" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Oscillation" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
                   <Grid Margin="0,2,0,0">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="70" />
@@ -465,7 +441,7 @@
                 <layout:AdaptivePanel MinItemWidth="310" MaxColumns="3" Spacing="12">
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="ASSETTO CORSA INSTALL" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSETTO CORSA INSTALL" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
                       <TextBlock Text="Game root (folder containing content\cars)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="AcRootBox" />
                       <WrapPanel Margin="0,0,0,8">
@@ -474,30 +450,30 @@
                       </WrapPanel>
                       <Button Content="Rescan Installed Cars" Style="{StaticResource PrimaryButtonStyle}" Click="ScanCars_Click" Margin="0,0,0,8" />
                       <CheckBox x:Name="AutoScanCarsBox" IsChecked="True" Click="AutoDetectionSetting_Click" Margin="0,2,0,6">
-                        <TextBlock Text="Auto-scan installed cars on start / path change" TextWrapping="Wrap" />
+                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Auto-scan installed cars on start / path change" TextWrapping="Wrap" />
                       </CheckBox>
                       <CheckBox x:Name="AutoSelectActiveCarBox" IsChecked="True" Click="AutoDetectionSetting_Click" Margin="0,0,0,8">
-                        <TextBlock Text="Auto-select active AC car + inferred drift pack" TextWrapping="Wrap" />
+                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Auto-select active AC car + inferred drift pack" TextWrapping="Wrap" />
                       </CheckBox>
                       <TextBlock x:Name="ScanStatusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" FontSize="10" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="HARDWARE DETAILS" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HARDWARE DETAILS" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
                       <TextBlock Text="Peak Torque (Nm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="PeakTorqueBox" />
                       <TextBlock Text="Wheel Diameter (mm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="WheelDiameterBox" />
                       <TextBlock Text="Wheel Inertia Factor" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="WheelInertiaBox" />
-                      <TextBlock Text="PACK CONTEXT" FontSize="12" FontWeight="Bold" Margin="0,4,0,7" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PACK CONTEXT" FontSize="12" FontWeight="Bold" Margin="0,4,0,7" TextWrapping="Wrap" />
                       <TextBlock x:Name="PackInfoText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" FontSize="10" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Text="CAR DATA" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="CAR DATA" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
                       <Grid>
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="*" />
@@ -565,7 +541,7 @@
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Content="⌂  Dashboard" Style="{StaticResource ModernButtonStyle}" Click="ReturnToDashboard_Click" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                  <TextBlock x:Name="EmbeddedToolTitle" Text="Tool" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="EmbeddedToolTitle" Text="Tool" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" />
                   <TextBlock x:Name="EmbeddedToolSubtitle" Text="ADT workspace" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock x:Name="EmbeddedVersionText" Grid.Column="2" Text="ADT" VerticalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />

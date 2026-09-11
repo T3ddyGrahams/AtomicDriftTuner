@@ -14,9 +14,9 @@
                BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,4,8,4"/>
-            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
         </Style>
 
         <Style x:Key="Card" TargetType="Border">
@@ -39,7 +39,7 @@
         <StackPanel>
             <TextBlock x:Name="RecorderStepsText" Text="Connect → attach setup and confirm context → Record → Stop → Save Session → Review / Compare" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
             <Button x:Name="CompareSavedRunButton" Content="Review / Compare Saved Run" Click="CompareSavedRun_Click" IsEnabled="False" HorizontalAlignment="Left" Margin="0,0,0,8"/>
-            <TextBlock Text="TELEMETRY RECORDER + DRIFT SESSION ANALYZER"
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TELEMETRY RECORDER + DRIFT SESSION ANALYZER"
                        FontSize="24"
                        FontWeight="Bold"
                        Visibility="Collapsed"/>
@@ -55,34 +55,34 @@
                        TextWrapping="Wrap"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel x:Name="RunCapturePanel">
-                    <TextBlock Text="DRIVER, TUNE AND COMPARISON CONTEXT" FontWeight="Bold"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="DRIVER, TUNE AND COMPARISON CONTEXT" FontWeight="Bold"/>
                     <TextBlock Text="Each recording keeps its own Desired Behavior and tune snapshot. Use the same conditions and driving task for before/after tests."
                                TextWrapping="Wrap" Margin="0,6" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <layout:AdaptivePanel MinItemWidth="250" MaxColumns="2" Spacing="10">
                         <StackPanel>
-                            <TextBlock Text="Driver profile (choose or type a name)"/>
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver profile (choose or type a name)"/>
                             <ComboBox x:Name="DriverBox" IsEditable="True" DisplayMemberPath="Name" Text="Local driver" AutomationProperties.Name="Driver profile"/>
                         </StackPanel>
                         <StackPanel>
-                            <TextBlock Text="Tune version name"/>
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Tune version name"/>
                             <TextBox x:Name="TuneLabelBox" Text="Baseline" MaxLength="160" AutomationProperties.Name="Tune version name"/>
                         </StackPanel>
                     </layout:AdaptivePanel>
-                    <TextBlock Text="Track layout, conditions and driving task (reuse the same description for comparable runs)" TextWrapping="Wrap" Margin="0,8,0,2"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Track layout, conditions and driving task (reuse the same description for comparable runs)" TextWrapping="Wrap" Margin="0,8,0,2"/>
                     <TextBox x:Name="ConditionsBox" MaxLength="240" AutomationProperties.Name="Conditions and driving task"/>
-                    <TextBlock x:Name="RunTrackText" Text="Track is captured from the active AC session when recording starts." TextWrapping="Wrap" Margin="0,5"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="RunTrackText" Text="Track is captured from the active AC session when recording starts." TextWrapping="Wrap" Margin="0,5"/>
                     <WrapPanel>
                         <Button x:Name="AttachSetupButton" Content="Attach AC Setup Snapshot..." Click="AttachSetup_Click"/>
                         <Button Content="Clear Attachment" Click="ClearSetupAttachment_Click"/>
                     </WrapPanel>
-                    <TextBlock x:Name="SetupSnapshotText" Text="No AC setup attached. Generated ADT targets are captured; live hardware settings are not read." TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SetupSnapshotText" Text="No AC setup attached. Generated ADT targets are captured; live hardware settings are not read." TextWrapping="Wrap"/>
                     <CheckBox x:Name="TuneInUseCheck" Margin="0,8">
-                        <TextBlock Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
                     </CheckBox>
-                    <TextBlock Text="Recommendation baseline (optional; leave empty for a baseline run)" TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Recommendation baseline (optional; leave empty for a baseline run)" TextWrapping="Wrap"/>
                     <ComboBox x:Name="RecommendationRunBox" AutomationProperties.Name="Recommendation baseline run"/>
                     <Button Content="Clear Recommendation Baseline" Click="ClearRecommendationBaseline_Click" HorizontalAlignment="Left"/>
-                    <TextBlock Text="Change actually tested / recommendation followed (optional)" TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Change actually tested / recommendation followed (optional)" TextWrapping="Wrap"/>
                     <TextBox x:Name="TestedChangeBox" MaxLength="1000" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="45" MaxHeight="90" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Change actually tested"/>
                 </StackPanel>
             </Border>
@@ -94,10 +94,10 @@
                 <StackPanel>
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="LIVE TELEMETRY"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="LIVE TELEMETRY"
                                        FontSize="18"
                                        FontWeight="Bold"/>
-                            <TextBlock x:Name="LiveText"
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="LiveText"
                                        TextWrapping="Wrap"
                                        FontFamily="Consolas"
                                        FontSize="14"
@@ -108,10 +108,10 @@
 
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="RECORDING"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="RECORDING"
                                        FontSize="18"
                                        FontWeight="Bold"/>
-                            <TextBlock x:Name="RecordingText"
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="RecordingText"
                                        TextWrapping="Wrap"
                                        FontFamily="Consolas"
                                        FontSize="14"
@@ -122,7 +122,7 @@
 
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="HOW DETECTION WORKS"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HOW DETECTION WORKS"
                                        TextWrapping="Wrap"
                                        FontSize="18"
                                        FontWeight="Bold"/>
@@ -137,10 +137,10 @@
                 <StackPanel x:Name="TelemetryAnalysisPanel">
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="SESSION ANALYSIS"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="SESSION ANALYSIS"
                                        FontSize="18"
                                        FontWeight="Bold"/>
-                            <TextBlock x:Name="AnalysisText"
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AnalysisText"
                                        TextWrapping="Wrap"
                                        FontFamily="Consolas"
                                        FontSize="14"
@@ -151,7 +151,7 @@
 
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="ASSESSMENT"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSESSMENT"
                                        FontSize="18"
                                        FontWeight="Bold"/>
                             <TextBlock x:Name="AssessmentText"
@@ -163,11 +163,11 @@
 
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="PROPOSED CALIBRATION DELTA"
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PROPOSED CALIBRATION DELTA"
                                        TextWrapping="Wrap"
                                        FontSize="18"
                                        FontWeight="Bold"/>
-                            <TextBlock x:Name="SuggestionText"
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SuggestionText"
                                        TextWrapping="Wrap"
                                        FontFamily="Consolas"
                                        FontSize="14"

@@ -32,13 +32,13 @@
             <Ellipse x:Name="Marker"
                      Width="14"
                      Height="14"
-                     Stroke="White"
+                     Stroke="{DynamicResource ColorPickerIndicatorBrush}"
                      StrokeThickness="2"
                      Fill="Transparent"
                      IsHitTestVisible="False"/>
         </Canvas>
 
-        <TextBlock Text="Brightness"
+        <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Brightness"
                    Margin="4,8,4,0"/>
 
         <Slider x:Name="ValueSlider"
@@ -62,7 +62,7 @@
                     BorderBrush="{DynamicResource ComboBoxBorderBrush}"
                     CornerRadius="4"/>
 
-            <TextBlock x:Name="HexText"
+            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="HexText"
                        Grid.Column="1"
                        VerticalAlignment="Center"
                        FontFamily="Consolas"

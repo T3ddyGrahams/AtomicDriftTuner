@@ -8,8 +8,7 @@ namespace AtomicDriftTuner;
 
 public partial class ThemeWindow : Window
 {
-    private readonly AppSettingsStore _store =
-        new();
+    private readonly AppSettingsStore _store;
 
     private ThemeSettings _original;
     private bool _loading;
@@ -22,7 +21,7 @@ public partial class ThemeWindow : Window
             Label;
     }
 
-    private IReadOnlyList<ColorTarget> Targets { get; } =
+    private List<ColorTarget> Targets { get; } =
     [
         new("Background", "BackgroundBox"),
         new("Sidebar / Surface", "SurfaceBox"),
@@ -68,9 +67,13 @@ public partial class ThemeWindow : Window
         new("Dropdown Border", "ComboBorderBox")
     ];
 
-    public ThemeWindow()
+    public ThemeWindow() : this(new AppSettingsStore()) { }
+
+    public ThemeWindow(AppSettingsStore store)
     {
+        _store = store ?? throw new ArgumentNullException(nameof(store));
         InitializeComponent();
+        BuildAdditionalColorEditors();
 
         var savedTheme =
             _store.Load().Theme;
@@ -152,6 +155,25 @@ public partial class ThemeWindow : Window
 
         LoadWheelForSelectedTarget();
         UpdateContrastStatus();
+    }
+
+    private readonly Dictionary<string, TextBox> _additionalBoxes = new();
+
+    private void BuildAdditionalColorEditors()
+    {
+        foreach (var color in AdditionalThemeColors.All)
+        {
+            var label = new TextBlock { Text = color.Label, TextWrapping = TextWrapping.Wrap };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "FieldLabelBrush");
+            var box = new TextBox { Tag = color.EditorName, MaxLength = 9 };
+            System.Windows.Automation.AutomationProperties.SetName(box, color.Label);
+            box.GotFocus += ColorBox_GotFocus;
+            box.TextChanged += ColorBox_TextChanged;
+            _additionalBoxes.Add(color.Name, box);
+            Targets.Add(new ColorTarget(color.Label, color.EditorName));
+            AdditionalColorsPanel.Children.Add(label);
+            AdditionalColorsPanel.Children.Add(box);
+        }
     }
 
     private ThemeSettings ReadBoxes(
@@ -275,6 +297,8 @@ public partial class ThemeWindow : Window
                     ComboBorderBox.Text
             };
 
+        foreach (var color in AdditionalThemeColors.All) color.Set(theme, _additionalBoxes[color.Name].Text);
+
         ThemeService.Validate(
             theme);
 
@@ -287,6 +311,7 @@ public partial class ThemeWindow : Window
     private static void NormalizeTheme(
         ThemeSettings theme)
     {
+        foreach (var color in AdditionalThemeColors.All) color.Set(theme, ThemeService.NormalizeHex(color.Get(theme)));
         theme.AppBackground =
             ThemeService.NormalizeHex(
                 theme.AppBackground);
@@ -444,6 +469,8 @@ public partial class ThemeWindow : Window
 
         try
         {
+            foreach (var color in AdditionalThemeColors.All) _additionalBoxes[color.Name].Text = color.Get(theme);
+
             BackgroundBox.Text =
                 theme.AppBackground;
 
@@ -564,8 +591,7 @@ public partial class ThemeWindow : Window
 
     private TextBox? FindTargetBox(
         string name) =>
-        FindName(
-            name) as TextBox;
+        FindName(name) as TextBox ?? _additionalBoxes.Values.FirstOrDefault(box => (string?)box.Tag == name);
 
     private ColorTarget? FindTarget(
         string textBoxName) =>
@@ -897,6 +923,18 @@ public partial class ThemeWindow : Window
                             theme.ComboBoxHighlight)
                     )
                 };
+
+            checks = checks.Concat(new[]
+            {
+                ("section headings on surface", ThemeService.ContrastRatio(theme.SectionHeading, theme.Surface)),
+                ("section headings on panel", ThemeService.ContrastRatio(theme.SectionHeading, theme.Panel)),
+                ("field labels on surface", ThemeService.ContrastRatio(theme.FieldLabel, theme.Surface)),
+                ("expander text", ThemeService.ContrastRatio(theme.ExpanderHeader, theme.AppBackground)),
+                ("buttons", ThemeService.ContrastRatio(theme.ButtonText, theme.ButtonBackground)),
+                ("hover buttons", ThemeService.ContrastRatio(theme.ButtonHoverText, theme.ControlHover)),
+                ("tooltips", ThemeService.ContrastRatio(theme.TooltipText, theme.TooltipBackground)),
+                ("context menu", ThemeService.ContrastRatio(theme.MenuText, theme.MenuBackground))
+            }).ToArray();
 
             var weak =
                 checks

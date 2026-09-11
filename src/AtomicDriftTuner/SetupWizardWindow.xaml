@@ -18,7 +18,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="ADT SETUP &amp; PATHS"
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ADT SETUP &amp; PATHS"
                        FontSize="28"
                        FontWeight="Bold"/>
 
@@ -37,20 +37,20 @@
 
             <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
-                    <TextBlock Text="Driver name (used for your run history)"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver name (used for your run history)"/>
                     <TextBox x:Name="InterviewDriverBox" MaxLength="80" TextChanged="InterviewTextChanged" AutomationProperties.Name="Driver name" Margin="0,3,0,8"/>
-                    <TextBlock Text="Do you have SimHub installed?"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Do you have SimHub installed?"/>
                     <ComboBox x:Name="SimHubChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="SimHub installed" Margin="0,3,0,8"/>
-                    <TextBlock Text="Do you have the AZOM plugin for SimHub installed?" TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Do you have the AZOM plugin for SimHub installed?" TextWrapping="Wrap"/>
                     <ComboBox x:Name="AzomChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="AZOM installed" Margin="0,3,0,8"/>
                     <CheckBox x:Name="UseLiveGuidanceBox" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
-                        <TextBlock Text="Help me connect supported wheelbase settings through SimHub + AZOM" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Help me connect supported wheelbase settings through SimHub + AZOM" TextWrapping="Wrap"/>
                     </CheckBox>
                     <Button x:Name="CheckGuidedConnectionButton" Content="Check My Connection / Check Again" Click="CheckGuidedConnection_Click" HorizontalAlignment="Left" Margin="0,8"/>
-                    <TextBlock x:Name="InterviewDetectionText" Text="Nothing has been checked yet. Installation and live connection are checked separately." TextWrapping="Wrap" Margin="0,4"/>
-                    <TextBlock x:Name="InterviewInstructionsText" TextWrapping="Wrap" Margin="0,6"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewDetectionText" Text="Nothing has been checked yet. Installation and live connection are checked separately." TextWrapping="Wrap" Margin="0,4"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewInstructionsText" TextWrapping="Wrap" Margin="0,6"/>
                     <TextBlock Text="Save &amp; Continue below remembers these choices. You can change them later in Setup &amp; Paths." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </StackPanel>
             </Border>
@@ -61,7 +61,7 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="SIMHUB"
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="SIMHUB"
                                FontSize="18"
                                FontWeight="Bold"/>
 
@@ -89,7 +89,7 @@
                                 Padding="14,8"/>
                     </Grid>
 
-                    <TextBlock x:Name="SimHubStatusText"
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SimHubStatusText"
                                Margin="0,7,0,0"
                                TextWrapping="Wrap"/>
 
@@ -132,7 +132,7 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="ASSETTO CORSA INSTALL"
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSETTO CORSA INSTALL"
                                FontSize="18"
                                FontWeight="Bold"/>
 
@@ -160,7 +160,7 @@
                                 Padding="14,8"/>
                     </Grid>
 
-                    <TextBlock x:Name="AcStatusText"
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AcStatusText"
                                Margin="0,7,0,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
@@ -173,7 +173,7 @@
                     Padding="16"
                     Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="ASSETTO CORSA USER DATA"
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ASSETTO CORSA USER DATA"
                                FontSize="18"
                                FontWeight="Bold"/>
 
@@ -201,7 +201,7 @@
                                 Padding="14,8"/>
                     </Grid>
 
-                    <TextBlock x:Name="AcDocumentsStatusText"
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AcDocumentsStatusText"
                                Margin="0,7,0,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>

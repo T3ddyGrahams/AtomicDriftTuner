@@ -14,9 +14,9 @@
                BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="13,8"/>
             <Setter Property="Margin" Value="0,4,8,4"/>
-            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
         </Style>
 
         <Style TargetType="Border"
@@ -40,7 +40,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="UPDATES"
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="UPDATES"
                        FontSize="25"
                        FontWeight="Bold"
                        Visibility="Collapsed"/>
@@ -56,14 +56,14 @@
                        Margin="0,0,0,12"/>
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="UPDATE CHANNEL"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="UPDATE CHANNEL"
                                    FontWeight="Bold"/>
 
                         <CheckBox x:Name="IncludePrereleaseBox"
                                   HorizontalContentAlignment="Stretch"
                                   IsChecked="True"
                                   Margin="0,8,0,10">
-                            <TextBlock Text="Include public beta / pre-release versions"
+                            <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Include public beta / pre-release versions"
                                        TextWrapping="Wrap"/>
                         </CheckBox>
 
@@ -90,10 +90,10 @@
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="LATEST MATCHING RELEASE"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="LATEST MATCHING RELEASE"
                                    FontWeight="Bold"/>
 
-                        <TextBlock x:Name="ReleaseTitleText"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="ReleaseTitleText"
                                    Text="—"
                                    TextWrapping="Wrap"
                                    FontSize="18"
@@ -123,7 +123,7 @@
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="DOWNLOAD"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="DOWNLOAD"
                                    FontWeight="Bold"/>
 
                         <TextBlock Text="Choose the destination yourself. ADT shows a local SHA-256 after a successful download and does not auto-launch the file. A local hash identifies the downloaded bytes; by itself it is not proof of authenticity unless it is compared with a trusted published value."
@@ -133,7 +133,7 @@
 
                         <StackPanel Margin="0,0,0,9">
                             <StackPanel>
-                                <TextBlock x:Name="InstallerNameText"
+                                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="InstallerNameText"
                                            Text="Installer: not loaded"
                                            TextWrapping="Wrap"
                                            FontWeight="Bold"/>
@@ -150,7 +150,7 @@
 
                         <StackPanel Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock x:Name="PortableNameText"
+                                <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="PortableNameText"
                                            Text="Portable ZIP: not loaded"
                                            TextWrapping="Wrap"
                                            FontWeight="Bold"/>

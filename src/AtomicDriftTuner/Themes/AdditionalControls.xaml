@@ -1,0 +1,80 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style TargetType="Label">
+        <Setter Property="Foreground" Value="{DynamicResource FieldLabelBrush}"/>
+    </Style>
+    <Style TargetType="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource FieldLabelBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <StackPanel Background="{TemplateBinding Background}">
+                        <ToggleButton x:Name="HeaderToggle" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                      Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      Foreground="{DynamicResource ExpanderHeaderBrush}" HorizontalContentAlignment="Stretch">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="HeaderBorder" BorderBrush="Transparent" BorderThickness="1" Padding="4,6">
+                                        <DockPanel>
+                                            <Path x:Name="Arrow" DockPanel.Dock="Left" Data="M 0 0 L 5 5 L 0 10" Stroke="{DynamicResource ExpanderGlyphBrush}" StrokeThickness="2" Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"/>
+                                            <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" TextElement.Foreground="{TemplateBinding Foreground}" RecognizesAccessKey="True"/>
+                                        </DockPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True"><Setter TargetName="Arrow" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter></Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="HeaderBorder" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/></Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HeaderBorder" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/></Trigger>
+                                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/></Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="Body" Visibility="Collapsed" ContentSource="Content" TextElement.Foreground="{DynamicResource FieldLabelBrush}"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="Body" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource TooltipBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TooltipTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource TooltipBorderBrush}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToolTip"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,7"><ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/></Border></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MenuTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="4"><ItemsPresenter/></Border></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="MenuItem">
+        <Setter Property="Background" Value="{DynamicResource MenuBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MenuTextBrush}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+            <Grid>
+                <Border x:Name="MenuRow" Background="{TemplateBinding Background}" Padding="10,7">
+                    <DockPanel><ContentPresenter ContentSource="Icon" Width="20"/><TextBlock DockPanel.Dock="Right" Text="{TemplateBinding InputGestureText}" Foreground="{TemplateBinding Foreground}" Margin="24,0,0,0"/><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/></DockPanel>
+                </Border>
+                <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Right" AllowsTransparency="True" Focusable="False"><Border Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="4"><ItemsPresenter/></Border></Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="MenuRow" Property="Background" Value="{DynamicResource MenuHighlightBrush}"/><Setter Property="Foreground" Value="{DynamicResource MenuHighlightTextBrush}"/></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="Separator"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Border Background="{DynamicResource BorderBrush}" Height="1" Margin="4"/></ControlTemplate></Setter.Value></Setter></Style>
+    <Style TargetType="ProgressBar">
+        <Setter Property="Background" Value="{DynamicResource SliderTrackBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SliderFillBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ProgressBar">
+            <Grid><Border x:Name="PART_Track" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"/><Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}"/></Grid>
+            <ControlTemplate.Triggers><Trigger Property="IsIndeterminate" Value="True">
+                <Trigger.EnterActions><BeginStoryboard x:Name="Pulse"><Storyboard><DoubleAnimation Storyboard.TargetName="PART_Indicator" Storyboard.TargetProperty="Opacity" From="0.3" To="1" Duration="0:0:1" AutoReverse="True" RepeatBehavior="Forever"/></Storyboard></BeginStoryboard></Trigger.EnterActions>
+                <Trigger.ExitActions><RemoveStoryboard BeginStoryboardName="Pulse"/></Trigger.ExitActions>
+            </Trigger></ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

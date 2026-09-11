@@ -1,6 +1,6 @@
 namespace AtomicDriftTuner.Models;
 
-public sealed class ThemeSettings
+public sealed partial class ThemeSettings
 {
     public const string DefaultPresetName =
         "ADT Cyan";
@@ -466,7 +466,7 @@ public static class ThemeCatalog
     {
         ArgumentNullException.ThrowIfNull(theme);
 
-        return new ThemeSettings
+        var clone = new ThemeSettings
         {
             PresetName = theme.PresetName,
             AppBackground = theme.AppBackground,
@@ -512,5 +512,7 @@ public static class ThemeCatalog
             ComboBoxHighlightText = theme.ComboBoxHighlightText,
             ComboBoxBorder = theme.ComboBoxBorder
         };
+        foreach (var color in AdditionalThemeColors.All) color.Set(clone, color.Get(theme));
+        return clone;
     }
 }

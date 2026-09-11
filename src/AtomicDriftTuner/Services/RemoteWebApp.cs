@@ -2,6 +2,34 @@ namespace AtomicDriftTuner.Services;
 
 public static class RemoteWebApp
 {
+    public static string Render(Models.ThemeSettings theme)
+    {
+        ThemeService.Validate(theme);
+        static string Css(string value)
+        {
+            var c = ThemeService.ParseThemeColor(value);
+            return $"#{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}";
+        }
+        var palette = new Dictionary<string, string>
+        {
+            ["bg"] = theme.AppBackground, ["surface"] = theme.Surface,
+            ["panel"] = theme.Panel, ["panel2"] = theme.Input,
+            ["border"] = theme.Border, ["text"] = theme.PrimaryText,
+            ["muted"] = theme.MutedText, ["accent"] = theme.Accent,
+            ["accent-text"] = theme.AccentText, ["danger"] = theme.StatusError,
+            ["ok"] = theme.StatusGood, ["warn"] = theme.StatusWarning,
+            ["heading"] = theme.SectionHeading, ["label"] = theme.FieldLabel,
+            ["button"] = theme.ButtonBackground, ["button-text"] = theme.ButtonText,
+            ["hover"] = theme.ControlHover, ["hover-text"] = theme.ButtonHoverText,
+            ["disabled"] = theme.DisabledBackground, ["disabled-text"] = theme.DisabledText,
+            ["input-text"] = theme.InputText, ["input-border"] = theme.InputBorder,
+            ["focus"] = theme.FocusBorder
+        };
+        var css = ":root{" + string.Join("", palette.Select(p => $"--{p.Key}:{Css(p.Value)};")) + "}";
+        css += "h1,h2,h3{color:var(--heading)}label{color:var(--label)}button{background:var(--button);color:var(--button-text)}button:hover{background:var(--hover);color:var(--hover-text)}button:disabled{background:var(--disabled);color:var(--disabled-text);opacity:1}input,select,textarea{color:var(--input-text);border-color:var(--input-border)}:focus-visible{outline:2px solid var(--focus)}";
+        return Html.Replace("</style>", css + "</style>").Replace("content=\"#0e1116\"", $"content=\"{Css(theme.AppBackground)}\"");
+    }
+
     public const string Html = """
 <!doctype html>
 <html lang="en">
@@ -46,7 +74,7 @@ header{
   position:sticky;
   top:0;
   z-index:8;
-  background:rgba(14,17,22,.94);
+  background:var(--bg);
   backdrop-filter:blur(14px);
   padding:13px 16px;
   border-bottom:1px solid var(--border)
@@ -129,7 +157,7 @@ header{
   align-items:center;
   justify-content:space-between;
   padding:9px 0;
-  border-bottom:1px solid rgba(58,65,77,.55)
+  border-bottom:1px solid var(--border)
 }
 
 .row:last-child{
@@ -185,13 +213,13 @@ button{
 
 button.primary{
   background:var(--accent);
-  color:#071014;
+  color:var(--accent-text,#071014);
   border-color:var(--accent)
 }
 
 button.danger{
   border-color:var(--danger);
-  color:#ffd9df
+  color:var(--danger)
 }
 
 button:disabled{
@@ -229,7 +257,7 @@ input[type=number]{
   gap:7px;
   align-items:center;
   padding:9px 0;
-  border-bottom:1px solid rgba(58,65,77,.55)
+  border-bottom:1px solid var(--border)
 }
 
 .setting small{
@@ -273,7 +301,7 @@ input[type=number]{
   right:0;
   bottom:0;
   z-index:9;
-  background:rgba(14,17,22,.96);
+  background:var(--bg);
   backdrop-filter:blur(14px);
   border-top:1px solid var(--border);
   padding:
@@ -302,7 +330,7 @@ input[type=number]{
 
 .behavior{
   padding:10px 0;
-  border-bottom:1px solid rgba(58,65,77,.5)
+  border-bottom:1px solid var(--border)
 }
 
 .behavior:last-child{
@@ -341,7 +369,7 @@ input[type=number]{
   grid-template-columns:1fr auto;
   gap:10px;
   padding:8px 0;
-  border-bottom:1px solid rgba(58,65,77,.5)
+  border-bottom:1px solid var(--border)
 }
 
 .tuneRow:last-child{
@@ -368,7 +396,7 @@ input[type=number]{
   left:14px;
   right:14px;
   bottom:82px;
-  background:#111820;
+  background:var(--surface);
   border:1px solid var(--border);
   border-radius:12px;
   padding:12px;

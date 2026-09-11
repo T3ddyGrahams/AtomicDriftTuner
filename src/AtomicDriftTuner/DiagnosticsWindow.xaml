@@ -21,7 +21,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="SYSTEM DIAGNOSTICS"
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="SYSTEM DIAGNOSTICS"
                        FontSize="24"
                        FontWeight="Bold"
                        Visibility="Collapsed"/>

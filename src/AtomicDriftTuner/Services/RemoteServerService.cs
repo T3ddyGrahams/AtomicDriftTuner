@@ -457,7 +457,7 @@ public sealed class RemoteServerService : IAsyncDisposable
             "/",
             () =>
                 Results.Content(
-                    RemoteWebApp.Html,
+                    RemoteWebApp.Render(_settingsStore.Load().Theme),
                     "text/html; charset=utf-8"));
 
         app.MapGet(

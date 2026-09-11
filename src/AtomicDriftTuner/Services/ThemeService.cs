@@ -58,6 +58,9 @@ public static class ThemeService
         ("ComboBoxBorderBrush", "ComboBoxBorder", t => t.ComboBoxBorder)
     ];
 
+    private static IEnumerable<(string ResourceKey, string SettingName, Func<ThemeSettings, string> Value)> AllColors =>
+        Map.Concat(AdditionalThemeColors.All.Select(c => (c.ResourceKey, c.Name, c.Get)));
+
     public static void Apply(
         ThemeSettings theme)
     {
@@ -94,7 +97,7 @@ public static class ThemeService
         ArgumentNullException.ThrowIfNull(
             theme);
 
-        foreach (var entry in Map)
+        foreach (var entry in AllColors)
         {
             var value =
                 entry.Value(
@@ -217,7 +220,7 @@ public static class ThemeService
             new List<ThemeBrushEntry>(
                 Map.Length);
 
-        foreach (var entry in Map)
+        foreach (var entry in AllColors)
         {
             var value =
                 entry.Value(

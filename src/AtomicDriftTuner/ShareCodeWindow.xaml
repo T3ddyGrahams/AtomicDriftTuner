@@ -13,9 +13,9 @@
                BasedOn="{StaticResource AtomicButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Margin" Value="0,4,8,4"/>
-            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
         </Style>
 
         <Style TargetType="TextBox"
@@ -34,7 +34,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-            <TextBlock Text="ADT SHARE CODES"
+            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ADT SHARE CODES"
                        FontSize="25"
                        FontWeight="Bold"
                        Visibility="Collapsed"/>
@@ -61,7 +61,7 @@
                     BorderBrush="{DynamicResource BorderBrush}">
             <TabItem Header="CREATE / COPY">
                     <StackPanel Margin="14">
-                        <TextBlock Text="CURRENT GENERATED TUNE"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="CURRENT GENERATED TUNE"
                                    FontWeight="Bold"
                                    FontSize="16"/>
 
@@ -94,7 +94,7 @@
 
             <TabItem Header="IMPORT">
                     <StackPanel Margin="14">
-                        <TextBlock Text="PASTE ADT SHARE CODE"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PASTE ADT SHARE CODE"
                                    FontWeight="Bold"
                                    FontSize="16"/>
 
@@ -109,7 +109,7 @@
                                  AutomationProperties.Name="ADT share code to import"
                                  TextChanged="ImportCodeBox_TextChanged"/>
 
-                        <TextBlock Text="DECODED PREVIEW"
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="DECODED PREVIEW"
                                    FontWeight="Bold"
                                    Margin="0,12,0,4"/>
 
@@ -126,7 +126,7 @@
                         <CheckBox x:Name="ImportBehaviorBox"
                                   HorizontalContentAlignment="Stretch"
                                   Margin="0,12,0,4">
-                            <TextBlock Text="Also save the shared Desired Behavior for this car"
+                            <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Also save the shared Desired Behavior for this car"
                                        TextWrapping="Wrap"/>
                         </CheckBox>
 
@@ -197,7 +197,7 @@
                         MinHeight="44">
                     <Button.ContentTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}"
+                            <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Text="{Binding}"
                                        TextWrapping="Wrap"
                                        TextAlignment="Center"/>
                         </DataTemplate>

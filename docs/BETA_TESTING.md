@@ -1,6 +1,6 @@
 # ADT Beta Testing Guide
 
-**Current test round: v0.8.3-beta.1.** Start with the [release checklist](testing/v0.8.3-beta.1-checklist.md), then use this guide for detailed instructions. See the [compatibility tracker](testing/v0.8.3-beta.1-compatibility.md) for coverage gaps and reviewed results. Include checklist case IDs and outcomes in your report; successful tests and skipped cases are useful too.
+**Current test round: v0.9.0-preview.3.** Start with the [release checklist](testing/v0.9.0-preview.3-checklist.md), then use this guide for detailed instructions. See the [compatibility tracker](testing/v0.9.0-preview.3-compatibility.md) for coverage gaps and reviewed results. Include checklist case IDs and outcomes in your report; successful tests and skipped cases are useful too.
 
 Thank you for helping test Atomic Drift Tuner (ADT).
 

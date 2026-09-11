@@ -1,10 +1,10 @@
-# Guided tuning — 0.9.0-preview.2
+# Guided tuning — 0.9.0-preview.3
 
-This development preview adds a saved **Your Next Step** panel and setup-aware instructions to the telemetry intelligence introduced in preview 1. It is a local testing build, not a newly published beta.
+Public beta preview 3 includes the saved **Your Next Step** panel and setup-aware instructions introduced in preview 2, alongside the telemetry intelligence from preview 1. See the [release notes](releases/v0.9.0-preview.3.md).
 
-## Tonight's quick test
+## Quick test
 
-1. Close any running ADT. Launch `AtomicDriftTuner.exe` from the **0.9.0-preview.2** folder. The installed desktop shortcut still opens the older beta.
+1. Close any running ADT. Install **0.9.0-preview.3** or launch `AtomicDriftTuner.exe` from its extracted portable folder. Confirm the version; an older desktop shortcut may still point to the previous beta.
 2. In **Your Next Step**, choose **Set Up My Workflow**. Enter a driver name, answer whether you have SimHub and AZOM, and select whether you want help connecting live wheelbase control. **Check My Connection / Check Again** inspects what is installed/running/reachable without applying settings. Review the AC folders and choose **Save & Continue**.
 3. Review your installed car, rig and drift pack on the dashboard and choose **Confirm This Car & Rig**. Use the same driver name for the whole test; **Use This Driver** switches the remembered workflow to that driver.
 4. Open **Edit Desired Behavior / AC Setup**, adjust how you want this car to feel and choose **Save Desired Behavior**. Return to the dashboard and choose **Use Saved Desired Behavior**. Neutral is a valid target.

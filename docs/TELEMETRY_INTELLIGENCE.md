@@ -1,6 +1,6 @@
 # Telemetry intelligence preview
 
-Implemented in the local **0.9.0-preview.1** development build. This is not a new public beta release. Driving validation with real cars and drivers is still required.
+Introduced in development preview 1 and included in public beta **0.9.0-preview.3**. Driving validation with real cars and drivers is still required. See the [release notes](releases/v0.9.0-preview.3.md).
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.
 

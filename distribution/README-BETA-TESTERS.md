@@ -1,6 +1,6 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
-**Testing v0.8.3-beta.1?** Follow the [release checklist](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-checklist.md) and review the [compatibility tracker](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.8.3-beta.1-compatibility.md). This guide covers installation and the broader testing workflow.
+**Testing v0.9.0-preview.3?** Follow the [release checklist](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-checklist.md) and review the [compatibility tracker](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-compatibility.md). This guide covers installation and the broader testing workflow.
 
 Thank you for testing Atomic Drift Tuner (ADT).
 

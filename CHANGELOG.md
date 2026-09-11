@@ -8,6 +8,17 @@ through GitHub Releases.
 
 ---
 
+## v0.9.0-preview.3 — Intelligence, Guided Workflow & Appearance
+
+- Add phase-aware diagnosis tied to Desired Behavior and driver-specific run/tune comparisons.
+- Guide setup based on SimHub/AZOM availability and the next tuning step.
+- Expand Appearance to 72 color roles and fix unreadable section headings; Remote uses the saved palette.
+- Pass 167 theme assertions, 252 layout assertions and 50 regression scenarios. Released as a preview at the maintainer's request with hands-on/live-driving checks pending.
+
+See [release notes](docs/releases/v0.9.0-preview.3.md) and the [tester checklist](docs/testing/v0.9.0-preview.3-checklist.md).
+
+---
+
 ## v0.8.3-beta.1 — Adaptive UI & New App Icon
 
 - Reflow dashboard cards and car setup controls for narrow windows and portrait displays.

@@ -122,6 +122,8 @@ public partial class MainWindow : Window
 
         _remoteServer.SetIntentHandler = SetIntentFromRemoteAsync;
         _remoteServer.GenerateTuneHandler = GenerateTuneFromRemoteAsync;
+        _remoteServer.CompanionStatusHandler = GetCompanionStatusAsync;
+        _remoteServer.CompanionCommandHandler = ExecuteCompanionCommandAsync;
 
         Closed += async (_, _) =>
         {

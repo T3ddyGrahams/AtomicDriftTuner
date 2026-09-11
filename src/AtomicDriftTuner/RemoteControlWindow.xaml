@@ -176,7 +176,7 @@
                                        TextWrapping="Wrap"/>
                         </CheckBox>
 
-                        <TextBlock Text="OFF by default on every server start. ADT Remote exposes only the explicit supported core/wheelbase allow-list; requests remain range-checked, serialized, guarded, and live-readback verified. Generating new pairing credentials or closing this control window turns remote writes OFF. Closing the control window leaves the server running read-only unless you press STOP."
+                        <TextBlock Text="OFF by default on every server start. ADT Remote exposes only the explicit supported core/wheelbase allow-list; requests remain range-checked, serialized, guarded, and live-readback verified. Generating new pairing credentials or closing this control window turns remote AZOM writes OFF. Closing the control window leaves the server running unless you press STOP. The paired in-game companion can still control recording on this PC."
                                    Foreground="{DynamicResource SecondaryTextBrush}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
@@ -186,6 +186,10 @@
                         CornerRadius="10"
                         Padding="16">
                     <StackPanel>
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="IN-GAME COMPANION"
+                                   FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Text="Prepare your car, driver and conditions in Telemetry Recorder, then START this server. Open ADT Companion inside Assetto Corsa and pair with the code above. You can start, stop and save recordings and read Your Next Step while ADT is minimized. SimHub and remote AZOM writes are not required. Keep ADT running."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,16"/>
                         <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="LIVE ACTIVITY"
                                    FontSize="18"
                                    FontWeight="Bold"/>

@@ -33,3 +33,16 @@ node share-api/selftest.js
 ```
 
 Use the actual SimHub installation path on other machines. The share API self-test launches an isolated localhost service and uses temporary registry data. If a constrained Windows environment prevents Node from resolving ancestor directories, set `NODE_OPTIONS=--preserve-symlinks --preserve-symlinks-main` for that test process.
+
+## In-game companion
+
+The regression runner now includes companion command validation and a real loopback HTTP pairing/command test (52 scenarios total). The WPF layout runner additionally exercises the real recorder's stop/save operations with isolated output: 16 companion assertions, alongside 167 theme and 252 geometry assertions. Recording-start rejection is tested offline; actual AC sampling and CSP rendering still require hands-on testing.
+
+With a Lua 5.1 interpreter (or LuaJIT), run from the repository root:
+
+```text
+lua tests/companion/client-tests.lua companion/apps/lua/ADTCompanion/companion_client.lua
+lua tests/companion/ui-tests.lua companion/apps/lua/ADTCompanion/companion_client.lua companion/apps/lua/ADTCompanion/ADTCompanion.lua
+```
+
+The 18 client assertions cover pairing, stale/disconnected state, protocol mismatch, double clicks, timeouts, ignored late responses and no automatic mutation retries. Six UI assertions execute the actual entry point with mocked CSP drawing/network functions. This is not an in-game rendering test. No Lua test dependency is included in the application/mod packages.

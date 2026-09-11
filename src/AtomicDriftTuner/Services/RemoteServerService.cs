@@ -23,7 +23,7 @@ namespace AtomicDriftTuner.Services;
 /// the desktop telemetry service and all supported AZOM writes still pass
 /// through AzomLiveController's guarded, verified write path.
 /// </summary>
-public sealed class RemoteServerService : IAsyncDisposable
+public sealed partial class RemoteServerService : IAsyncDisposable
 {
     public const int DefaultPort = 5190;
 
@@ -537,6 +537,8 @@ public sealed class RemoteServerService : IAsyncDisposable
                         token = PairToken
                     });
             });
+
+        MapCompanionEndpoints(app);
 
         app.MapGet(
             "/api/status",

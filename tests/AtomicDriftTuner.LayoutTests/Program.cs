@@ -58,6 +58,7 @@ internal static partial class Program
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
             CheckThemeCoverage(repo, output);
+            CheckCompanionRecorder(output);
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>

@@ -246,83 +246,7 @@ public partial class TelemetryWindow : Window
                 }
             }
 
-            if (
-                !_telemetry.IsConnected &&
-                !_telemetry.TryConnect())
-            {
-                MessageBox.Show(
-                    "Connect to Assetto Corsa first.",
-                    "Telemetry",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                return;
-            }
-
-            var context = CaptureRunContext();
-            CompareSavedRunButton.IsEnabled = false;
-            _session = NewSession();
-            _session.Context = context;
-            RunCapturePanel.IsEnabled = false;
-            _lastIdentityCheck = 0;
-            _recordingSourceStart = null;
-
-            _session.StartedUtc =
-                DateTime.UtcNow;
-
-            _analysis =
-                null;
-
-            _lastPacketId =
-                null;
-
-            _sessionSaved =
-                false;
-
-            _sessionInterrupted =
-                false;
-
-            _suggestionApplied =
-                false;
-
-            _telemetry.ResetDerivativeState();
-
-            _clock.Restart();
-
-            _recording =
-                true;
-
-            ConnectButton.IsEnabled =
-                false;
-
-            RecordButton.IsEnabled =
-                false;
-
-            StopButton.IsEnabled =
-                true;
-
-            SaveButton.IsEnabled =
-                false;
-
-            ApplyButton.IsEnabled =
-                false;
-
-            AnalysisText.Text =
-                "Recording...";
-
-            AssessmentText.Text =
-                string.Empty;
-
-            SuggestionText.Text =
-                string.Empty;
-
-            RecordingText.Text =
-                "Waiting for unique Assetto Corsa physics frames...";
-
-            StatusText.Text =
-                "Recording at a requested 50 Hz. Keep ADT open while you drive.";
-
-            _timer.Start();
+            StartRecording(allowDiscard: true);
         }
         catch (Exception ex)
         {
@@ -332,6 +256,81 @@ public partial class TelemetryWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    // Shared by desktop and companion. Remote calls never discard unsaved samples.
+    private void StartRecording(bool allowDiscard = false)
+    {
+        if (_recording) throw new InvalidOperationException("A recording is already running.");
+        if (!allowDiscard && !_sessionSaved && _session.Samples.Count > 0)
+            throw new InvalidOperationException("Save the previous recording before starting another.");
+        if (!_telemetry.GetSnapshot().Connected)
+            throw new InvalidOperationException("Live AC telemetry is unavailable. Enter an on-track session and try again.");
+        var context = CaptureRunContext();
+        CompareSavedRunButton.IsEnabled = false;
+        _session = NewSession();
+        _session.Context = context;
+        RunCapturePanel.IsEnabled = false;
+        _lastIdentityCheck = 0;
+        _recordingSourceStart = null;
+
+        _session.StartedUtc =
+            DateTime.UtcNow;
+
+        _analysis =
+            null;
+
+        _lastPacketId =
+            null;
+
+        _sessionSaved =
+            false;
+
+        _sessionInterrupted =
+            false;
+
+        _suggestionApplied =
+            false;
+
+        _telemetry.ResetDerivativeState();
+
+        _clock.Restart();
+
+        _recording =
+            true;
+
+        ConnectButton.IsEnabled =
+            false;
+
+        RecordButton.IsEnabled =
+            false;
+
+        StopButton.IsEnabled =
+            true;
+
+        SaveButton.IsEnabled =
+            false;
+
+        ApplyButton.IsEnabled =
+            false;
+
+        AnalysisText.Text =
+            "Recording...";
+
+        AssessmentText.Text =
+            string.Empty;
+
+        SuggestionText.Text =
+            string.Empty;
+
+        RecordingText.Text =
+            "Waiting for unique Assetto Corsa physics frames...";
+
+        StatusText.Text =
+            "Recording at a requested 50 Hz. Keep ADT open while you drive.";
+
+        _timer.Start();
+        _companionRevision++;
     }
 
     private void Stop_Click(
@@ -480,6 +479,7 @@ public partial class TelemetryWindow : Window
     {
         _recording =
             false;
+        _companionRevision++;
 
         RunCapturePanel.IsEnabled = true;
         TuneInUseCheck.IsChecked = false;
@@ -681,26 +681,7 @@ public partial class TelemetryWindow : Window
 
         try
         {
-            var paths =
-                _sessionStore.Save(
-                    _session,
-                    _analysis);
-
-            _sessionSaved =
-                true;
-
-            StatusText.Text =
-                $"Saved session JSON and CSV to: {Path.GetDirectoryName(paths.JsonPath)}";
-            // The just-saved run is immediately available as the next test's baseline.
-            var previousId = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id;
-            try
-            {
-                var recent = _sessionStore.ListRecent(_input, 100);
-                RecommendationRunBox.ItemsSource = recent;
-                RecommendationRunBox.SelectedItem = recent.FirstOrDefault(s => s.Session.Id == previousId);
-            }
-            catch (Exception ex) { StatusText.Text += " Baseline list refresh failed: " + ex.Message; }
-            NotifySavedRun(paths.JsonPath);
+            SaveAnalyzedSession();
         }
         catch (Exception ex)
         {
@@ -710,6 +691,35 @@ public partial class TelemetryWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    private void SaveAnalyzedSession()
+    {
+        if (_recording) throw new InvalidOperationException("Stop recording before saving.");
+        if (_sessionSaved) return;
+        if (_analysis is null || _session.Samples.Count == 0)
+            throw new InvalidOperationException("There is no analyzed recording to save. Review the recorder in ADT.");
+        var paths =
+            _sessionStore.Save(
+                _session,
+                _analysis);
+
+        _sessionSaved =
+            true;
+
+        StatusText.Text =
+            $"Saved session JSON and CSV to: {Path.GetDirectoryName(paths.JsonPath)}";
+        // The just-saved run is immediately available as the next test's baseline.
+        var previousId = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id;
+        try
+        {
+            var recent = _sessionStore.ListRecent(_input, 100);
+            RecommendationRunBox.ItemsSource = recent;
+            RecommendationRunBox.SelectedItem = recent.FirstOrDefault(s => s.Session.Id == previousId);
+        }
+        catch (Exception ex) { StatusText.Text += " Baseline list refresh failed: " + ex.Message; }
+        NotifySavedRun(paths.JsonPath);
+        _companionRevision++;
     }
 
     private void ApplySuggestion_Click(

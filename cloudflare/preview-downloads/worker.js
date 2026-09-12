@@ -929,7 +929,8 @@ function htmlResponse(body, init = {}) {
   headers.set("Cache-Control", "no-store");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
-  headers.set("Referrer-Policy", "no-referrer");
+  // Preserve the origin on same-origin form POSTs so CSRF checks accept them.
+  headers.set("Referrer-Policy", "same-origin");
   headers.set(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=()"

@@ -47,6 +47,10 @@ lua tests/companion/ui-tests.lua companion/apps/lua/ADTCompanion/companion_clien
 
 The 18 client assertions cover pairing, stale/disconnected state, protocol mismatch, double clicks, timeouts, ignored late responses and no automatic mutation retries. Six UI assertions execute the actual entry point with mocked CSP drawing/network functions. This is not an in-game rendering test. No Lua test dependency is included in the application/mod packages.
 
+## Guided modes (local preview.6)
+
+The regression runner now has 79 scenarios, including 11 new mode/persistence/intelligence-preservation checks. The WPF runner adds 21 guided-mode UI assertions (real interview, recorder and assistant handlers with isolated stores), alongside 167 theme, 14 gearing, 16 recorder and 330 geometry assertions. It renders manual/car-only interviews and recording guidance. New checks cover legacy defaults, mode-specific progress, late run callbacks, unchanged telemetry/tuning outputs, full recommendation retention, selected-scope snapshots, cross-mode comparison limitations and saved review decisions. No live setting writes or game driving are performed.
+
 ## Final-drive gearing
 
 The regression runner includes 16 gearing scenarios (68 total). `GearingChecks` covers actual ratio/index mapping, selected gearsets/gears/tyres, malformed and unavailable data, wrong-car baselines, limiter exclusion, no-op/partial fits, per-car goals and preservation of all unrelated setup settings. Stale-source checks include the entire baseline and each data file.

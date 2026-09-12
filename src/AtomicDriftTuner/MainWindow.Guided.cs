@@ -8,6 +8,7 @@ public partial class MainWindow
 {
     private readonly GuidedWorkflowStore _workflow = new();
     private bool _guidedReady;
+    private bool _syncingGuided;
     private IntegrationState? _guidedConnection;
     private DateTime? _guidedCheckedAt;
 
@@ -17,6 +18,7 @@ public partial class MainWindow
         {
             GuidedDriverBox.ItemsSource = new RunHistoryStore().ListDrivers();
             GuidedDriverBox.Text = _workflow.Preferences().DriverName;
+            GuidedFocusBox.ItemsSource = TuningFocusOptions.All;
             _guidedReady = true;
             RefreshGuidedWorkflow();
         }
@@ -26,7 +28,7 @@ public partial class MainWindow
     private GuidedJourney JourneyForGuide(TuneInput input, string driver)
     {
         var j = _workflow.Journey(input, driver);
-        if (j.BaselineId.Length == 0 && j.TuneGenerated)
+        if (j.BaselineId.Length == 0 && j.TuneGenerated && TuningFocusOptions.IncludesFfb(j.Focus))
         {
             var current = _engine.Generate(input, _calibrationStore.Get(_calibrationEngine.BuildKey(input)), _azomPreferences);
             if (j.GeneratedSignature != GuidedWorkflowEngine.TuneSignature(current)) j.TuneGenerated = j.TuneReady = false;
@@ -39,22 +41,35 @@ public partial class MainWindow
         try
         {
             var input = BuildInput(); var prefs = _workflow.Preferences(); var driver = CurrentGuidedDriver();
+            _syncingGuided = true;
+            try { GuidedFocusBox.SelectedValue = prefs.Focus; GuidedHelpCheck.IsChecked = prefs.ShowDetailedHelp; }
+            finally { _syncingGuided = false; }
+            GuidedFocusText.Text = TuningFocusOptions.Description(prefs.Focus);
             var j = JourneyForGuide(input, driver.Id);
             var goal = _behaviorStore.Load(input);
             var step = GuidedWorkflowEngine.Next(prefs, j, GuidedWorkflowStore.GoalSignature(goal));
             GuidedStepText.Text = step.Title;
+            GuidedDetailsText.Text = step.Details;
+            GuidedDetailsText.Visibility = prefs.ShowDetailedHelp ? Visibility.Visible : Visibility.Collapsed;
+            GuidedDoneText.Text = "Ready when: " + step.Completion;
+            GuidedReadyText.Text = TuningFocusOptions.Confirmation(prefs.Focus);
             GuidedInstructionsText.Text = $"{input.Car.DisplayName} · {input.Hardware.Model} · Driver: {driver.Name}\n{step.Instructions}";
             if (step.Stage == GuidedStage.Goals) GuidedInstructionsText.Text += $"\nSaved goals: front bite {goal.FrontEndBite:+0;-0;0}, rear grip {goal.RearGrip:+0;-0;0}, self-steer {goal.SelfSteerSpeed:+0;-0;0}, transition {goal.TransitionSpeed:+0;-0;0}, stability {goal.AngleStability:+0;-0;0}, throttle {goal.ThrottleSteering:+0;-0;0}, initiation {goal.InitiationSharpness:+0;-0;0}.";
             if (step.Stage == GuidedStage.Test) GuidedInstructionsText.Text += "\nSelected test: " + j.Recommendation;
             GuidedNextButton.Content = step.Action;
             GuidedNextButton.IsEnabled = true;
-            GuidedReadyCheck.Visibility = step.Stage == GuidedStage.Prepare && j.TuneGenerated ? Visibility.Visible : Visibility.Collapsed;
-            GuidedEditSetupButton.Visibility = step.Stage is GuidedStage.Goals or GuidedStage.Prepare ? Visibility.Visible : Visibility.Collapsed;
+            GuidedReadyCheck.Visibility = step.Stage == GuidedStage.Prepare && (j.TuneGenerated || !TuningFocusOptions.IncludesFfb(prefs.Focus)) ? Visibility.Visible : Visibility.Collapsed;
+            GuidedGoalsButton.Visibility = step.Stage == GuidedStage.Goals ? Visibility.Visible : Visibility.Collapsed;
+            GuidedEditSetupButton.Visibility = TuningFocusOptions.IncludesCar(prefs.Focus) && step.Stage is GuidedStage.Goals or GuidedStage.Prepare ? Visibility.Visible : Visibility.Collapsed;
+            GuidedRepeatButton.Visibility = step.Stage is GuidedStage.Compare or GuidedStage.Complete ? Visibility.Visible : Visibility.Collapsed;
             GuidedPrepareChangeButton.Visibility = step.Stage == GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
-            GuidedWheelbaseButton.Visibility = step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
+            GuidedWheelbaseButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) && step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
+            GuidedCheckButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) ? Visibility.Visible : Visibility.Collapsed;
+            GeneratedTuneCard.Visibility = CalibrationCard.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) ? Visibility.Visible : Visibility.Collapsed;
+            DashboardGenerateButton.Content = TuningFocusOptions.IncludesFfb(prefs.Focus) ? "Generate FFB Tune" : "Open Car Setup";
             GuidedResetButton.Visibility = j.BaselineId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             GuidedIntegrationText.Text = GuidedWorkflowEngine.Instructions(prefs, _guidedConnection);
-            if (_guidedConnection is { } connection)
+            if (TuningFocusOptions.IncludesFfb(prefs.Focus) && _guidedConnection is { } connection)
                 GuidedIntegrationText.Text = $"Last checked {_guidedCheckedAt:t}: SimHub folder {(connection.SimHubInstalled ? "found" : "not found")}; process {(connection.SimHubRunning ? "running" : "not running")}; bridge {(connection.BridgeConnected ? "connected" : "offline")}; AZOM {(!connection.BridgeConnected ? "unverified" : connection.AzomDetected ? "detected" : "not detected")}.\n" + GuidedIntegrationText.Text;
             GuidedProgressText.Text = $"Car {(j.CarConfirmed ? "✓" : "○")} → Goals {(j.GoalSignature.Length > 0 ? "✓" : "○")} → Prepare {(j.TuneReady ? "✓" : "○")} → Baseline {(j.BaselineId.Length > 0 ? "✓" : "○")} → Test {(j.Recommendation.Length > 0 ? "✓" : "○")} → Compare {(j.AfterId.Length > 0 ? "✓" : "○")} → Review {(j.Reviewed ? "✓" : "○")}";
         }
@@ -63,6 +78,32 @@ public partial class MainWindow
             GuidedNextButton.IsEnabled = false;
             GuidedInstructionsText.Text = "Select a complete car/rig below. " + ex.Message;
         }
+    }
+    private void GuidedFocus_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_guidedReady || _syncingGuided || GuidedFocusBox.SelectedValue is not TuningFocus focus) return;
+        try
+        {
+            var p = _workflow.Preferences(); p.Focus = focus; _workflow.SavePreferences(p);
+            GuidedReadyCheck.IsChecked = false;
+            RefreshGuidedWorkflow();
+        }
+        catch (Exception ex) { GuidedInstructionsText.Text = "Could not change workflow: " + ex.Message; }
+    }
+    private void GuidedHelp_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_guidedReady || _syncingGuided) return;
+        try { var p = _workflow.Preferences(); p.ShowDetailedHelp = GuidedHelpCheck.IsChecked == true; _workflow.SavePreferences(p); RefreshGuidedWorkflow(); }
+        catch (Exception ex) { GuidedInstructionsText.Text = ex.Message; }
+    }
+    private void OpenGuidedGoals_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var window = new CarSetupWindow(BuildInput(), behaviorOnly: true) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            window.ShowDialog(); GuidedReadyCheck.IsChecked = false; RefreshGuidedWorkflow();
+        }
+        catch (Exception ex) { GuidedInstructionsText.Text = ex.Message; }
     }
     private void SaveGuidedDriver_Click(object sender, RoutedEventArgs e)
     {
@@ -103,7 +144,7 @@ public partial class MainWindow
                 case GuidedStage.Goals: _workflow.Update(input, driver.Id, x => x.GoalSignature = signature); break;
                 case GuidedStage.GoalsChanged: _workflow.Reset(input, driver.Id); break;
                 case GuidedStage.Prepare:
-                    if (!j.TuneGenerated) { Generate_Click(sender, e); return; }
+                    if (TuningFocusOptions.IncludesFfb(j.Focus) && !j.TuneGenerated) { Generate_Click(sender, e); return; }
                     if (GuidedReadyCheck.IsChecked != true) { GuidedInstructionsText.Text = "Review/use the settings first, then tick the confirmation below. Generating a tune does not apply it."; return; }
                     _workflow.Update(input, driver.Id, x => x.TuneReady = true); break;
                 case GuidedStage.Baseline:
@@ -130,14 +171,14 @@ public partial class MainWindow
     private RecordingPlan GuidedRecordingPlan(TuneInput input)
     {
         var driver = CurrentGuidedDriver(); var j = _workflow.Journey(input, driver.Id);
-        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions);
+        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions, j.Focus, _workflow.Preferences().ShowDetailedHelp);
     }
     private void TrackSavedRun(TuneInput input, SavedTelemetrySession saved)
     {
         var c = saved.Session.Context;
         if (!RunHistoryStore.ValidContext(c)) return;
         if (!GuidedWorkflowEngine.CanAdvanceFromRun(saved.Session, saved.Analysis)) return;
-        if (RunHistoryStore.ContextKey(BuildInput()) == RunHistoryStore.ContextKey(input))
+        if (RunHistoryStore.ContextKey(BuildInput()) == RunHistoryStore.ContextKey(input) && c!.Focus == _workflow.Preferences().Focus)
         {
             var p = _workflow.Preferences(); p.DriverName = c!.DriverName; _workflow.SavePreferences(p);
             GuidedDriverBox.Text = p.DriverName;
@@ -150,7 +191,7 @@ public partial class MainWindow
             if (c.RecommendationSessionId.Length > 0)
             { j.BaselineId = c.RecommendationSessionId; j.AfterId = saved.Session.Id; j.Recommendation = string.Join("\n", c.TestedRecommendations); }
             else { j.BaselineId = saved.Session.Id; j.AfterId = j.Recommendation = ""; }
-        });
+        }, c.Focus);
         RefreshGuidedWorkflow();
     }
     private void HandleRecommendation(TuneInput input, SavedTelemetrySession run, string recommendation)
@@ -158,6 +199,7 @@ public partial class MainWindow
         RequireGuidedContext(input);
         var c = run.Session.Context;
         if (!RunHistoryStore.ValidContext(c)) throw new InvalidOperationException("Record a new baseline with driver and tune context before starting a guided test.");
+        if (c!.Focus != _workflow.Preferences().Focus) throw new InvalidOperationException("This run belongs to another tuning mode. Switch back to that mode or record a new baseline for the selected workflow.");
         if (!RunHistoryStore.SameBehavior(c!.Tune!.DesiredBehavior, _behaviorStore.Load(input)))
             throw new InvalidOperationException("This run's recorded goals differ from the current saved Desired Behavior. Use matching goals or record a new baseline.");
         var prefs = _workflow.Preferences(); prefs.DriverName = c.DriverName; _workflow.SavePreferences(prefs); GuidedDriverBox.Text = c.DriverName;

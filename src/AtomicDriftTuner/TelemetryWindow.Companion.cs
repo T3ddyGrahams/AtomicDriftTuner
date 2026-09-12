@@ -28,7 +28,7 @@ public partial class TelemetryWindow
         // A delayed command must not act on a replacement run or edited capture plan.
         var version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
         {
-            _companionRevision, DriverBox.Text, Conditions = ConditionsBox.Text, Label = TuneLabelBox.Text,
+            _companionRevision, RecordingFocus, DriverBox.Text, Conditions = ConditionsBox.Text, Label = TuneLabelBox.Text,
             Change = TestedChangeBox.Text, Baseline = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id,
             Setup = _setupSnapshotPath, Confirmed = TuneInUseCheck.IsChecked, contextMatches
         }))));

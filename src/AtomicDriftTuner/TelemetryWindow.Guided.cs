@@ -9,6 +9,7 @@ public partial class TelemetryWindow
     public event Action<SavedTelemetrySession>? CompareRequested;
     private RecordingPlan? _recordingPlan;
     private SavedTelemetrySession? _lastSavedForGuide;
+    public TuningFocus RecordingFocus => _recordingPlan?.Focus ?? TuningFocus.Both;
     public void UseRecordingPlan(RecordingPlan plan)
     {
         if (_recordingPlan == plan) return;
@@ -17,11 +18,19 @@ public partial class TelemetryWindow
             StatusText.Text = "Finish and save the current recording first. Return to the dashboard and open the next step again to load the new test plan.";
             return;
         }
-        var recent = _sessionStore.ListRecent(_input, 100);
+        var recent = _sessionStore.ListRecent(_input, 100).Where(s => (s.Session.Context?.Focus ?? TuningFocus.Both) == plan.Focus).ToList();
         var baseline = recent.FirstOrDefault(s => s.Session.Id == plan.BaselineId && s.Session.Context?.DriverId == plan.DriverId);
         if (plan.BaselineId.Length > 0 && baseline is null)
             throw new InvalidOperationException("The planned baseline is not in this car/driver's recent history. Select it in Tuning Assistant or start a new baseline; ADT has not substituted another run.");
         _recordingPlan = plan;
+        ApplyButton.Visibility = TuningFocusOptions.IncludesFfb(plan.Focus) ? Visibility.Visible : Visibility.Collapsed;
+        RecorderCalibrationCard.Visibility = ApplyButton.Visibility;
+        RecorderFocusText.Text = TuningFocusOptions.Label(plan.Focus) + " · " + TuningFocusOptions.Description(plan.Focus);
+        RecorderHelpText.Text = Engine.GuidedWorkflowEngine.RecordingHelp(plan.Focus, baseline is not null);
+        RecorderHelpExpander.IsExpanded = plan.ShowDetailedHelp;
+        RecorderConfirmationText.Text = plan.Focus == TuningFocus.CarSetupOnly
+            ? "I confirm the attached car setup is loaded in AC and my in-game FFB and wheelbase settings are unchanged."
+            : "I confirm I am using the generated ADT FFB targets and the attached setup for this run.";
         DriverBox.Text = plan.DriverName;
         RecommendationRunBox.ItemsSource = recent; RecommendationRunBox.SelectedItem = baseline;
         ConditionsBox.Text = plan.Conditions;

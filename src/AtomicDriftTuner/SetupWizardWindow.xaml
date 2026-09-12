@@ -39,8 +39,16 @@
                 <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="What would you like to tune?"/>
+                    <ComboBox x:Name="InterviewFocusBox" DisplayMemberPath="Label" SelectedValuePath="Focus" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="What to tune" Margin="0,3,0,8"/>
+                    <TextBlock x:Name="InterviewFocusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                    <CheckBox x:Name="InterviewHelpCheck" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
+                        <TextBlock Text="Show more explanation and examples in my walkthrough" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" TextWrapping="Wrap"/>
+                    </CheckBox>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver name (used for your run history)"/>
                     <TextBox x:Name="InterviewDriverBox" MaxLength="80" TextChanged="InterviewTextChanged" AutomationProperties.Name="Driver name" Margin="0,3,0,8"/>
+                    <StackPanel x:Name="IntegrationInterviewPanel">
+                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="SimHub is an optional companion program. AZOM is its optional plugin for supported wheelbase settings. You can enter settings manually if you do not use these tools. Not sure? Check for Me looks without installing or applying anything." TextWrapping="Wrap" Margin="0,6"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Do you have SimHub installed?"/>
                     <ComboBox x:Name="SimHubChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="SimHub installed" Margin="0,3,0,8"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Do you have the AZOM plugin for SimHub installed?" TextWrapping="Wrap"/>
@@ -48,8 +56,9 @@
                     <CheckBox x:Name="UseLiveGuidanceBox" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
                         <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="Help me connect supported wheelbase settings through SimHub + AZOM" TextWrapping="Wrap"/>
                     </CheckBox>
-                    <Button x:Name="CheckGuidedConnectionButton" Content="Check My Connection / Check Again" Click="CheckGuidedConnection_Click" HorizontalAlignment="Left" Margin="0,8"/>
+                    <Button x:Name="CheckGuidedConnectionButton" Content="Not sure? Check for Me / Check Again" Click="CheckGuidedConnection_Click" HorizontalAlignment="Left" Margin="0,8"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewDetectionText" Text="Nothing has been checked yet. Installation and live connection are checked separately." TextWrapping="Wrap" Margin="0,4"/>
+                    </StackPanel>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewInstructionsText" TextWrapping="Wrap" Margin="0,6"/>
                     <TextBlock Text="Save &amp; Continue below remembers these choices. You can change them later in Setup &amp; Paths." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </StackPanel>

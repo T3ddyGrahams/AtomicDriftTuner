@@ -9,6 +9,7 @@ public sealed class DriverIdentity
 
 public sealed class TuneVersion
 {
+    public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public string Schema { get; set; } = "adt/tune-version/1";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
@@ -26,6 +27,7 @@ public sealed class TuneVersion
 
 public sealed class RunContext
 {
+    public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public string Schema { get; set; } = "adt/run-context/1";
     public string DriverId { get; set; } = "";
     public string DriverName { get; set; } = "";
@@ -94,6 +96,8 @@ public sealed class RunComparison
 
 public sealed class RunReview
 {
+    public TuningFocus Focus { get; set; } = TuningFocus.Both;
+    public string NextAction { get; set; } = "Undecided";
     public string Schema { get; set; } = "adt/run-review/1";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime ReviewedUtc { get; set; } = DateTime.UtcNow;

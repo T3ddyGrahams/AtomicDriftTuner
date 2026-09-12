@@ -9,6 +9,7 @@ public partial class MainWindow
         try
         {
             return _telemetryWindow is not null && EmbeddedContextMatches(_telemetryWindow, BuildInput()) &&
+                _telemetryWindow.RecordingFocus == _workflow.Preferences().Focus &&
                 string.Equals(_telemetryWindow.DriverBox.Text.Trim(), _workflow.Preferences().DriverName.Trim(), StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }

@@ -15,7 +15,7 @@ public partial class TuningAssistantWindow : Window
     private readonly RunHistoryStore _history = new();
     private bool _bindingHistory;
     private bool _bindingBaselines;
-    private readonly Dictionary<string, (string Rating, string Notes)> _reviewDrafts = [];
+    private readonly Dictionary<string, (string Rating, string Notes, string NextAction)> _reviewDrafts = [];
     private string? _draftRunId;
 
     private readonly TelemetrySessionStore _sessionStore =
@@ -68,6 +68,8 @@ public partial class TuningAssistantWindow : Window
             HistoryDriverBox.SelectedIndex = 0;
             DriverRatingBox.ItemsSource = new[] { "Not rated", "Better", "Worse", "No noticeable difference", "Tradeoff" };
             DriverRatingBox.SelectedIndex = 0;
+            NextActionBox.ItemsSource = new[] { "Undecided", "Keep and verify", "Revert manually", "Test again" };
+            NextActionBox.SelectedIndex = 0;
         }
         catch (Exception ex) { QualityText.Text = "Driver history could not load: " + ex.Message; }
         finally { _bindingHistory = false; }
@@ -114,7 +116,7 @@ public partial class TuningAssistantWindow : Window
     {
         if (_bindingHistory || ReviewHistoryBox.SelectedItem is not RunReview review) return;
         ReviewHistoryText.Text = $"{review.DisplayName}\n{review.Conclusion}\nRun: {review.SessionId}\nBaseline: {review.BaselineSessionId}\n{review.Comparison.Summary}\nDriver notes: {review.Notes}\n" +
-            string.Join("\n", review.Comparison.Limitations);
+            string.Join("\n", review.Comparison.Limitations) + "\nNext action: " + review.NextAction + " (settings are not applied or reverted automatically).";
     }
     private void ShowComparedTunes_Click(object sender, RoutedEventArgs e)
     {
@@ -125,14 +127,21 @@ public partial class TuningAssistantWindow : Window
 
     private void PreserveReviewDraft()
     {
-        if (_draftRunId is not null) _reviewDrafts[_draftRunId] = (DriverRatingBox.SelectedItem as string ?? "Not rated", DriverNotesBox.Text);
+        if (_draftRunId is not null) _reviewDrafts[_draftRunId] = (DriverRatingBox.SelectedItem as string ?? "Not rated", DriverNotesBox.Text, NextActionBox.SelectedItem as string ?? "Undecided");
     }
     private void RestoreReviewDraft(SavedTelemetrySession selected)
     {
         _draftRunId = selected.Session.Id + "|" + (FindPreviousSession(selected)?.Session.Id ?? "");
-        var draft = _reviewDrafts.GetValueOrDefault(_draftRunId, ("Not rated", ""));
+        if (!_reviewDrafts.TryGetValue(_draftRunId, out var draft))
+        {
+            var baselineId = FindPreviousSession(selected)?.Session.Id ?? "";
+            var saved = _history.ListReviews(_input, selected.Session.Context?.DriverId)
+                .FirstOrDefault(r => r.SessionId == selected.Session.Id && r.BaselineSessionId == baselineId);
+            draft = saved is null ? ("Not rated", "", "Undecided") : (saved.DriverRating, saved.Notes, saved.NextAction);
+        }
         DriverNotesBox.Text = draft.Item2;
         DriverRatingBox.SelectedItem = draft.Item1;
+        NextActionBox.SelectedItem = draft.Item3;
     }
     private void SaveRunReview_Click(object sender, RoutedEventArgs e)
     {
@@ -140,6 +149,7 @@ public partial class TuningAssistantWindow : Window
         try
         {
             var review = new RunReview { SessionId = _reportSession.Session.Id, BaselineSessionId = FindPreviousSession(_reportSession)?.Session.Id ?? "",
+                Focus = context.Focus, NextAction = NextActionBox.SelectedItem as string ?? "Undecided",
                 DriverId = context.DriverId, ContextKey = context.Tune.ContextKey, DriverRating = DriverRatingBox.SelectedItem as string ?? "Not rated",
                 Notes = DriverNotesBox.Text.Trim(), Comparison = RunHistoryStore.Clone(_report.Outcome) };
             _history.SaveReview(review);
@@ -290,7 +300,7 @@ public partial class TuningAssistantWindow : Window
 
         _bindingBaselines = true;
         var candidates = _sessions.Where(s => s.Session.Id != selected.Session.Id && s.Session.StartedUtc < selected.Session.StartedUtc &&
-            s.Session.Context?.DriverId == selected.Session.Context?.DriverId).ToList();
+            s.Session.Context?.DriverId == selected.Session.Context?.DriverId && s.Session.Context?.Focus == selected.Session.Context?.Focus).ToList();
         BaselineSessionBox.ItemsSource = candidates;
         BaselineSessionBox.SelectedItem = candidates.FirstOrDefault(s => s.Session.Id == selected.Session.Context?.RecommendationSessionId) ??
             candidates.FirstOrDefault(s => s.Session.Context?.TrackId == selected.Session.Context?.TrackId && s.Session.Context?.Conditions == selected.Session.Context?.Conditions);
@@ -421,7 +431,7 @@ public partial class TuningAssistantWindow : Window
             null;
 
         RecommendationGrid.ItemsSource =
-            report.Recommendations;
+            report.Recommendations.Where(r => TuningFocusOptions.Allows(_focus, r)).ToList();
 
         ComparisonGrid.ItemsSource =
             null;
@@ -458,7 +468,7 @@ public partial class TuningAssistantWindow : Window
             report.ConfidenceReason;
 
         BehaviorGuidanceText.Text =
-            report.SuggestedBehaviorSummary;
+            TuningFocusOptions.IncludesCar(_focus) ? report.SuggestedBehaviorSummary : "Keep the car setup fixed in this workflow. Full phase diagnosis is shown in Assessments; choose an FFB recommendation to test wheel feel.";
 
         if (previous is null)
         {
@@ -495,6 +505,7 @@ public partial class TuningAssistantWindow : Window
                 selected.SessionUtc.Ticks);
 
         ApplyCalibrationButton.IsEnabled =
+            TuningFocusOptions.IncludesFfb(_focus) &&
             _guidedSetupWindow is null &&
             currentReport &&
             !alreadyApplied &&
@@ -503,6 +514,7 @@ public partial class TuningAssistantWindow : Window
             MinimumDriftSecondsForCalibration;
 
         OpenSetupButton.IsEnabled =
+            TuningFocusOptions.IncludesCar(_focus) &&
             _guidedSetupWindow is null &&
             currentReport &&
             !_report!.SuggestedBehaviorTarget.IsNeutral && _report.OverallConfidence != AssistantConfidence.Low &&
@@ -565,6 +577,7 @@ public partial class TuningAssistantWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        if (!TuningFocusOptions.IncludesFfb(_focus)) { StatusText.Text = "FFB calibration is outside the selected car-setup-only workflow."; return; }
         if (
             SessionBox.SelectedItem is not SavedTelemetrySession selected ||
             _report is null ||
@@ -693,6 +706,7 @@ public partial class TuningAssistantWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        if (!TuningFocusOptions.IncludesCar(_focus)) { StatusText.Text = "Car setup changes are outside the selected FFB-only workflow."; return; }
         if (_guidedSetupWindow is not null)
         {
             RestoreAndActivateGuidedSetup();

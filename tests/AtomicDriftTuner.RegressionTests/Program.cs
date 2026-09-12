@@ -222,6 +222,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         GuidedChecks.Run(Run, root);
         CompanionChecks.Run(Run);
         GearingChecks.Run(Run, root);
+        GuidedModeChecks.Run(Run, root);
 Console.WriteLine($"Failures: {failures}. Isolated fixtures: {root}");
 return failures == 0 ? 0 : 1;
 

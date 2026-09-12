@@ -141,11 +141,14 @@ public partial class TelemetryWindow : Window
         var baseline = RecommendationRunBox.SelectedItem as SavedTelemetrySession;
         if (baseline is not null && baseline.Session.Context?.DriverId != driver.Id)
             throw new InvalidOperationException("Choose a recommendation baseline recorded by this driver, or clear the baseline selection.");
+        if (baseline is not null && baseline.Session.Context?.Focus != RecordingFocus)
+            throw new InvalidOperationException("Choose a baseline recorded in this tuning mode, or clear the baseline selection.");
         var version = _history.CaptureTune(_input, driver, TuneLabelBox.Text, new CarBehaviorProfileStore().Load(_input),
-            _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), _setupSnapshotPath, new AppSettingsStore().Load().AzomPreferences);
+            _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), _setupSnapshotPath, new AppSettingsStore().Load().AzomPreferences, RecordingFocus);
         RunTrackText.Text = identity is null ? "Car/track identity unknown; this run cannot establish improvement." : $"Recorded track: {identity.Track} • Tune: {version.Label}";
         return new RunContext
         {
+            Focus = RecordingFocus,
             DriverId = driver.Id, DriverName = driver.Name, TrackId = identity?.Track ?? "", Conditions = conditions,
             CarIdentityVerified = identity is not null && string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase),
             Tune = version, TuneConfirmedInUse = TuneInUseCheck.IsChecked == true,
@@ -588,6 +591,7 @@ public partial class TelemetryWindow : Window
 
     private bool CanApplyCurrentSuggestion()
     {
+        if (!TuningFocusOptions.IncludesFfb(RecordingFocus)) return false;
         return
             !_recording &&
             !_sessionInterrupted &&

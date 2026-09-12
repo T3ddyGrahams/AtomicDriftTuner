@@ -39,9 +39,11 @@ public partial class SetupWizardWindow : Window
     public bool SettingsChanged { get; private set; }
 
     public SetupWizardWindow(
-        bool firstRun)
+        bool firstRun, GuidedWorkflowStore? guidedStore = null, AppSettingsStore? settingsStore = null)
     {
         InitializeComponent();
+        _guidedStore = guidedStore ?? new GuidedWorkflowStore();
+        if (settingsStore is not null) _store = settingsStore;
 
         _firstRun =
             firstRun;
@@ -919,7 +921,7 @@ public partial class SetupWizardWindow : Window
             new List<string>();
 
         if (
-            UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && !string.IsNullOrWhiteSpace(
+            TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && !string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text) &&
             !SafeIsValidSimHubRoot(
                 SimHubPathBox.Text))
@@ -928,7 +930,7 @@ public partial class SetupWizardWindow : Window
                 "The SimHub folder is not currently valid.");
         }
         else if (
-            UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && string.IsNullOrWhiteSpace(
+            TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text))
         {
             messages.Add(

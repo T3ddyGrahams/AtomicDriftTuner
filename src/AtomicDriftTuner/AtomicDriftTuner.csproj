@@ -19,8 +19,8 @@
     <!-- Development/default version values.
          Release packaging overrides Version/AssemblyVersion/FileVersion/
          InformationalVersion explicitly from build-beta-package.ps1. -->
-    <ADTVersion Condition="'$(ADTVersion)' == ''">0.9.0-preview.5</ADTVersion>
-    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.9.0.5</ADTVersionInfoVersion>
+    <ADTVersion Condition="'$(ADTVersion)' == ''">0.9.0-preview.6</ADTVersion>
+    <ADTVersionInfoVersion Condition="'$(ADTVersionInfoVersion)' == ''">0.9.0.6</ADTVersionInfoVersion>
 
     <Version>$(ADTVersion)</Version>
     <AssemblyVersion>$(ADTVersionInfoVersion)</AssemblyVersion>

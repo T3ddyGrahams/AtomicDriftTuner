@@ -917,6 +917,7 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (_workflow.Preferences().Focus == TuningFocus.CarSetupOnly) { OpenCarSetup_Click(sender, e); return; }
             var input = BuildInput();
             _currentCalibration = _calibrationStore.Get(_calibrationEngine.BuildKey(input));
             _lastResult = _engine.Generate(input, _currentCalibration, _azomPreferences);
@@ -1281,6 +1282,7 @@ public partial class MainWindow : Window
                 if (EmbeddedContextMatches(_tuningAssistantWindow, input))
                 {
                     var journey = _workflow.Journey(input, CurrentGuidedDriver().Id);
+                    _tuningAssistantWindow.UseTuningFocus(_workflow.Preferences().Focus);
                     _tuningAssistantWindow.FocusGuidedSession(CurrentGuidedDriver().Id, journey.AfterId.Length > 0 ? journey.AfterId : journey.BaselineId);
                     RestoreAndActivate(_tuningAssistantWindow);
                     return;
@@ -1297,15 +1299,16 @@ public partial class MainWindow : Window
                 };
 
             _tuningAssistantWindow = window;
+            window.UseTuningFocus(_workflow.Preferences().Focus);
             window.RecommendationTestRequested += (run, recommendation) => HandleRecommendation(input, run, recommendation);
             window.GuidedSetupSaved += (run, path) =>
             {
-                if (run.Session.Context is { } context) _workflow.Update(input, context.DriverId, j => j.SetupPath = path);
+                if (run.Session.Context is { } context) _workflow.Update(input, context.DriverId, j => j.SetupPath = path, context.Focus);
                 RefreshGuidedWorkflow();
             };
             window.RunReviewSaved += review =>
             {
-                _workflow.Update(input, review.DriverId, j => { if (j.AfterId == review.SessionId && j.BaselineId == review.BaselineSessionId) j.Reviewed = review.DriverRating != "Not rated"; });
+                _workflow.Update(input, review.DriverId, j => { if (j.AfterId == review.SessionId && j.BaselineId == review.BaselineSessionId) j.Reviewed = review.DriverRating != "Not rated"; }, review.Focus);
                 RefreshGuidedWorkflow();
             };
             var selectedJourney = _workflow.Journey(input, CurrentGuidedDriver().Id);

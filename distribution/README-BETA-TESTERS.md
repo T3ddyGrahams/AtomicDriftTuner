@@ -1,5 +1,7 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
+**Local preview.6:** In **Your Next Step**, choose **FFB + car setup**, **FFB only**, or **Car setup only**. Leave **Show more explanation and examples** on for the full walkthrough, or turn it off for short steps. **Change My Setup** adapts the instructions to SimHub/AZOM availability. Each mode keeps separate progress; diagnoses, goals, recordings and history remain available. After comparing runs, save a rating and a Keep / Revert manually / Test again decision. These decisions do not apply settings automatically. Full instructions are in the repository's `docs/GUIDED_WORKFLOW.md`.
+
 **Testing v0.9.0-preview.3?** Follow the [release checklist](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-checklist.md) and review the [compatibility tracker](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-compatibility.md). This guide covers installation and the broader testing workflow.
 
 Thank you for testing Atomic Drift Tuner (ADT).

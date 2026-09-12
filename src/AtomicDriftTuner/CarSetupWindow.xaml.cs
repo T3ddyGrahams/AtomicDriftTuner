@@ -24,7 +24,8 @@ public partial class CarSetupWindow : Window
     public CarSetupWindow(
         TuneInput input,
         CarBehaviorTarget? assistantBehaviorOverride = null,
-        string? assistantGuidanceNote = null)
+        string? assistantGuidanceNote = null,
+        bool behaviorOnly = false)
     {
         ArgumentNullException.ThrowIfNull(input);
 
@@ -55,6 +56,15 @@ public partial class CarSetupWindow : Window
                 assistantGuidanceNote);
 
         RefreshSavedSetups();
+        if (behaviorOnly)
+        {
+            Title = "ADT • Desired Behavior";
+            ReturnToGuideButton.Visibility = Visibility.Visible;
+            SetupGenerationCard.Visibility = SetupGrid.Visibility = SaveGeneratedButton.Visibility = Visibility.Collapsed;
+            CarSummaryText.Text += "\nDescribe your driving goals. Saving these goals does not apply settings to the car or wheelbase.";
+            SetupStatusText.Text = "Choose your goals, save Desired Behavior, then close this window to return to the walkthrough.";
+            WindowBoundsService.Attach(this);
+        }
     }
 
     private void ApplyAssistantBehaviorGuidance(
@@ -553,6 +563,8 @@ public partial class CarSetupWindow : Window
                 MessageBoxImage.Warning);
         }
     }
+
+    private void ReturnToGuide_Click(object sender, RoutedEventArgs e) => Close();
 
     private void OpenGearing_Click(object sender, RoutedEventArgs e)
     {

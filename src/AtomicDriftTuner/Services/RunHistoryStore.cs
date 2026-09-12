@@ -59,10 +59,10 @@ public sealed class RunHistoryStore
     }
 
     public TuneVersion CaptureTune(TuneInput input, DriverIdentity driver, string label, CarBehaviorTarget behavior,
-        CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null)
+        CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null, TuningFocus focus = TuningFocus.Both)
     {
         Id(driver.Id);
-        var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior) };
+        var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior), Focus = focus };
         version.DesiredBehavior.Normalize();
         var tune = new TuningEngine().Generate(input, calibration, preferences);
         void Flatten(JsonElement element, string key)
@@ -72,8 +72,12 @@ public sealed class RunHistoryStore
             else if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value) && double.IsFinite(value)) version.Settings[key] = value;
             else if (element.ValueKind is JsonValueKind.True or JsonValueKind.False) version.Settings[key] = element.GetBoolean() ? 1 : 0;
         }
-        Flatten(JsonSerializer.SerializeToElement(tune.Ac), "Generated.ACFFB");
-        Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
+        if (TuningFocusOptions.IncludesFfb(focus))
+        {
+            Flatten(JsonSerializer.SerializeToElement(tune.Ac), "Generated.ACFFB");
+            Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
+        }
+        else version.Source = "Car setup snapshot; FFB settings held fixed by driver, no generated FFB targets claimed in use";
         if (!string.IsNullOrWhiteSpace(setupPath))
         {
             var info = new FileInfo(setupPath);
@@ -115,17 +119,20 @@ public sealed class RunHistoryStore
         .OrderByDescending(r => r.ReviewedUtc).Take(200).ToList();
 
     public static bool ValidContext(RunContext? c) => c is not null && c.Schema == "adt/run-context/1" &&
+        Enum.IsDefined(c.Focus) &&
         Guid.TryParseExact(c.DriverId, "N", out _) && c.DriverName is not null && c.TrackId is not null && c.Conditions is not null &&
         c.RecommendationSessionId is not null && c.TestedRecommendations is not null && c.TestedRecommendations.All(x => !string.IsNullOrWhiteSpace(x)) &&
-        c.Tune is not null && ValidTune(c.Tune) && c.Tune.DriverId == c.DriverId;
+        c.Tune is not null && ValidTune(c.Tune) && c.Tune.DriverId == c.DriverId && c.Tune.Focus == c.Focus;
 
     private static bool ValidReview(RunReview r) => r.Schema == "adt/run-review/1" && Guid.TryParseExact(r.Id, "N", out _) &&
+        Enum.IsDefined(r.Focus) && new[] { "Undecided", "Keep and verify", "Revert manually", "Test again" }.Contains(r.NextAction) &&
         Guid.TryParseExact(r.SessionId, "N", out _) && Guid.TryParseExact(r.DriverId, "N", out _) && r.BaselineSessionId is not null &&
         r.Notes is not null && r.Notes.Length <= 4000 && !string.IsNullOrWhiteSpace(r.ContextKey) &&
         new[] { "Not rated", "Better", "Worse", "No noticeable difference", "Tradeoff" }.Contains(r.DriverRating) &&
         r.Comparison is not null && r.Comparison.Limitations is not null && r.Comparison.Metrics is not null && r.Comparison.TuneChanges is not null;
 
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
+        Enum.IsDefined(v.Focus) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
         v.SetupSha256 is not null && v.Settings is not null && v.DesiredBehavior is not null && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
         new[] { v.DesiredBehavior.FrontEndBite, v.DesiredBehavior.RearGrip, v.DesiredBehavior.SelfSteerSpeed, v.DesiredBehavior.TransitionSpeed,

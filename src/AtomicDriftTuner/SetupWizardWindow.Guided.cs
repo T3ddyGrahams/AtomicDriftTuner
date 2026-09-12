@@ -7,12 +7,15 @@ using AtomicDriftTuner.Engine;
 namespace AtomicDriftTuner;
 public partial class SetupWizardWindow
 {
-    private readonly GuidedWorkflowStore _guidedStore = new();
+    private readonly GuidedWorkflowStore _guidedStore;
     private bool _interviewReady;
     private IntegrationState? _integrationState;
     private void InitializeGuidedInterview()
     {
         var p = _guidedStore.Preferences();
+        InterviewFocusBox.ItemsSource = TuningFocusOptions.All;
+        InterviewFocusBox.SelectedValue = p.Focus;
+        InterviewHelpCheck.IsChecked = p.ShowDetailedHelp;
         SimHubChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
         AzomChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
         SimHubChoiceBox.SelectedItem = p.SimHub; AzomChoiceBox.SelectedItem = p.Azom;
@@ -25,11 +28,16 @@ public partial class SetupWizardWindow
     {
         Completed = true, SimHub = SimHubChoiceBox.SelectedItem as string ?? "Not sure",
         Azom = AzomChoiceBox.SelectedItem as string ?? "Not sure", WantLiveConnection = UseLiveGuidanceBox.IsChecked == true,
-        DriverName = InterviewDriverBox.Text.Trim()
+        DriverName = InterviewDriverBox.Text.Trim(),
+        Focus = InterviewFocusBox.SelectedValue is TuningFocus focus ? focus : TuningFocus.Both,
+        ShowDetailedHelp = InterviewHelpCheck.IsChecked == true
     };
     private void InterviewChanged(object sender, RoutedEventArgs e)
     {
         if (!_interviewReady) return;
+        if ((ReferenceEquals(sender, SimHubChoiceBox) || ReferenceEquals(sender, AzomChoiceBox)) &&
+            (SimHubChoiceBox.SelectedItem as string == "No" || AzomChoiceBox.SelectedItem as string == "No"))
+            UseLiveGuidanceBox.IsChecked = false;
         _pathsEdited = true; UpdateInterviewInstructions();
     }
     private void InterviewSelectionChanged(object sender, SelectionChangedEventArgs e) => InterviewChanged(sender, e);
@@ -37,7 +45,11 @@ public partial class SetupWizardWindow
     private void UpdateInterviewInstructions()
     {
         InterviewInstructionsText.Text = GuidedWorkflowEngine.Instructions(InterviewPreferences(), _integrationState);
-        OptionalSimHubCard.Visibility = UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" ? Visibility.Visible : Visibility.Collapsed;
+        var focus = InterviewPreferences().Focus;
+        InterviewFocusText.Text = TuningFocusOptions.Description(focus);
+        UseLiveGuidanceBox.IsEnabled = SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No";
+        IntegrationInterviewPanel.Visibility = TuningFocusOptions.IncludesFfb(focus) ? Visibility.Visible : Visibility.Collapsed;
+        OptionalSimHubCard.Visibility = TuningFocusOptions.IncludesFfb(focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" ? Visibility.Visible : Visibility.Collapsed;
     }
     private async void CheckGuidedConnection_Click(object sender, RoutedEventArgs e)
     {

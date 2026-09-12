@@ -60,6 +60,7 @@ public sealed class DriftAssistantReportBuilder
             r.Assessments.Add(new AssistantBehaviorAssessment { Behavior = m.Name, Desired = desired, Observed = m.DisplayValue,
                 Status = status, Confidence = m.Confidence, Evidence = $"{m.EvidenceSeconds:0.0}s evidence" + (m.Events >= 0 ? $", {m.Events} events. " : ". ") + m.Evidence });
             if (guidance.Length > 0) r.Recommendations.Add(new AssistantRecommendation { Domain = m.Name, Priority = status == "NEEDS WORK" ? "Review" : "Explore",
+                Area = m.Key is "clipping" ? RecommendationArea.Ffb : m.Key is "oscillation" or "extreme-angle" ? RecommendationArea.General : RecommendationArea.CarSetup,
                 Change = guidance, Why = $"Goal: {desired}. Observed: {m.DisplayValue}. {m.Evidence}", Confidence = m.Confidence });
         }
         // Do not speed up an unstable run or turn proxy evidence into automatic wheelbase writes.
@@ -72,7 +73,7 @@ public sealed class DriftAssistantReportBuilder
         r.SuggestedBehaviorSummary = r.HasSuggestedBehaviorChange ?
             $"Temporary guidance: initiation {goal.InitiationSharpness:+0;-0;0} → {r.SuggestedBehaviorTarget.InitiationSharpness:+0;-0;0}; transitions {goal.TransitionSpeed:+0;-0;0} → {r.SuggestedBehaviorTarget.TransitionSpeed:+0;-0;0}. Recorded goals remain unchanged." :
             "Keep the recorded Desired Behavior. Inspect phase evidence and test one supported setup change at a time.";
-        if (!r.ProposedCalibration.IsNeutral) r.Recommendations.Add(new AssistantRecommendation { Domain = "AC FFB", Priority = "Review",
+        if (!r.ProposedCalibration.IsNeutral) r.Recommendations.Add(new AssistantRecommendation { Domain = "AC FFB", Priority = "Review", Area = RecommendationArea.Ffb,
             Change = $"AC gain calibration {r.ProposedCalibration.AcGainDelta:+0;-0;0}", Why = string.Join(" ", r.ProposedCalibration.Reasons), Confidence = "MEDIUM" });
         r.OverallAssessment = a.Assessment;
         r.PreserveNotes.Add("No Desired Behavior profile or hardware setting changes merely by analyzing a run.");

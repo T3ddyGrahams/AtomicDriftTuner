@@ -38,6 +38,10 @@
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
             <TextBlock x:Name="RecorderStepsText" Text="Connect → attach setup and confirm context → Record → Stop → Save Session → Review / Compare" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
+            <TextBlock x:Name="RecorderFocusText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,6"/>
+            <Expander x:Name="RecorderHelpExpander" Header="Explain the recording steps" Margin="0,0,0,8">
+                <TextBlock x:Name="RecorderHelpText" TextWrapping="Wrap" Foreground="{DynamicResource FieldLabelBrush}" Margin="0,8"/>
+            </Expander>
             <Button x:Name="CompareSavedRunButton" Content="Review / Compare Saved Run" Click="CompareSavedRun_Click" IsEnabled="False" HorizontalAlignment="Left" Margin="0,0,0,8"/>
             <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TELEMETRY RECORDER + DRIFT SESSION ANALYZER"
                        FontSize="24"
@@ -77,7 +81,7 @@
                     </WrapPanel>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SetupSnapshotText" Text="No AC setup attached. Generated ADT targets are captured; live hardware settings are not read." TextWrapping="Wrap"/>
                     <CheckBox x:Name="TuneInUseCheck" Margin="0,8">
-                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RecorderConfirmationText" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
                     </CheckBox>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Recommendation baseline (optional; leave empty for a baseline run)" TextWrapping="Wrap"/>
                     <ComboBox x:Name="RecommendationRunBox" AutomationProperties.Name="Recommendation baseline run"/>
@@ -161,7 +165,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource Card}">
+                    <Border x:Name="RecorderCalibrationCard" Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PROPOSED CALIBRATION DELTA"
                                        TextWrapping="Wrap"

@@ -1,5 +1,8 @@
 namespace AtomicDriftTuner.Models;
 
+public enum TuningFocus { Both, FfbOnly, CarSetupOnly }
+public enum RecommendationArea { General, Ffb, CarSetup }
+
 public sealed class GuidedPreferences
 {
     public string Schema { get; set; } = "adt/guided-preferences/1";
@@ -8,6 +11,8 @@ public sealed class GuidedPreferences
     public string Azom { get; set; } = "Not sure";
     public bool WantLiveConnection { get; set; }
     public string DriverName { get; set; } = "Local driver";
+    public TuningFocus Focus { get; set; } = TuningFocus.Both;
+    public bool ShowDetailedHelp { get; set; } = true;
 }
 
 public sealed class GuidedJourney
@@ -15,6 +20,7 @@ public sealed class GuidedJourney
     public string Schema { get; set; } = "adt/guided-journey/1";
     public string ContextKey { get; set; } = "";
     public string DriverId { get; set; } = "";
+    public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public bool CarConfirmed { get; set; }
     public string GoalSignature { get; set; } = "";
     public bool TuneGenerated { get; set; }
@@ -29,6 +35,11 @@ public sealed class GuidedJourney
 }
 
 public enum GuidedStage { Welcome, Car, Goals, Prepare, Baseline, Findings, Test, Compare, Complete, GoalsChanged }
-public sealed record GuidedStep(GuidedStage Stage, string Title, string Instructions, string Action);
+public sealed record GuidedStep(GuidedStage Stage, string Title, string Instructions, string Action)
+{
+    public string Details { get; init; } = "";
+    public string Completion { get; init; } = "";
+}
 public sealed record IntegrationState(bool SimHubInstalled, bool SimHubRunning, bool BridgeInstalled, bool BridgeConnected, bool AzomDetected, bool SettingsReadable);
-public sealed record RecordingPlan(string DriverId, string DriverName, string BaselineId, string Recommendation, string SetupPath, string Conditions);
+public sealed record RecordingPlan(string DriverId, string DriverName, string BaselineId, string Recommendation, string SetupPath, string Conditions,
+    TuningFocus Focus = TuningFocus.Both, bool ShowDetailedHelp = true);

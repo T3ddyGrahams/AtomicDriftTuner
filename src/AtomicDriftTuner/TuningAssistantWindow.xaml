@@ -52,6 +52,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
+            <TextBlock x:Name="AssistantFocusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
             <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TELEMETRY-ASSISTED TUNING"
                        FontSize="26"
                        FontWeight="Bold"
@@ -281,6 +282,9 @@
                     </DataGrid>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Driver feedback for the selected run" FontWeight="Bold" Margin="0,12,0,4"/>
                     <ComboBox x:Name="DriverRatingBox" AutomationProperties.Name="Driver outcome rating"/>
+                    <TextBlock Text="What will you do next? This records your decision; it does not apply or undo settings." Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,8,0,4"/>
+                    <ComboBox x:Name="NextActionBox" AutomationProperties.Name="Next action after comparison"/>
+                    <TextBlock Text="Keep: save your preferred settings and verify again. Revert: load your original AC setup and/or manually restore the earlier FFB values from Tune &amp; Run History. Test again: return to the dashboard and choose Record Comparison Run Again." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <TextBox x:Name="DriverNotesBox" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="4000" MinHeight="60" MaxHeight="120"
                              VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Driver feedback notes" Margin="0,6"/>
                     <Button x:Name="SaveReviewButton" Content="Save Run Review" Click="SaveRunReview_Click" HorizontalAlignment="Left"/>

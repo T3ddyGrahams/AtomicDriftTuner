@@ -108,6 +108,9 @@ public sealed class TelemetrySession
 
     public DateTime EndedUtc { get; set; }
 
+    // Additive diagnostic metadata; older saved recordings have no stop reason.
+    public string StopReason { get; set; } = string.Empty;
+
     public string CarName
     {
         get => _carName;

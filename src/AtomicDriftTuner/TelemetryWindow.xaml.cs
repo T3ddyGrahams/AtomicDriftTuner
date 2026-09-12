@@ -13,12 +13,15 @@ public partial class TelemetryWindow : Window
     private const double MinimumDriftSecondsForCalibration =
         2.0;
 
+    private const double TelemetryRecoverySeconds = 5.0;
+
     private readonly TuneInput _input;
     private readonly RunHistoryStore _history = new();
-    private readonly AssettoCorsaSessionIdentityReader _identityReader = new();
+    private readonly Func<AssettoCorsaSessionIdentity?> _readSessionIdentity;
     private string? _setupSnapshotPath;
     private double _lastIdentityCheck;
     private double? _recordingSourceStart;
+    private double? _telemetryUnavailableSince;
     private readonly TelemetryHubService _telemetry;
 
     private readonly TelemetryAnalyzer _analyzer =
@@ -58,7 +61,8 @@ public partial class TelemetryWindow : Window
 
     public TelemetryWindow(
         TuneInput input,
-        TelemetryHubService telemetry)
+        TelemetryHubService telemetry,
+        Func<AssettoCorsaSessionIdentity?>? readSessionIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(
             input);
@@ -73,6 +77,8 @@ public partial class TelemetryWindow : Window
 
         _telemetry =
             telemetry;
+
+        _readSessionIdentity = readSessionIdentity ?? new AssettoCorsaSessionIdentityReader().TryRead;
 
         _session =
             NewSession();
@@ -131,7 +137,7 @@ public partial class TelemetryWindow : Window
 
     private RunContext CaptureRunContext()
     {
-        var identity = _identityReader.TryRead();
+        var identity = _readSessionIdentity();
         if (identity is not null && !string.IsNullOrWhiteSpace(_input.Car.SourceFolderName) &&
             !string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The active AC car differs from this recorder's car. Reopen the recorder for the active car.");
@@ -202,7 +208,7 @@ public partial class TelemetryWindow : Window
             StatusText.Text =
                 "Connected to Assetto Corsa shared memory. Live telemetry is active.";
 
-            var identity = _identityReader.TryRead();
+            var identity = _readSessionIdentity();
             RunTrackText.Text = identity is null ? "Active car/track identity is unavailable; comparisons will remain inconclusive." : $"Active car: {identity.CarModel} • Track: {identity.Track}";
 
             _timer.Start();
@@ -276,6 +282,7 @@ public partial class TelemetryWindow : Window
         RunCapturePanel.IsEnabled = false;
         _lastIdentityCheck = 0;
         _recordingSourceStart = null;
+        _telemetryUnavailableSince = null;
 
         _session.StartedUtc =
             DateTime.UtcNow;
@@ -345,13 +352,17 @@ public partial class TelemetryWindow : Window
             return;
         }
 
+        var waitingForTelemetry = _telemetryUnavailableSince is not null || !_telemetry.GetSnapshot().Connected;
         FinalizeRecording(
-            interrupted: false,
-            "Recording stopped.");
+            interrupted: waitingForTelemetry,
+            waitingForTelemetry
+                ? "Recording stopped while AC telemetry was unavailable. Save the partial run and record a clean run before applying a correction."
+                : "Recording stopped.");
 
         if (
             _analysis is not null &&
-            _session.Samples.Count > 0)
+            _session.Samples.Count > 0 &&
+            !_sessionInterrupted)
         {
             StatusText.Text =
                 $"Analysis complete: {_session.Samples.Count} unique physics frames recorded. " +
@@ -368,55 +379,84 @@ public partial class TelemetryWindow : Window
             if (_recording && _clock.Elapsed.TotalSeconds - _lastIdentityCheck >= 1)
             {
                 _lastIdentityCheck = _clock.Elapsed.TotalSeconds;
-                var identity = _identityReader.TryRead();
+                var identity = _readSessionIdentity();
                 if (identity is not null && _session.Context?.CarIdentityVerified == true &&
                     (!string.Equals(identity.CarModel, _session.CarFolder, StringComparison.OrdinalIgnoreCase) ||
                      !string.Equals(identity.Track, _session.Context.TrackId, StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException("Active car or track changed. This recording was stopped to preserve its original context.");
             }
-            var hub =
-                _telemetry.GetSnapshot();
-
-            if (
-                !hub.Connected ||
-                hub.Sample is null)
-            {
-                throw new InvalidOperationException(
-                    hub.Error ??
-                    "Assetto Corsa telemetry is unavailable.");
-            }
-
-            var sample =
-                hub.Sample;
-
-            RenderLiveTelemetry(
-                sample);
-
-            if (
-                _recording &&
-                _lastPacketId !=
-                sample.PacketId)
-            {
-                _recordingSourceStart ??= sample.TimeSeconds;
-                var captured = sample.Copy();
-                captured.TimeSeconds -= _recordingSourceStart.Value;
-                _session.Samples.Add(captured);
-
-                _lastPacketId =
-                    sample.PacketId;
-
-                RecordingText.Text =
-                    $"Elapsed             {_clock.Elapsed.TotalSeconds,7:0.0} s\n" +
-                    $"Samples             {_session.Samples.Count,7}\n" +
-                    $"Current packet      {sample.PacketId,7}\n" +
-                    $"Current drift       {(IsCurrentDrift(sample) ? "YES" : "no")}";
-            }
+            ProcessTelemetrySnapshot(_telemetry.GetSnapshot(), _clock.Elapsed.TotalSeconds);
         }
         catch (Exception ex)
         {
             HandleTelemetryDisconnect(
                 ex);
         }
+    }
+
+    private void ProcessTelemetrySnapshot(TelemetryHubSnapshot hub, double elapsedSeconds)
+    {
+        if (_recording && _telemetryUnavailableSince is double unavailableSince &&
+            elapsedSeconds - unavailableSince >= TelemetryRecoverySeconds)
+        {
+            HandleTelemetryDisconnect(new InvalidOperationException(
+                $"No fresh AC telemetry for {TelemetryRecoverySeconds:0} seconds. " +
+                (hub.Error ?? "The recording's recovery window expired. Return to driving and start a new run.")));
+            return;
+        }
+
+        if (!hub.Connected || hub.Sample is null)
+        {
+            LiveText.Text = "Waiting for fresh Assetto Corsa telemetry.";
+            if (!_recording)
+            {
+                // A pause between runs must not shut down the recorder's refresh timer.
+                RecordButton.IsEnabled = false;
+                return;
+            }
+
+            _telemetryUnavailableSince ??= elapsedSeconds;
+            var waitingSeconds = elapsedSeconds - _telemetryUnavailableSince.Value;
+            StatusText.Text = $"Recording is waiting for fresh AC telemetry ({waitingSeconds:0.0}/{TelemetryRecoverySeconds:0} s). " +
+                "Return to driving; capture will resume automatically if telemetry recovers. Missing time is excluded from driving analysis.";
+            RecordingText.Text = $"Elapsed             {elapsedSeconds,7:0.0} s\n" +
+                $"Samples             {_session.Samples.Count,7}\nCapture status       WAITING FOR TELEMETRY";
+            return;
+        }
+
+        var recovered = _telemetryUnavailableSince is not null;
+        _telemetryUnavailableSince = null;
+        var sample = hub.Sample;
+        RenderLiveTelemetry(sample);
+        if (!_recording)
+        {
+            RecordButton.IsEnabled = true;
+            return;
+        }
+
+        // Never combine a restarted AC physics stream with the previous driving episode.
+        if ((_lastPacketId is int packet && sample.PacketId < packet) ||
+            (_recordingSourceStart is double start && _session.Samples.Count > 0 &&
+             sample.TimeSeconds - start < _session.Samples[^1].TimeSeconds))
+        {
+            HandleTelemetryDisconnect(new InvalidOperationException(
+                "The AC physics stream restarted. Save this partial run, then start a new recording for the current session."));
+            return;
+        }
+
+        if (recovered)
+            StatusText.Text = "Fresh AC telemetry recovered; recording resumed. Missing time remains a gap in the analysis.";
+
+        if (_lastPacketId == sample.PacketId) return;
+        _recordingSourceStart ??= sample.TimeSeconds;
+        var captured = sample.Copy();
+        captured.TimeSeconds -= _recordingSourceStart.Value;
+        _session.Samples.Add(captured);
+        _lastPacketId = sample.PacketId;
+        RecordingText.Text = $"Elapsed             {elapsedSeconds,7:0.0} s\n" +
+            $"Samples             {_session.Samples.Count,7}\n" +
+            $"Current packet      {sample.PacketId,7}\n" +
+            $"Current drift       {(IsCurrentDrift(sample) ? "YES" : "no")}";
     }
 
     private void RenderLiveTelemetry(
@@ -454,7 +494,7 @@ public partial class TelemetryWindow : Window
         {
             FinalizeRecording(
                 interrupted: true,
-                "Telemetry disconnected while recording: " +
+                "Recording interrupted: " +
                 exception.Message);
 
             if (
@@ -462,7 +502,7 @@ public partial class TelemetryWindow : Window
                 _session.Samples.Count > 0)
             {
                 StatusText.Text =
-                    "Telemetry disconnected while recording. " +
+                    _session.StopReason + " " +
                     $"ADT preserved and analyzed {_session.Samples.Count} captured frames. " +
                     "You may save this partial session, but calibration apply is disabled because the capture ended unexpectedly. " +
                     "Reconnect and record a clean representative session before applying a correction.";
@@ -483,6 +523,9 @@ public partial class TelemetryWindow : Window
         _recording =
             false;
         _companionRevision++;
+        _telemetryUnavailableSince = null;
+        _session.StopReason = statusPrefix;
+        StatusText.Text = statusPrefix;
 
         RunCapturePanel.IsEnabled = true;
         TuneInUseCheck.IsChecked = false;

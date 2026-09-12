@@ -1,10 +1,10 @@
-# ADT touchscreen / SimHub Control Center — local preview.7
+# ADT touchscreen / SimHub Control Center — local preview.8
 
 ADT's touchscreen page is available at `/dash`. Use it through SimHub Dash Studio on the PC, or open it directly in a phone/tablet browser on the same private network. It uses the same desktop recording, telemetry and tuning services. Keep ADT running.
 
 ## Set it up in SimHub
 
-1. Close older ADT versions and open preview.7. The separate executable uses your existing ADT settings and history.
+1. Close older ADT versions and open preview.8. The separate executable uses your existing ADT settings and history.
 2. In **Setup & Paths**, make sure the SimHub folder is correct. AZOM is optional for recording.
 3. Open **Remote** and press **START REMOTE**. The default port is **5190**. Keep this port unless another program is using it.
 4. Press **INSTALL SIMHUB DASHBOARD**. ADT creates a dashboard named **ADT Control Center**. Your existing **ADT** dashboard is preserved. Updating a previously generated Control Center saves a backup first.
@@ -34,6 +34,14 @@ If Windows Firewall asks, allow ADT on the private network used by your PC and d
 6. Follow **Your Next Step** and return to desktop Recommendations to inspect the full diagnosis, choose the next change, compare runs and save your review.
 
 The recording actions invoke the existing desktop recorder. Its full JSON/CSV recording, analysis and history are preserved. They do not apply settings. Old commands cannot act on a replacement recorder or edited recording plan. Duplicate or outdated commands are rejected. After an interrupted reply, check the refreshed recording state before trying again. A running recording remains in desktop ADT if the screen loses connection.
+
+### If recording pauses or stops after a tune change
+
+Return to the driving session after applying the recommendation, confirm **AC TELEMETRY: LIVE**, then start your next run. Preview.8 waits up to five seconds when telemetry briefly stops updating. The recorder and companion show **Waiting for fresh AC telemetry**; sampling resumes in the same run if fresh frames return within that window. Missing time stays a gap and is excluded by the existing analysis.
+
+If the outage lasts longer, AC changes car/track, or the physics stream restarts, ADT ends the run and displays the reason. Save the partial recording, return to live telemetry, and start a new run. Stopping manually while telemetry is unavailable also marks the run interrupted; it cannot qualify as proof that a tune improved or supply an automatic calibration correction. The reason is retained in the saved session JSON.
+
+This fix is in desktop ADT and works with the existing in-game companion and SimHub dashboard. Re-pair them after starting the new ADT build; reinstalling those clients is unnecessary.
 
 ## Tune and adjust wheel feel
 

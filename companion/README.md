@@ -29,6 +29,7 @@ Requires desktop **ADT 0.9.0-preview.4 or newer** running on the same PC, and Cu
 
 - **Connected to desktop ADT**: the companion can communicate with ADT; it does not mean AC telemetry is live.
 - **AC TELEMETRY: WAITING / STALE**: telemetry is missing or no longer fresh. Enter a live AC session. Interrupted recordings are retained for review and can be saved when analysis succeeds.
+- **Waiting for fresh AC telemetry** (desktop preview.8 or newer): the recorder allows up to five seconds for a brief telemetry interruption to recover, then resumes the same recording. A longer outage stops the run and shows the cause. Save the partial recording and start again once telemetry is live. Missing time is excluded from driving analysis. No companion reinstall is needed for this desktop fix.
 - **Prepare in ADT**: the desktop recorder has not been opened, or its car/rig/driver context needs updating. Preparing the recorder does not automatically apply a tune.
 - **Unsaved**: save the stopped run before starting another. The companion never discards a recording.
 - **Outcome unknown / reconnecting**: an action response was lost. The panel refreshes authoritative state; it never automatically repeats a recording command.

@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Recorder recovery (local preview.8)
+
+The WPF runner exercises actual recorder start/stop/save handlers with an anonymous telemetry map and isolated history/calibration stores. It records a baseline, applies its calculated recommendation to the fixture calibration, then starts a linked comparison run. Checks cover brief frozen-frame recovery without duplicate samples, unchanged time gaps, prolonged loss, late recovery, manual stopping during an outage, successive starts, car/track changes, packet/time resets and saved stop reasons. The original brief-freeze case failed against preview.7 before the fix. No named AC maps or hardware writes are used.
+
+Run just these checks with `dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/recording-recovery --recorder-recovery`. They also run in the full WPF suite. Live driving is still required to confirm the cause of the user-reported second-run stop.
+
 The guided-workflow preview brings the suite to **50 scenarios** and layout coverage to **252 geometry assertions**. New checks cover workflow ordering, generated-versus-ready state, changed goals/settings, optional integration guidance, installed/offline distinctions, driver/car/intent isolation, reopening, reset/corruption preservation and incomplete recordings. See [guided test steps](../docs/GUIDED_WORKFLOW.md). Historical counts below describe the earlier intelligence milestone.
 
 Responsive layout checks (Windows, run from repository root):

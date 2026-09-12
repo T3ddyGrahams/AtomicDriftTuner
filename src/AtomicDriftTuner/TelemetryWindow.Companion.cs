@@ -18,8 +18,13 @@ public partial class TelemetryWindow
         var connected = _telemetry.GetSnapshot().Connected;
         var ready = DriverBox.Text.Trim().Length > 0 && ConditionsBox.Text.Trim().Length > 0;
         var state = _recording ? "recording" : unsaved ? "unsaved" : _session.Samples.Count > 0 ? "saved" : "ready";
-        var message = _recording ? "Recording in ADT. Stop when your run is complete."
-            : unsaved ? _analysis is null ? "Captured samples need attention in desktop ADT; analysis did not complete." : _sessionInterrupted ? "Recording interrupted. Save the partial run or review it in ADT." : "Recording stopped. Save this run before recording again."
+        var message = _recording ? _telemetryUnavailableSince is not null
+                ? $"Waiting for fresh AC telemetry; recording will resume if it recovers within {TelemetryRecoverySeconds:0} seconds. Return to driving, or stop and save this partial run."
+                : "Recording in ADT. Stop when your run is complete."
+            : unsaved ? _analysis is null ? "Captured samples need attention in desktop ADT; analysis did not complete." : _sessionInterrupted
+                ? (_session.StopReason.Length > 0 ? _session.StopReason + " " : "Recording interrupted. ") + "Save the partial run or review it in ADT."
+                : "Recording stopped. Save this run before recording again."
+            : _sessionInterrupted && _session.Samples.Count == 0 ? _session.StopReason + " No frames were captured. Start again when live AC telemetry returns."
             : !contextMatches ? "The selected car/rig or driver changed. Prepare the matching recorder in desktop ADT."
             : !ready ? "Enter a driver and conditions/driving task in the desktop recorder."
             : !connected ? "Waiting for live AC telemetry. Enter an on-track session."

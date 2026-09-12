@@ -178,7 +178,7 @@ Areas include:
 * Anti-roll bars
 * Differential
 * Brake balance
-* Gearing
+* Gearing — first-version final-drive planner implemented in local preview.5; see [Gearing](docs/GEARING.md). Individual-gear optimization and telemetry-based gearing diagnosis remain future work.
 * Other car-supported setup parameters
 
 ADT should only recommend changes that the specific car actually allows the driver to make.

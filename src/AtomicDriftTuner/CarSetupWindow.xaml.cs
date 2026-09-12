@@ -554,6 +554,23 @@ public partial class CarSetupWindow : Window
         }
     }
 
+    private void OpenGearing_Click(object sender, RoutedEventArgs e)
+    {
+        var path = "";
+        try { path = SelectedPath(); } catch (InvalidOperationException) { }
+        var window = new GearingWindow(_input, path)
+        {
+            Owner = Window.GetWindow((DependencyObject)sender) ?? Application.Current.MainWindow,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        window.SetupFileSaved += written =>
+        {
+            SetupStatusText.Text = $"Saved final-drive setup: {written}";
+            SetupFileSaved?.Invoke(written);
+        };
+        window.ShowDialog();
+    }
+
     private void LoadBehaviorTarget()
     {
         _loadingBehavior = true;

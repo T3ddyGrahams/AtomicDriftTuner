@@ -284,3 +284,8 @@ Every useful test helps make ADT more accurate, reliable, and easier to use.
 The goal is not just to find crashes.
 
 We want to know whether ADT correctly understands what the car is doing, recommends changes that make sense for the driver's goal, and helps verify whether those changes actually improved the car.
+# Final-drive gearing (preview.5)
+
+Open **AC Setup → Gearing • Final-drive planner**. Choose a saved setup for the selected car, enter your desired drift gear, speed range and RPM range, then calculate. Use **Save target for this car** to remember the inputs, and **Save gearing setup…** to export a separate setup changing only the final drive. Load it in Assetto Corsa and compare the same section against your baseline.
+
+The initial targets are examples. Predictions assume no tyre/clutch slip and use the driven tyre's nominal radius; they do not identify your engine's power band. Version 1 needs unambiguous unpacked car data and supported ratio definitions. Packed/encrypted cars, duplicate ratio labels, AWD and adjustable limiters receive an explanation instead of a guessed result. See the repository's `docs/GEARING.md` for details.

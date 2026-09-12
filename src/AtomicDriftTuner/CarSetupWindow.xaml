@@ -38,6 +38,8 @@
                             <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Tuning aggressiveness" FontWeight="Bold"/>
                             <ComboBox x:Name="AggressivenessBox" SelectionChanged="AggressivenessBox_SelectionChanged"/>
                             <Button Content="GENERATE CAR SETUP" Click="GenerateSetup_Click" FontWeight="Bold" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}"/>
+                            <Button x:Name="OpenGearingButton" Content="Gearing • Final-drive planner…" Click="OpenGearing_Click"/>
+                            <TextBlock Text="Plan gearing from a saved setup using your desired drift gear, speed and RPM range." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </layout:AdaptivePanel>
                 </Border>

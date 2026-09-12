@@ -46,3 +46,11 @@ lua tests/companion/ui-tests.lua companion/apps/lua/ADTCompanion/companion_clien
 ```
 
 The 18 client assertions cover pairing, stale/disconnected state, protocol mismatch, double clicks, timeouts, ignored late responses and no automatic mutation retries. Six UI assertions execute the actual entry point with mocked CSP drawing/network functions. This is not an in-game rendering test. No Lua test dependency is included in the application/mod packages.
+
+## Final-drive gearing
+
+The regression runner includes 16 gearing scenarios (68 total). `GearingChecks` covers actual ratio/index mapping, selected gearsets/gears/tyres, malformed and unavailable data, wrong-car baselines, limiter exclusion, no-op/partial fits, per-car goals and preservation of all unrelated setup settings. Stale-source checks include the entire baseline and each data file.
+
+The WPF runner has 14 additional gearing workflow/theme assertions and 307 total geometry assertions. It exercises production calculation/invalidation/unit/persistence handlers against isolated fixtures and renders gearing screenshots. It does not drive Assetto Corsa or interact with user setup/settings folders.
+
+Optional installed-car verification: set `ADT_GEARING_TEST_CAR` to an installed car folder and `ADT_GEARING_TEST_SETUP` to an existing saved setup before running the regression project. This adds one scenario that reads the real data and writes any test export only under the runner's temporary fixture directory. Leave those variables unset for a fully synthetic run. See [Gearing](../docs/GEARING.md) for supported formats and driving-test steps.

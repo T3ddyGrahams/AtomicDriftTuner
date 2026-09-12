@@ -1,0 +1,57 @@
+<Window x:Class="AtomicDriftTuner.GearingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:layout="clr-namespace:AtomicDriftTuner.Controls"
+        Title="ADT • Gearing Planner" Width="960" Height="850" MinWidth="340" MinHeight="430"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
+    <Window.Resources>
+        <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}"><Setter Property="Margin" Value="0,4,0,10"/><Setter Property="Padding" Value="7"/></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource AtomicComboBoxStyle}"><Setter Property="Margin" Value="0,4,0,10"/></Style>
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Padding" Value="10,8"/><Setter Property="Margin" Value="0,4,8,4"/></Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <ScrollViewer x:Name="GearingScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <TextBlock Text="GEARING • FINAL DRIVE" FontSize="23" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" x:Name="CarText" Margin="0,6,0,10"/>
+                <TextBlock Text="1. Choose your baseline" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="Start with a setup saved in Assetto Corsa for this car. To keep ADT's handling changes, choose your generated handling setup as this baseline." Margin="0,5,0,5"/>
+                <TextBox x:Name="BaselinePathBox" IsReadOnly="True" AutomationProperties.Name="Gearing baseline setup path" TextChanged="ControlsChanged"/>
+                <Button Content="Browse baseline…" Click="Browse_Click" HorizontalAlignment="Left"/>
+                <TextBlock Text="2. Set your drift target" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" Margin="0,14,0,8"/>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="Choose the gear you want to hold, the road-speed range for your section, and the engine RPM range you want to use. Starter values are examples; ADT has not detected your engine's power band." Margin="0,0,0,10"/>
+                <layout:AdaptivePanel MinItemWidth="235" MaxColumns="2" Spacing="14">
+                    <StackPanel><TextBlock Text="Desired drift gear" Foreground="{DynamicResource FieldLabelBrush}"/><TextBox x:Name="GearBox" Text="3" AutomationProperties.Name="Desired drift gear" TextChanged="ControlsChanged"/></StackPanel>
+                    <StackPanel><TextBlock Text="Speed units" Foreground="{DynamicResource FieldLabelBrush}"/><ComboBox x:Name="UnitsBox" AutomationProperties.Name="Speed units" SelectedIndex="0" SelectionChanged="UnitsChanged"><ComboBoxItem Content="km/h"/><ComboBoxItem Content="mph"/></ComboBox></StackPanel>
+                    <StackPanel><TextBlock x:Name="LowSpeedLabel" Text="Minimum road speed (km/h)" Foreground="{DynamicResource FieldLabelBrush}"/><TextBox x:Name="LowSpeedBox" Text="60" AutomationProperties.Name="Minimum road speed" TextChanged="ControlsChanged"/></StackPanel>
+                    <StackPanel><TextBlock x:Name="HighSpeedLabel" Text="Maximum road speed (km/h)" Foreground="{DynamicResource FieldLabelBrush}"/><TextBox x:Name="HighSpeedBox" Text="100" AutomationProperties.Name="Maximum road speed" TextChanged="ControlsChanged"/></StackPanel>
+                    <StackPanel><TextBlock Text="Minimum target RPM" Foreground="{DynamicResource FieldLabelBrush}"/><TextBox x:Name="LowRpmBox" Text="4000" AutomationProperties.Name="Minimum target RPM" TextChanged="ControlsChanged"/></StackPanel>
+                    <StackPanel><TextBlock Text="Maximum target RPM" Foreground="{DynamicResource FieldLabelBrush}"/><TextBox x:Name="HighRpmBox" Text="6500" AutomationProperties.Name="Maximum target RPM" TextChanged="ControlsChanged"/></StackPanel>
+                </layout:AdaptivePanel>
+                <WrapPanel>
+                    <Button x:Name="CalculateButton" Content="Calculate final drive" Click="Calculate_Click" FontWeight="Bold"/>
+                    <Button x:Name="SaveTargetButton" Content="Save target for this car" Click="SaveTarget_Click"/>
+                </WrapPanel>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" x:Name="TargetStatusText" Margin="0,5,0,10"/>
+                <TextBlock Text="3. Review, save and test" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
+                <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="12" Margin="0,10,0,10">
+                    <StackPanel>
+                        <TextBlock x:Name="ResultText" Text="Calculate to compare your current final drive with the supported choices." Foreground="{DynamicResource PrimaryTextBrush}"/>
+                        <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" x:Name="SourceText" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Expander Header="Supported ratios and predicted RPM" HorizontalContentAlignment="Stretch"><TextBlock Foreground="{DynamicResource SecondaryTextBrush}" x:Name="OptionsText" Margin="10"/></Expander>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="These are no-slip road-speed estimates using the driven tyre's nominal radius. Wheelspin, clutch slip, tyre deformation and custom physics can change the result. A shorter final drive raises RPM and torque multiplication in every gear; a taller one lowers them. This version does not infer traction, diagnose telemetry or identify an optimal engine power band." Margin="0,12,0,8"/>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="Next: save a separate setup, load it in Assetto Corsa's Setup menu, then drive the same section in your chosen gear. Compare against your baseline before making further changes. Version 1 exports only the final drive." Margin="0,0,0,10"/>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" Padding="10" CornerRadius="10" Margin="0,10,0,0">
+            <StackPanel>
+                <WrapPanel><Button x:Name="SaveGearingButton" Content="Save gearing setup…" Click="Save_Click" IsEnabled="False" FontWeight="Bold"/><Button x:Name="CloseButton" Content="Close" Click="Close_Click"/></WrapPanel>
+                <ScrollViewer MaxHeight="54" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="StatusText" Text="Choose your targets, then calculate." Foreground="{DynamicResource PrimaryTextBrush}" AutomationProperties.LiveSetting="Polite"/></ScrollViewer>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

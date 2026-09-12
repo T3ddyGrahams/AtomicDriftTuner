@@ -59,11 +59,13 @@ internal static partial class Program
             Progress("PASS startup isolation: no application windows; production resources loaded");
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);
+            CheckGearingWorkflow(output);
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
             {
                 ["CarSetupWindow"] = ["SaveBehaviorButton", "SaveGeneratedButton"],
+                ["GearingWindow"] = ["SaveGearingButton", "CloseButton"],
                 ["AzomSettingsWindow"] = ["SavePreferencesButton"],
                 ["SetupWizardWindow"] = ["SaveButton", "CloseWithoutSavingButton"],
                 ["TelemetryWindow"] = ["RecordButton", "StopButton", "SaveButton"],
@@ -85,6 +87,11 @@ internal static partial class Program
                     Progress($"Checking {name} at {size.Width}x{size.Height}");
                     Layout(root, size);
                     foreach (var button in buttons) AssertVisible(root, button, size);
+                    if (name == "GearingWindow")
+                        foreach (var field in new[] { "GearBox", "UnitsBox", "LowSpeedBox", "HighSpeedBox", "LowRpmBox", "HighRpmBox", "CalculateButton", "SaveTargetButton" })
+                            AssertReachableByScrolling(root, "GearingScroll", field, size);
+                    if (name == "CarSetupWindow")
+                        AssertReachableByScrolling(root, "CarSetupScroll", "OpenGearingButton", size);
                     if (name == "TelemetryWindow")
                         foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox", "CompareSavedRunButton" })
                             AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);

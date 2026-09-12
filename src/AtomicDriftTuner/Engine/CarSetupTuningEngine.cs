@@ -863,7 +863,7 @@ public sealed class CarSetupTuningEngine
                 StringComparison.Ordinal))
         {
             reason =
-                "Gearing left unchanged because saved values may be ratio-list indexes whose direction varies by car.";
+                "Gearing unchanged here. Use the Gearing final-drive planner to decode supported ratios and set your gear, speed and RPM targets.";
 
             return 0;
         }

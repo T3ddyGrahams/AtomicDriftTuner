@@ -1,0 +1,75 @@
+using System.IO;
+using System.Reflection;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using AtomicDriftTuner;
+using AtomicDriftTuner.Models;
+using AtomicDriftTuner.Services;
+
+internal static partial class Program
+{
+    private static void CheckGearingWorkflow(string output)
+    {
+        var checks = 0;
+        void Check(bool value, string message) { if (!value) throw new Exception("Gearing UI: " + message); checks++; }
+        static void Call(object window, string method) => window.GetType().GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, [window, new RoutedEventArgs()]);
+        var root = Path.Combine(output, "gearing-fixture");
+        var carPath = Path.Combine(root, "example_car"); var data = Path.Combine(carPath, "data"); Directory.CreateDirectory(data);
+        File.WriteAllText(Path.Combine(data, "setup.ini"), "[FINAL_GEAR_RATIO]\nRATIOS=final.rto\n");
+        File.WriteAllText(Path.Combine(data, "drivetrain.ini"), "[TRACTION]\nTYPE=RWD\n[GEARS]\nCOUNT=6\nGEAR_3=1.5\nFINAL=3\n");
+        File.WriteAllText(Path.Combine(data, "engine.ini"), "[ENGINE_DATA]\nLIMITER=8000\n");
+        File.WriteAllText(Path.Combine(data, "tyres.ini"), "[REAR]\nRADIUS=0.3\nNAME=Example rear tyre\n");
+        File.WriteAllText(Path.Combine(data, "final.rto"), "Short|4.5\nLong|3\nMiddle|4\n");
+        var baseline = Path.Combine(root, "baseline.ini");
+        File.WriteAllText(baseline, "[CAR]\nMODEL=example_car\n[FINAL_RATIO]\nVALUE=1\n[TYRES]\nVALUE=0\n");
+        var input = new TuneInput(); input.Car.SourceFolderPath = carPath; input.Car.SourceFolderName = "example_car";
+        var store = new GearingTargetStore(Path.Combine(root, "targets"));
+        var window = new GearingWindow(input, baseline, store);
+        TextBox Box(string name) => (TextBox)window.FindName(name);
+        var save = (Button)window.FindName("SaveGearingButton");
+        Box("LowRpmBox").Text = "3100"; Box("HighRpmBox").Text = "5400";
+        Call(window, "Calculate_Click");
+        Check(save.IsEnabled, "calculation did not enable a supported setup export");
+        var result = (TextBlock)window.FindName("ResultText");
+        Check(result.Text.Contains("4:1") && result.Text.Contains("3,183") && result.Text.Contains("5,305"), "decoded ratio/RPM missing from review");
+        Box("HighSpeedBox").Text = "110";
+        Check(!save.IsEnabled && !result.Text.Contains("Try 4:1"), "changing a target left a stale recommendation");
+        Box("HighSpeedBox").Text = "100";
+        var units = (ComboBox)window.FindName("UnitsBox"); units.SelectedIndex = 1;
+        Check(Math.Abs(double.Parse(Box("LowSpeedBox").Text) - 37.2822715) < .001, "mph switch changed physical speed");
+        Check(((TextBlock)window.FindName("LowSpeedLabel")).Text.Contains("mph"), "unit labels not updated");
+        units.SelectedIndex = 0;
+        Call(window, "Calculate_Click"); Check(save.IsEnabled, "unit conversion prevented recalculation");
+        Call(window, "SaveTarget_Click");
+        var reopened = new GearingWindow(input, baseline, store);
+        Check(((TextBox)reopened.FindName("HighRpmBox")).Text == "5400", "saved target did not reopen");
+        reopened.Close();
+        Box("GearBox").Text = "0"; Call(window, "Calculate_Click");
+        Check(!save.IsEnabled && ((TextBlock)window.FindName("StatusText")).Text.Contains("gear"), "invalid target did not produce actionable error");
+        Box("GearBox").Text = "3"; Call(window, "Calculate_Click");
+        var theme = ThemeCatalog.Clone(ThemeCatalog.Presets[0]);
+        theme.SectionHeading = "#FFE06A"; theme.PrimaryText = "#D5FFFF"; theme.SecondaryText = "#90EE90"; theme.ButtonText = "#FFC0CB";
+        ThemeService.Apply(theme);
+        var content = (FrameworkElement)window.Content;
+        Layout(content, new Size(900, 800));
+        static string ColorOf(TextBlock text) => ThemeService.ToHex(((SolidColorBrush)text.Foreground).Color);
+        Check(ColorOf(result) == theme.PrimaryText, "result text ignores theme");
+        Check(ColorOf((TextBlock)window.FindName("SourceText")) == theme.SecondaryText, "source text ignores theme");
+        Check(ThemeService.ToHex(((SolidColorBrush)save.Foreground).Color) == theme.ButtonText, "save button ignores theme");
+        Render(content, new Size(900, 800), Path.Combine(output, "Gearing-Custom-Theme.png"));
+        ThemeService.Apply(ThemeCatalog.Presets[0]);
+        foreach (var size in new[] { new Size(340, 430), new Size(680, 900), new Size(1200, 700) })
+        {
+            var scroll = (ScrollViewer)window.FindName("GearingScroll");
+            scroll.ScrollToHome(); Layout(content, size);
+            Render(content, size, Path.Combine(output, $"Gearing-Targets-{size.Width}.png"));
+            scroll.ScrollToBottom(); Layout(content, size);
+            Render(content, size, Path.Combine(output, $"Gearing-Result-{size.Width}.png"));
+            var bounds = save.TransformToAncestor(content).TransformBounds(new Rect(save.RenderSize));
+            Check(bounds.Bottom <= content.RenderSize.Height + 1 && bounds.Left >= 0, "actual save button unreachable");
+        }
+        window.Close();
+        Progress($"PASS {checks} gearing workflow/theme assertions; isolated targets and fixture only.");
+    }
+}

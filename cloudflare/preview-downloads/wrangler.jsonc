@@ -1,5 +1,14 @@
 {
   "name": "adt-preview-downloads",
   "main": "worker.js",
-  "compatibility_date": "2026-09-12"
+  "compatibility_date": "2026-09-12",
+  "r2_buckets": [
+    {
+      "binding": "PREVIEW_BUILDS",
+      "bucket_name": "adt-preview-builds"
+    }
+  ],
+  "secrets": {
+    "required": ["DOWNLOAD_TOKEN"]
+  }
 }

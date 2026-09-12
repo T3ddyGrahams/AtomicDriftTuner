@@ -1,8 +1,8 @@
 namespace AtomicDriftTuner.Services;
 
-public static class RemoteWebApp
+public static partial class RemoteWebApp
 {
-    public static string Render(Models.ThemeSettings theme)
+    public static string Render(Models.ThemeSettings theme, bool touchscreen = false)
     {
         ThemeService.Validate(theme);
         static string Css(string value)
@@ -27,7 +27,12 @@ public static class RemoteWebApp
         };
         var css = ":root{" + string.Join("", palette.Select(p => $"--{p.Key}:{Css(p.Value)};")) + "}";
         css += "h1,h2,h3{color:var(--heading)}label{color:var(--label)}button{background:var(--button);color:var(--button-text)}button:hover{background:var(--hover);color:var(--hover-text)}button:disabled{background:var(--disabled);color:var(--disabled-text);opacity:1}input,select,textarea{color:var(--input-text);border-color:var(--input-border)}:focus-visible{outline:2px solid var(--focus)}";
-        return Html.Replace("</style>", css + "</style>").Replace("content=\"#0e1116\"", $"content=\"{Css(theme.AppBackground)}\"");
+        return Html.Replace("</style>", TouchStyles + css + "</style>")
+            .Replace("<!-- ADT_TOUCH_CONTROLS -->", TouchControls)
+            .Replace("<!-- ADT_PAIR_KEYPAD -->", PairKeypad)
+            .Replace("/* ADT_TOUCH_SCRIPT */", TouchScript)
+            .Replace("<body>", touchscreen ? "<body class=\"touchscreen\">" : "<body>")
+            .Replace("content=\"#0e1116\"", $"content=\"{Css(theme.AppBackground)}\"");
     }
 
     public const string Html = """
@@ -450,11 +455,14 @@ input[type=number]{
 
     <input
       id="pairCode"
+      aria-label="Six-digit pairing code"
       inputmode="numeric"
       pattern="[0-9]*"
       maxlength="6"
       placeholder="000000"
       autocomplete="one-time-code">
+
+    <!-- ADT_PAIR_KEYPAD -->
 
     <button
       id="pairButton"
@@ -473,6 +481,8 @@ input[type=number]{
   <div id="app" class="hidden">
 
     <section id="view-dashboard" class="view active">
+
+      <!-- ADT_TOUCH_CONTROLS -->
 
       <div class="card">
         <div class="row">
@@ -941,27 +951,31 @@ input[type=number]{
 
 </nav>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+  <h2 id="confirmTitle">Confirm change</h2><p id="confirmMessage"></p>
+  <div class="recorder-actions"><button id="confirmCancel" type="button">Cancel</button><button id="confirmAccept" type="button" class="primary">Confirm</button></div>
+</dialog>
 
 <script>
 const TOKEN_KEY='adtRemoteToken';
 const LEGACY_TOKEN_KEY='atomicRemoteToken';
 
 let token=
-  localStorage.getItem(TOKEN_KEY) ||
-  localStorage.getItem(LEGACY_TOKEN_KEY) ||
+  storageGet(TOKEN_KEY) ||
+  storageGet(LEGACY_TOKEN_KEY) ||
   '';
 
 if(
   token &&
-  !localStorage.getItem(TOKEN_KEY)
+  !storageGet(TOKEN_KEY)
 ){
-  localStorage.setItem(
+  storageSet(
     TOKEN_KEY,
     token
   );
 
-  localStorage.removeItem(
+  storageRemove(
     LEGACY_TOKEN_KEY
   );
 }
@@ -1035,6 +1049,7 @@ async function api(
   path,
   options={}
 ){
+  const requestToken=token;
   const headers=
     Object.assign(
       {},
@@ -1069,19 +1084,19 @@ async function api(
 
   try{
     response=
-      await fetch(
+      await fetchRemote(
         path,
         requestOptions
       );
   }
   catch(error){
-    throw new Error(
-      'Could not reach ADT Remote.'
-    );
+    if(requestToken===token)markRemoteOffline();
+    throw new Error(options.method==='POST' ? 'Connection interrupted. The action may have completed; check ADT status before sending it again.' : 'Could not reach ADT Remote.');
   }
 
   const raw=
     await response.text();
+  if(requestToken!==token)throw new Error('Pairing changed. Refresh before trying again.');
 
   let data=null;
 
@@ -1124,12 +1139,13 @@ async function api(
 
 function showPair(){
   token='';
+  resetTouchState();
 
-  localStorage.removeItem(
+  storageRemove(
     TOKEN_KEY
   );
 
-  localStorage.removeItem(
+  storageRemove(
     LEGACY_TOKEN_KEY
   );
 
@@ -1165,7 +1181,7 @@ function showApp(){
 
   $('connection')
     .textContent=
-    'Paired • local network';
+    'Connecting to ADT…';
 }
 
 async function pair(){
@@ -1199,7 +1215,7 @@ async function pair(){
 
   try{
     const response=
-      await fetch(
+      await fetchRemote(
         '/api/pair',
         {
           method:'POST',
@@ -1250,12 +1266,12 @@ async function pair(){
     token=
       data.token;
 
-    localStorage.setItem(
+    storageSet(
       TOKEN_KEY,
       token
     );
 
-    localStorage.removeItem(
+    storageRemove(
       LEGACY_TOKEN_KEY
     );
 
@@ -1292,6 +1308,7 @@ function forgetPairing(){
 function showView(
   name
 ){
+  window.scrollTo(0,0);
   activeView=
     name;
 
@@ -1379,6 +1396,9 @@ async function refreshStatus(){
         '/api/status'
       );
 
+    statusLastSeen=performance.now();
+    $('connection').textContent='Connected to ADT';
+    $('connection').className='sub ok';
     statusCache=
       s;
 
@@ -1410,6 +1430,8 @@ async function refreshStatus(){
 
     const t=
       s.tune || {};
+
+    syncSettingsContext(t);
 
     $('car').textContent=
       t.car ||
@@ -1481,9 +1503,11 @@ async function refreshStatus(){
     );
 
     renderSettings();
+    renderControl();
   }
   catch(error){
     if(token){
+      markRemoteOffline();
       $('activity').textContent=
         'ADT Remote status unavailable.';
     }
@@ -2372,13 +2396,18 @@ async function refreshAzom(){
   azomRefreshRunning=
     true;
 
+  const requestedContext=settingsContext;
+
   try{
     const azom=
       await api(
         '/api/azom'
       );
 
+    if(requestedContext&&requestedContext!==settingsContext)return;
+
     if(!azom.ok){
+      azomLastSeen=0;
       $('azomStatus').textContent=
         azom.error ||
         'AZOM unavailable.';
@@ -2390,6 +2419,7 @@ async function refreshAzom(){
       return;
     }
 
+    azomLastSeen=performance.now();
     settingsCache=
       Array.isArray(
         azom.settings
@@ -2416,6 +2446,7 @@ async function refreshAzom(){
     renderSettings();
   }
   catch(error){
+    azomLastSeen=0;renderSettings();
     $('azomStatus').textContent=
       normalizeErrorMessage(
         error
@@ -2427,123 +2458,17 @@ async function refreshAzom(){
   }
 }
 
-function renderSettings(){
-  const root=
-    $('settings');
-
-  root.innerHTML=
-    '';
-
-  for(const setting of settingsCache){
-    const row=
-      document.createElement(
-        'div'
-      );
-
-    row.className=
-      'setting';
-
-    const label=
-      document.createElement(
-        'div'
-      );
-
-    const title=
-      document.createElement(
-        'b'
-      );
-
-    title.textContent=
-      setting.displayName ||
-      setting.propertyName ||
-      'AZOM setting';
-
-    const range=
-      document.createElement(
-        'small'
-      );
-
-    range.textContent=
-      String(setting.min) +
-      '..' +
-      String(setting.max) +
-      (setting.unit || '');
-
-    label.append(
-      title,
-      range
-    );
-
-    const input=
-      document.createElement(
-        'input'
-      );
-
-    input.type=
-      'number';
-
-    input.min=
-      setting.min;
-
-    input.max=
-      setting.max;
-
-    input.step=
-      '1';
-
-    input.value=
-      setting.current==null
-        ? ''
-        : setting.current;
-
-    input.dataset.prop=
-      setting.propertyName || '';
-
-    const button=
-      document.createElement(
-        'button'
-      );
-
-    button.textContent=
-      'APPLY';
-
-    button.disabled=
-      !writesEnabled ||
-      !setting.writable ||
-      setting.current==null;
-
-    button.onclick=
-      () =>
-        applySetting(
-          setting,
-          input
-        );
-
-    row.append(
-      label,
-      input,
-      button
-    );
-
-    root.appendChild(
-      row
-    );
-  }
-
-  $('revertButton').disabled=
-    !writesEnabled;
-}
-
 async function applySetting(
   setting,
   input
 ){
+  if(azomMutationBusy||!remoteOnline()||!writesEnabled||!setting.writable||!azomLastSeen||performance.now()-azomLastSeen>=freshnessMs){toast('Wait for current AZOM readback and enable remote writes in ADT.',true);return;}
   const value=
     Number(
       input.value
     );
 
-  if(!Number.isInteger(value)){
+  if(!input.value.trim()||!Number.isSafeInteger(value)){
     toast(
       'Use a whole-number value.',
       true
@@ -2569,7 +2494,7 @@ async function applySetting(
   }
 
   const confirmed=
-    confirm(
+    await confirmAction(
       'Apply ' +
       setting.displayName +
       ' = ' +
@@ -2582,6 +2507,8 @@ async function applySetting(
     return;
   }
 
+  if(azomMutationBusy||!remoteOnline()||!writesEnabled||!azomLastSeen||performance.now()-azomLastSeen>=freshnessMs){toast('The connection or write permission changed. Refresh before trying again.',true);return;}
+  azomMutationBusy=true;renderSettings();
   try{
     const response=
       await api(
@@ -2596,6 +2523,8 @@ async function applySetting(
         }
       );
 
+    if(!response.ok||!response.verified)throw new Error(response.message||'The value could not be verified.');
+    settingsDrafts.delete(setting.propertyName);
     toast(
       response.message ||
       'Applied.'
@@ -2611,12 +2540,13 @@ async function applySetting(
     );
 
     await refreshAzom();
-  }
+  }finally{azomMutationBusy=false;renderSettings();}
 }
 
 async function revertLast(){
+  if(azomMutationBusy||!remoteOnline()||!writesEnabled||!azomLastSeen||performance.now()-azomLastSeen>=freshnessMs){toast('Wait for current AZOM readback before reverting.',true);return;}
   const confirmed=
-    confirm(
+    await confirmAction(
       'Revert the last remote AZOM change from this ADT run?'
     );
 
@@ -2627,6 +2557,8 @@ async function revertLast(){
   const button=
     $('revertButton');
 
+  if(azomMutationBusy||!remoteOnline()||!writesEnabled||!azomLastSeen||performance.now()-azomLastSeen>=freshnessMs){toast('The connection or write permission changed. Refresh before trying again.',true);return;}
+  azomMutationBusy=true;renderSettings();
   button.disabled=
     true;
 
@@ -2655,8 +2587,7 @@ async function revertLast(){
     );
   }
   finally{
-    button.disabled=
-      !writesEnabled;
+    azomMutationBusy=false;renderSettings();
   }
 }
 
@@ -2666,7 +2597,8 @@ async function refreshAll(){
       refreshStatus(),
       refreshTelemetry(),
       refreshAzom(),
-      refreshIntents()
+      refreshIntents(),
+      refreshControl()
     ]
   );
 
@@ -2701,6 +2633,8 @@ $('pairCode').addEventListener(
     }
   }
 );
+
+/* ADT_TOUCH_SCRIPT */
 
 if(token){
   showApp();

@@ -57,16 +57,36 @@ internal static class GuidedModeChecks
             var bytes = File.ReadAllBytes(original);
             foreach (var focus in new[] { TuningFocus.FfbOnly, TuningFocus.CarSetupOnly })
             {
-                var p = store.Preferences(); p.Focus = focus; p.ShowDetailedHelp = false; store.SavePreferences(p);
-                Check(store.Journey(input, driver).BaselineId == "", "A different mode inherited the baseline");
-                store.Update(input, driver, j => { j.BaselineId = focus.ToString(); j.SetupPath = "keep.ini"; });
+                Check(store.Journey(input, driver, focus).BaselineId == "", "A historical mode inherited the baseline");
+                store.Update(input, driver, j => { j.BaselineId = focus.ToString(); j.SetupPath = "keep.ini"; }, focus);
             }
             Check(File.ReadAllBytes(original).SequenceEqual(bytes), "Mode switching rewrote existing progress");
             Check(store.Journey(input, driver, TuningFocus.Both).BaselineId == "original", "Original progress did not resume");
             Check(store.Journey(input, driver, TuningFocus.FfbOnly).BaselineId == "FfbOnly", "FFB progress lost");
+            var p = store.Preferences(); p.ShowDetailedHelp = false; store.SavePreferences(p);
             var reopened = new GuidedWorkflowStore(folder); Check(!reopened.Preferences().ShowDetailedHelp, "Explanation preference lost");
             reopened.Reset(input, driver);
-            Check(reopened.Journey(input, driver).SetupPath == "keep.ini" && reopened.Journey(input, driver, TuningFocus.Both).BaselineId == "original", "Reset affected another mode or setup path");
+            Check(reopened.Journey(input, driver).SetupPath == "baseline.ini" && reopened.Journey(input, driver, TuningFocus.FfbOnly).BaselineId == "FfbOnly", "Reset affected historical progress or setup path");
+        });
+        test("restored combined workflow preserves saved settings and old limited-scope history", () =>
+        {
+            var folder = Path.Combine(root, "guided-combined-restore"); Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, "preferences.json");
+            var store = new GuidedWorkflowStore(folder); var input = Input(); var driver = Guid.NewGuid().ToString("N");
+            store.Update(input, driver, j => j.BaselineId = "combined");
+            foreach (var focus in new[] { TuningFocus.FfbOnly, TuningFocus.CarSetupOnly })
+            {
+                var legacy = new GuidedPreferences { Focus = focus, Completed = true, DriverName = "Keep driver", SimHub = "Yes", Azom = "No", ShowDetailedHelp = false };
+                File.WriteAllText(path, JsonSerializer.Serialize(legacy));
+                var bytes = File.ReadAllBytes(path);
+                store.Update(input, driver, j => j.BaselineId = "historical", focus);
+                var actual = store.Preferences();
+                Check(actual.Focus == TuningFocus.Both && actual.DriverName == legacy.DriverName && actual.Completed && !actual.ShowDetailedHelp && actual.SimHub == "Yes" && actual.Azom == "No", "Restoring combined workflow lost preferences");
+                Check(File.ReadAllBytes(path).SequenceEqual(bytes), "Reading preferences rewrote the original");
+                Check(store.Journey(input, driver).BaselineId == "combined" && store.Journey(input, driver, focus).BaselineId == "historical", "Restoration lost or mixed progress");
+                store.SavePreferences(legacy);
+                Check(JsonSerializer.Deserialize<GuidedPreferences>(File.ReadAllText(path))!.Focus == TuningFocus.Both && legacy.Focus == focus, "Save restored a hidden mode or mutated the caller");
+            }
         });
         test("late recording updates belong to their original mode after switching workflows", () =>
         {

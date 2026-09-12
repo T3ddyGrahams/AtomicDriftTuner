@@ -8,6 +8,15 @@ using System.Runtime.CompilerServices;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
 
+if (args is ["--render-remote", var renderDirectory])
+{
+    Directory.CreateDirectory(renderDirectory);
+    File.WriteAllText(Path.Combine(renderDirectory, "remote.html"), RemoteWebApp.Render(new ThemeSettings()));
+    File.WriteAllText(Path.Combine(renderDirectory, "dash.html"), RemoteWebApp.Render(new ThemeSettings(), touchscreen: true));
+    File.WriteAllText(Path.Combine(renderDirectory, "ADT Control Center.djson"), TouchscreenDashboardService.Render(5190));
+    return 0;
+}
+
 var failures = 0;
 var root = Path.Combine(Path.GetTempPath(), "adt-regression-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -223,6 +232,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         CompanionChecks.Run(Run);
         GearingChecks.Run(Run, root);
         GuidedModeChecks.Run(Run, root);
+        TouchscreenChecks.Run(Run, root);
 Console.WriteLine($"Failures: {failures}. Isolated fixtures: {root}");
 return failures == 0 ? 0 : 1;
 

@@ -194,9 +194,6 @@
             <Border x:Name="GuidedWorkflowCard" Style="{StaticResource PanelCard}" Margin="0,0,0,14">
               <StackPanel>
                 <TextBlock Text="YOUR NEXT STEP" Style="{StaticResource CardKicker}"/>
-                <TextBlock Text="What would you like to tune?" Style="{StaticResource LabelText}" TextWrapping="Wrap" Margin="0,6,0,2"/>
-                <ComboBox x:Name="GuidedFocusBox" DisplayMemberPath="Label" SelectedValuePath="Focus" SelectionChanged="GuidedFocus_Changed" AutomationProperties.Name="What to tune"/>
-                <TextBlock x:Name="GuidedFocusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,5"/>
                 <CheckBox x:Name="GuidedHelpCheck" Checked="GuidedHelp_Changed" Unchecked="GuidedHelp_Changed" Margin="0,5">
                   <TextBlock Text="Show more explanation and examples" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" TextWrapping="Wrap"/>
                 </CheckBox>
@@ -226,7 +223,7 @@
                   <Button x:Name="GuidedResetButton" Content="Start a New Baseline" Click="NewGuidedBaseline_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4" ToolTip="Restart guided progress for this car and driver. Saved runs, tunes and reviews remain available."/>
                 </WrapPanel>
                 <Expander Header="See the whole start-to-finish process" Margin="0,8,0,0">
-                  <TextBlock x:Name="GuidedOverviewText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,8" Text="1. Select your car and driver.&#10;2. Save your Desired Behavior goals.&#10;3. Save a baseline and prepare the selected settings.&#10;4. Record and save the first drive.&#10;5. Read the findings and select one recommendation.&#10;6. Apply that change and repeat the same drive.&#10;7. Compare the runs and rate how it felt.&#10;8. Save your review: keep, revert manually, or test again.&#10;&#10;Switching tuning modes preserves each mode's progress. Recordings, tune versions, goals and reviews remain saved."/>
+                  <TextBlock x:Name="GuidedOverviewText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,8" Text="1. Select your car and driver.&#10;2. Save your Desired Behavior goals.&#10;3. Save a baseline and prepare your settings.&#10;4. Record and save the first drive.&#10;5. Read the findings and select one recommendation.&#10;6. Apply that change and repeat the same drive.&#10;7. Compare the runs and rate how it felt.&#10;8. Save your review: keep, revert manually, or test again.&#10;&#10;Wheel feel and car setup stay together in one workflow. Change one thing at a time so ADT can assess its effect. Recordings, tune versions, goals and reviews remain saved."/>
                 </Expander>
                 <Expander Foreground="{DynamicResource PrimaryTextBrush}" Header="What does each Save or Apply button do?" Margin="0,10,0,0">
                   <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Save ADT Profile remembers your selections and generated recommendations.&#10;Save Desired Behavior remembers how you want this car to feel.&#10;Save AC Setup File creates a separate file: load it from AC's Setup menu.&#10;Apply Wheelbase Settings explicitly sends supported changes through a connected integration and checks readback.&#10;Save Session stores a recording. Save Run Review stores your rating and the comparison.&#10;Generating a recommendation does not apply it. You can use the sidebar tools at any time." TextWrapping="Wrap" Margin="0,8"/>

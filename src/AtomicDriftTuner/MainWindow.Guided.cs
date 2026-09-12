@@ -18,7 +18,6 @@ public partial class MainWindow
         {
             GuidedDriverBox.ItemsSource = new RunHistoryStore().ListDrivers();
             GuidedDriverBox.Text = _workflow.Preferences().DriverName;
-            GuidedFocusBox.ItemsSource = TuningFocusOptions.All;
             _guidedReady = true;
             RefreshGuidedWorkflow();
         }
@@ -42,9 +41,8 @@ public partial class MainWindow
         {
             var input = BuildInput(); var prefs = _workflow.Preferences(); var driver = CurrentGuidedDriver();
             _syncingGuided = true;
-            try { GuidedFocusBox.SelectedValue = prefs.Focus; GuidedHelpCheck.IsChecked = prefs.ShowDetailedHelp; }
+            try { GuidedHelpCheck.IsChecked = prefs.ShowDetailedHelp; }
             finally { _syncingGuided = false; }
-            GuidedFocusText.Text = TuningFocusOptions.Description(prefs.Focus);
             var j = JourneyForGuide(input, driver.Id);
             var goal = _behaviorStore.Load(input);
             var step = GuidedWorkflowEngine.Next(prefs, j, GuidedWorkflowStore.GoalSignature(goal));
@@ -66,7 +64,7 @@ public partial class MainWindow
             GuidedWheelbaseButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) && step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
             GuidedCheckButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) ? Visibility.Visible : Visibility.Collapsed;
             GeneratedTuneCard.Visibility = CalibrationCard.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) ? Visibility.Visible : Visibility.Collapsed;
-            DashboardGenerateButton.Content = TuningFocusOptions.IncludesFfb(prefs.Focus) ? "Generate FFB Tune" : "Open Car Setup";
+            DashboardGenerateButton.Content = "Generate Tune";
             GuidedResetButton.Visibility = j.BaselineId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             GuidedIntegrationText.Text = GuidedWorkflowEngine.Instructions(prefs, _guidedConnection);
             if (TuningFocusOptions.IncludesFfb(prefs.Focus) && _guidedConnection is { } connection)
@@ -78,17 +76,6 @@ public partial class MainWindow
             GuidedNextButton.IsEnabled = false;
             GuidedInstructionsText.Text = "Select a complete car/rig below. " + ex.Message;
         }
-    }
-    private void GuidedFocus_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-    {
-        if (!_guidedReady || _syncingGuided || GuidedFocusBox.SelectedValue is not TuningFocus focus) return;
-        try
-        {
-            var p = _workflow.Preferences(); p.Focus = focus; _workflow.SavePreferences(p);
-            GuidedReadyCheck.IsChecked = false;
-            RefreshGuidedWorkflow();
-        }
-        catch (Exception ex) { GuidedInstructionsText.Text = "Could not change workflow: " + ex.Message; }
     }
     private void GuidedHelp_Changed(object sender, RoutedEventArgs e)
     {
@@ -199,7 +186,7 @@ public partial class MainWindow
         RequireGuidedContext(input);
         var c = run.Session.Context;
         if (!RunHistoryStore.ValidContext(c)) throw new InvalidOperationException("Record a new baseline with driver and tune context before starting a guided test.");
-        if (c!.Focus != _workflow.Preferences().Focus) throw new InvalidOperationException("This run belongs to another tuning mode. Switch back to that mode or record a new baseline for the selected workflow.");
+        if (c!.Focus != TuningFocus.Both) throw new InvalidOperationException("This run used an earlier limited-scope workflow. Record a new baseline for the restored combined workflow before testing another change. This recording and its analysis remain in history.");
         if (!RunHistoryStore.SameBehavior(c!.Tune!.DesiredBehavior, _behaviorStore.Load(input)))
             throw new InvalidOperationException("This run's recorded goals differ from the current saved Desired Behavior. Use matching goals or record a new baseline.");
         var prefs = _workflow.Preferences(); prefs.DriverName = c.DriverName; _workflow.SavePreferences(prefs); GuidedDriverBox.Text = c.DriverName;

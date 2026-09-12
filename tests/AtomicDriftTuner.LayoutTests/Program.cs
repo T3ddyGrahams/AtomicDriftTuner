@@ -97,8 +97,11 @@ internal static partial class Program
                         foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox", "CompareSavedRunButton" })
                             AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);
                     if (name == "SetupWizardWindow")
-                        foreach (var field in new[] { "InterviewFocusBox", "InterviewHelpCheck", "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })
+                        foreach (var field in new[] { "InterviewHelpCheck", "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })
                             AssertReachableByScrolling(root, "SetupBodyScroll", field, size);
+                    if (name == "RemoteControlWindow")
+                        foreach (var field in new[] { "StartButton", "PairingCodeText", "TouchscreenAddressBox", "CopyTouchscreenAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
+                            AssertReachableByScrolling(root, "RemoteBodyScroll", field, size);
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
                     {
                         for (int i = 0; i < tab.Items.Count; i++)
@@ -146,7 +149,7 @@ internal static partial class Program
                 Layout(main, size);
                 AssertVisible(main, "SaveProfileButton", size);
                 ((CheckBox)main.FindName("GuidedReadyCheck")).Visibility = Visibility.Visible;
-                foreach (var field in new[] { "GuidedFocusBox", "GuidedHelpCheck", "GuidedDriverBox", "GuidedNextButton", "GuidedCheckButton", "GuidedReadyCheck" })
+                foreach (var field in new[] { "GuidedHelpCheck", "GuidedDriverBox", "GuidedNextButton", "GuidedCheckButton", "GuidedReadyCheck" })
                     AssertReachableByScrolling(main, "DashboardScroll", field, size);
                 var scroll = (ScrollViewer)main.FindName("DashboardScroll");
                 scroll.ScrollToEnd(); Layout(main, size); AssertVisible(main, "SaveProfileButton", size);
@@ -244,16 +247,15 @@ internal static partial class Program
 
     private static void Seed(FrameworkElement root)
     {
-        if (root.FindName("GuidedFocusBox") is ComboBox focus)
+        if (root.FindName("GuidedHelpCheck") is CheckBox help)
         {
-            focus.ItemsSource = AtomicDriftTuner.Services.TuningFocusOptions.All; focus.SelectedIndex = 0;
+            if (root.FindName("GuidedFocusBox") is not null) throw new Exception("The removed tuning-mode selector is still present.");
             var prefs = new AtomicDriftTuner.Models.GuidedPreferences { Completed = true };
             var step = AtomicDriftTuner.Engine.GuidedWorkflowEngine.Next(prefs,
                 new AtomicDriftTuner.Models.GuidedJourney { CarConfirmed = true, GoalSignature = "saved", TuneGenerated = true }, "saved");
             ((TextBlock)root.FindName("GuidedDetailsText")).Text = step.Details;
             ((TextBlock)root.FindName("GuidedDoneText")).Text = "Ready when: " + step.Completion;
-            ((TextBlock)root.FindName("GuidedFocusText")).Text = AtomicDriftTuner.Services.TuningFocusOptions.Description(prefs.Focus);
-            ((CheckBox)root.FindName("GuidedHelpCheck")).IsChecked = true;
+            help.IsChecked = true;
         }
         if (root.FindName("GuidedStepText") is TextBlock guided)
         {

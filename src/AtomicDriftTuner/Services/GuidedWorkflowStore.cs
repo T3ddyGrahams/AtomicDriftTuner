@@ -13,11 +13,24 @@ public sealed class GuidedWorkflowStore
     private readonly string _root;
     public GuidedWorkflowStore(string? root = null) => _root = root ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AtomicDriftTuner", "GuidedWorkflow");
-    public GuidedPreferences Preferences() => Read(Path.Combine(_root, "preferences.json"), new GuidedPreferences(), ValidPreferences);
+    public GuidedPreferences Preferences()
+    {
+        var preferences = Read(Path.Combine(_root, "preferences.json"), new GuidedPreferences(), ValidPreferences);
+        // The combined workflow is restored. Keep historical scope metadata and journey
+        // files intact, but never reopen a hidden, limited-scope workflow for new work.
+        preferences.Focus = TuningFocus.Both;
+        return preferences;
+    }
     public void SavePreferences(GuidedPreferences preferences)
     {
         if (!ValidPreferences(preferences)) throw new InvalidDataException("Choose Yes, No or Not sure, and a driver name of 1–80 characters.");
-        lock (Gate) { _ = Preferences(); Write(Path.Combine(_root, "preferences.json"), preferences); }
+        lock (Gate)
+        {
+            _ = Preferences();
+            var saved = RunHistoryStore.Clone(preferences);
+            saved.Focus = TuningFocus.Both;
+            Write(Path.Combine(_root, "preferences.json"), saved);
+        }
     }
     public static string GoalSignature(CarBehaviorTarget goal) => string.Join("/", goal.FrontEndBite, goal.RearGrip, goal.SelfSteerSpeed,
         goal.TransitionSpeed, goal.AngleStability, goal.ThrottleSteering, goal.InitiationSharpness);

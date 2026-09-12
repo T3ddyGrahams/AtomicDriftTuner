@@ -460,6 +460,8 @@ public sealed partial class RemoteServerService : IAsyncDisposable
                     RemoteWebApp.Render(_settingsStore.Load().Theme),
                     "text/html; charset=utf-8"));
 
+        app.MapGet("/dash", () => Results.Content(RemoteWebApp.Render(_settingsStore.Load().Theme, touchscreen: true), "text/html; charset=utf-8"));
+
         app.MapGet(
             "/apple-touch-icon.png",
             () =>

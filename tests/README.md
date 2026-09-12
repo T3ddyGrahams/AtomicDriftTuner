@@ -51,6 +51,19 @@ The 18 client assertions cover pairing, stale/disconnected state, protocol misma
 
 The regression runner now has 79 scenarios, including 11 new mode/persistence/intelligence-preservation checks. The WPF runner adds 21 guided-mode UI assertions (real interview, recorder and assistant handlers with isolated stores), alongside 167 theme, 14 gearing, 16 recorder and 330 geometry assertions. It renders manual/car-only interviews and recording guidance. New checks cover legacy defaults, mode-specific progress, late run callbacks, unchanged telemetry/tuning outputs, full recommendation retention, selected-scope snapshots, cross-mode comparison limitations and saved review decisions. No live setting writes or game driving are performed.
 
+## Touchscreen and restored workflow (local preview.7)
+
+The regression runner includes 83 scenarios plus a private-network transport check when a private interface is available. Tests cover the restored combined workflow without rewriting prior scoped history, `/dash` routing, paired recording, stale/duplicate/revoked commands, the shared in-game/touchscreen command gate, and SimHub dashboard installation/backups. WPF geometry coverage includes reaching the touchscreen setup controls by scrolling.
+
+Render the compiled web page, then run the isolated browser tests with Playwright and Microsoft Edge installed:
+
+```text
+dotnet run --project tests/AtomicDriftTuner.RegressionTests -- --render-remote artifacts/touch-browser
+node tests/remote/touch-browser-tests.cjs artifacts/touch-browser
+```
+
+The browser suite uses fake HTTP responses and never changes game or wheelbase settings. It covers touch pairing, live telemetry display, recording, reconnects, edit retention, in-page confirmation, remote-write opt-out, pairing revocation and layouts from 320×568 through 1280×720. SimHub native rendering and real touch hardware still require hands-on validation. Build test projects sequentially because their shared WPF project generates files under the same `obj` directory; already-built test executables can run independently.
+
 ## Final-drive gearing
 
 The regression runner includes 16 gearing scenarios (68 total). `GearingChecks` covers actual ratio/index mapping, selected gearsets/gears/tyres, malformed and unavailable data, wrong-car baselines, limiter exclusion, no-op/partial fits, per-car goals and preservation of all unrelated setup settings. Stale-source checks include the entire baseline and each data file.

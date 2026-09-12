@@ -13,8 +13,6 @@ public partial class SetupWizardWindow
     private void InitializeGuidedInterview()
     {
         var p = _guidedStore.Preferences();
-        InterviewFocusBox.ItemsSource = TuningFocusOptions.All;
-        InterviewFocusBox.SelectedValue = p.Focus;
         InterviewHelpCheck.IsChecked = p.ShowDetailedHelp;
         SimHubChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
         AzomChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
@@ -29,7 +27,6 @@ public partial class SetupWizardWindow
         Completed = true, SimHub = SimHubChoiceBox.SelectedItem as string ?? "Not sure",
         Azom = AzomChoiceBox.SelectedItem as string ?? "Not sure", WantLiveConnection = UseLiveGuidanceBox.IsChecked == true,
         DriverName = InterviewDriverBox.Text.Trim(),
-        Focus = InterviewFocusBox.SelectedValue is TuningFocus focus ? focus : TuningFocus.Both,
         ShowDetailedHelp = InterviewHelpCheck.IsChecked == true
     };
     private void InterviewChanged(object sender, RoutedEventArgs e)
@@ -45,11 +42,8 @@ public partial class SetupWizardWindow
     private void UpdateInterviewInstructions()
     {
         InterviewInstructionsText.Text = GuidedWorkflowEngine.Instructions(InterviewPreferences(), _integrationState);
-        var focus = InterviewPreferences().Focus;
-        InterviewFocusText.Text = TuningFocusOptions.Description(focus);
         UseLiveGuidanceBox.IsEnabled = SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No";
-        IntegrationInterviewPanel.Visibility = TuningFocusOptions.IncludesFfb(focus) ? Visibility.Visible : Visibility.Collapsed;
-        OptionalSimHubCard.Visibility = TuningFocusOptions.IncludesFfb(focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" ? Visibility.Visible : Visibility.Collapsed;
+        OptionalSimHubCard.Visibility = UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" ? Visibility.Visible : Visibility.Collapsed;
     }
     private async void CheckGuidedConnection_Click(object sender, RoutedEventArgs e)
     {

@@ -20,12 +20,16 @@ public partial class MainWindow
         return await Dispatcher.InvokeAsync(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+            RefreshGuidedWorkflow(); // Remote Desired Behavior edits must also refresh the next-step guidance.
             var hub = _telemetryHub.GetSnapshot();
             return new CompanionStatus
             {
                 TelemetryConnected = hub.Connected, TelemetryStale = hub.Stale,
                 NextStep = _guidedReady ? GuidedStepText.Text : "Set up your workflow in desktop ADT.",
                 Instructions = GuidedInstructionsText.Text,
+                Details = GuidedDetailsText.Text,
+                Completion = GuidedDoneText.Text,
+                Progress = GuidedProgressText.Text,
                 Recorder = _telemetryWindow?.GetCompanionState(CompanionContextMatches()) ?? new()
             };
         }).Task;

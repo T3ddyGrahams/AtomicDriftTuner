@@ -55,6 +55,8 @@ internal static class CompanionChecks
         var first = http.PostAsJsonAsync("/api/companion/recording", command);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try { Check((await http.PostAsJsonAsync("/api/companion/recording", command)).StatusCode == HttpStatusCode.Conflict, "overlapping mutation admitted"); }
+        catch { finish.TrySetResult(); throw; }
+        try { Check((await http.PostAsJsonAsync("/api/control/recording", command)).StatusCode == HttpStatusCode.Conflict, "touchscreen bypassed the companion's recording gate"); }
         finally { finish.TrySetResult(); }
         Check((await first).IsSuccessStatusCode && calls == 1, "recording dispatched more than once");
         server.RegeneratePairing();

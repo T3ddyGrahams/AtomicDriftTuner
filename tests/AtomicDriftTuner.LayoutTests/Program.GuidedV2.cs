@@ -25,29 +25,25 @@ internal static partial class Program
         var wizard = new SetupWizardWindow(false, preferences, settings);
         try
         {
-            var mode = (ComboBox)wizard.FindName("InterviewFocusBox");
             var integrations = (StackPanel)wizard.FindName("IntegrationInterviewPanel");
-            mode.SelectedValue = TuningFocus.CarSetupOnly;
-            Check(mode.SelectedItem.ToString() == "Car setup only", "mode selector exposed implementation text");
-            Check(integrations.Visibility == Visibility.Collapsed && ((FrameworkElement)wizard.FindName("OptionalSimHubCard")).Visibility == Visibility.Collapsed, "car-only asked for FFB integrations");
-            var missing = (List<string>)Call(wizard, "BuildUnresolvedPathMessages")!;
-            Check(!missing.Any(x => x.Contains("SimHub")), "car-only save warned about an optional SimHub path");
+            Check(wizard.FindName("InterviewFocusBox") is null, "removed tuning-mode choices are still in the interview");
             var p = (GuidedPreferences)Call(wizard, "InterviewPreferences")!;
-            Check(p.Focus == TuningFocus.CarSetupOnly && p.WantLiveConnection, "changing mode erased integration preferences");
-            mode.SelectedValue = TuningFocus.FfbOnly;
-            Check(integrations.Visibility == Visibility.Visible && ((TextBlock)wizard.FindName("InterviewFocusText")).Text.Contains("wheel feel"), "FFB path not explained");
+            Check(p.Focus == TuningFocus.Both && p.WantLiveConnection, "combined workflow or integration preferences lost");
+            Check(integrations.Visibility == Visibility.Visible, "optional integration questions disappeared");
             ((ComboBox)wizard.FindName("SimHubChoiceBox")).SelectedItem = "No";
             ((ComboBox)wizard.FindName("AzomChoiceBox")).SelectedItem = "No";
             Check(((CheckBox)wizard.FindName("UseLiveGuidanceBox")).IsChecked == false, "No integrations left live guidance selected");
             Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("MANUAL FFB"), "manual steps not shown");
+            var missing = (List<string>)Call(wizard, "BuildUnresolvedPathMessages")!;
+            Check(!missing.Any(x => x.Contains("SimHub")), "manual setup warned about an optional SimHub path");
             ((CheckBox)wizard.FindName("InterviewHelpCheck")).IsChecked = false;
             Check(!((GuidedPreferences)Call(wizard, "InterviewPreferences")!).ShowDetailedHelp, "help toggle lost");
             var content = (FrameworkElement)wizard.Content;
-            foreach (var focus in Enum.GetValues<TuningFocus>())
+            foreach (var detailed in new[] { false, true })
             {
-                mode.SelectedValue = focus; Layout(content, new Size(680, 850));
+                ((CheckBox)wizard.FindName("InterviewHelpCheck")).IsChecked = detailed; Layout(content, new Size(680, 850));
                 ((ScrollViewer)wizard.FindName("SetupBodyScroll")).ScrollToHome(); Layout(content, new Size(680, 850));
-                Render(content, new Size(680, 850), Path.Combine(output, $"Workflow-Interview-{focus}.png"));
+                Render(content, new Size(680, 850), Path.Combine(output, $"Workflow-Interview-{(detailed ? "Detailed" : "Simple")}.png"));
             }
         }
         finally { Set(wizard, "_closingAfterSave", true); wizard.Close(); }

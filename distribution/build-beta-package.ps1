@@ -168,6 +168,12 @@ Copy-Item `
 
 Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $staging "LICENSE")
 
+$guidePayload = Join-Path $staging "docs"
+New-Item -ItemType Directory -Path $guidePayload -Force | Out-Null
+foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md")) {
+    Copy-Item -LiteralPath (Join-Path $repo "docs/$guide") -Destination (Join-Path $guidePayload $guide)
+}
+
 $portable = Join-Path $output "AtomicDriftTuner-$Version-portable.zip"
 
 Remove-Item $portable -Force -ErrorAction SilentlyContinue

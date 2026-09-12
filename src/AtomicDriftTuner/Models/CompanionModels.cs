@@ -8,6 +8,9 @@ public sealed class CompanionStatus
     public bool TelemetryStale { get; set; }
     public string NextStep { get; set; } = "Prepare your workflow in desktop ADT.";
     public string Instructions { get; set; } = "";
+    public string Details { get; set; } = "";
+    public string Completion { get; set; } = "";
+    public string Progress { get; set; } = "";
     public CompanionRecorderState Recorder { get; set; } = new();
 }
 

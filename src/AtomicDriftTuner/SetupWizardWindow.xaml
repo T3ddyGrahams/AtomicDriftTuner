@@ -39,9 +39,6 @@
                 <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
-                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="What would you like to tune?"/>
-                    <ComboBox x:Name="InterviewFocusBox" DisplayMemberPath="Label" SelectedValuePath="Focus" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="What to tune" Margin="0,3,0,8"/>
-                    <TextBlock x:Name="InterviewFocusText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <CheckBox x:Name="InterviewHelpCheck" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
                         <TextBlock Text="Show more explanation and examples in my walkthrough" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" TextWrapping="Wrap"/>
                     </CheckBox>

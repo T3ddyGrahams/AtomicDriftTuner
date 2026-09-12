@@ -1,6 +1,24 @@
 name: SignPath Build Prep
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      publish_preview:
+        type: boolean
+        default: false
+      hours:
+        type: number
+        default: 24
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+      PREVIEW_PUBLISH_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       version:
@@ -33,6 +51,25 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
+      - name: Validate preview publishing setup
+        if: ${{ inputs.publish_preview }}
+        shell: pwsh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          PREVIEW_PUBLISH_TOKEN: ${{ secrets.PREVIEW_PUBLISH_TOKEN }}
+          ADT_LINK_HOURS: ${{ inputs.hours }}
+        run: ./scripts/publish-preview.ps1 -Preflight
+      - name: Run preview manager tests
+        if: ${{ inputs.publish_preview }}
+        shell: pwsh
+        run: node --experimental-default-type=module --test cloudflare/preview-downloads/worker.test.mjs cloudflare/preview-downloads/publishing.test.mjs
+      - name: Test publishing failure handling offline
+        if: ${{ inputs.publish_preview }}
+        shell: pwsh
+        run: ./tests/publish-preview.Tests.ps1
       - name: Run regression tests
         timeout-minutes: 10
         shell: pwsh
@@ -147,6 +184,7 @@ jobs:
           Get-FileHash $portable -Algorithm SHA256
           Get-FileHash $installer -Algorithm SHA256
       - name: Upload unsigned release artifact
+        if: ${{ !inputs.publish_preview }}
         id: upload-unsigned
         uses: actions/upload-artifact@v6
         with:
@@ -156,6 +194,18 @@ jobs:
             artifacts/release/AtomicDriftTuner-${{ inputs.version }}-setup.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish private preview and prepare announcement
+        if: ${{ inputs.publish_preview }}
+        shell: pwsh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          PREVIEW_PUBLISH_TOKEN: ${{ secrets.PREVIEW_PUBLISH_TOKEN }}
+          ADT_LINK_HOURS: ${{ inputs.hours }}
+        run: ./scripts/publish-preview.ps1
 
       # SignPath submission is intentionally not enabled yet.
       # Add signpath/github-action-submit-signing-request@v2 after acceptance

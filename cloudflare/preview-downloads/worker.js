@@ -20,6 +20,10 @@ export default {
     }
 
     try {
+      if (url.pathname === "/api/prepare-preview") {
+        return await handlePreparePreview(request, env, url);
+      }
+
       if (url.pathname === ADMIN_PATH) {
         return await handleAdmin(request, env, url);
       }
@@ -41,7 +45,19 @@ async function handleAdmin(request, env, url) {
     const authenticated = await hasValidAdminSession(request, env.DOWNLOAD_TOKEN);
 
     if (!authenticated) {
-      return htmlResponse(loginPage());
+      return htmlResponse(loginPage("", url.searchParams.get("announcement")));
+    }
+
+    if (url.searchParams.has("announcement")) {
+      const version = url.searchParams.get("announcement");
+      if (!isPreviewVersion(version)) return adminErrorPage("Invalid preview version.", 400);
+      const object = await env.PREVIEW_BUILDS.get(announcementKey(version));
+      if (!object) return adminErrorPage("No prepared announcement for this version.", 404);
+      const result = await object.json();
+      if (result.expires <= Math.floor(Date.now() / 1000)) {
+        return adminErrorPage("These links expired. Return to releases to generate fresh links.", 410);
+      }
+      return htmlResponse(resultPage(result));
     }
 
     const discovery = await discoverPreviewReleases(env.PREVIEW_BUILDS);
@@ -64,7 +80,7 @@ async function handleAdmin(request, env, url) {
     const valid = await tokensMatch(token, env.DOWNLOAD_TOKEN);
 
     if (!valid) {
-      return htmlResponse(loginPage("That master token was not accepted."), {
+      return htmlResponse(loginPage("That master token was not accepted.", form.get("announcement")), {
         status: 401,
       });
     }
@@ -72,7 +88,8 @@ async function handleAdmin(request, env, url) {
     const session = await createAdminSession(env.DOWNLOAD_TOKEN);
 
     return redirectToAdmin(
-      `${ADMIN_SESSION_COOKIE}=${session}; Max-Age=${ADMIN_SESSION_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Strict`
+      `${ADMIN_SESSION_COOKIE}=${session}; Max-Age=${ADMIN_SESSION_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Strict`,
+      form.get("announcement")
     );
   }
 
@@ -204,19 +221,59 @@ async function generateResult(request, env, url, form, mode) {
 
   const release = releaseForAssets(assets);
   const discordPost =
-    mode === "discord"
+    mode === "discord" || mode === "prepare"
       ? buildDiscordPost(release.label, links, expires)
       : null;
 
-  return htmlResponse(
-    resultPage({
+  const result = {
       discordPost,
       expires,
       hours,
       links,
       releaseLabel: release.label,
-    })
-  );
+    };
+
+  if (mode === "prepare") {
+    const version = form.get("version");
+    await env.PREVIEW_BUILDS.put(announcementKey(version), JSON.stringify(result), {
+      httpMetadata: { contentType: "application/json", cacheControl: "private, no-store" },
+    });
+    // Only the authenticated manager can read the signed URLs; never return them to CI.
+    return new Response(JSON.stringify({ managerUrl: `${origin}/admin?announcement=${encodeURIComponent(version)}` }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
+  return htmlResponse(resultPage(result));
+}
+
+function isPreviewVersion(version) {
+  return typeof version === "string" && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.(0|[1-9]\d*)$/.test(version);
+}
+
+function announcementKey(version) {
+  return `.adt-announcements/${version}.json`;
+}
+
+async function handlePreparePreview(request, env, url) {
+  if (!env.PREVIEW_PUBLISH_TOKEN) return textResponse("Preview publishing is not configured.", 503);
+  if (!["GET", "POST"].includes(request.method)) return textResponse("Method not allowed", 405);
+  const supplied = request.headers.get("Authorization") || "";
+  if (!await tokensMatch(supplied, `Bearer ${env.PREVIEW_PUBLISH_TOKEN}`)) {
+    return textResponse("Unauthorized", 401);
+  }
+  if (request.method === "GET") return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  let body;
+  try { body = await request.json(); } catch { return textResponse("Invalid JSON", 400); }
+  if (!body || !isPreviewVersion(body.version)) return textResponse("Invalid preview version", 400);
+  if (!Number.isInteger(body.hours) || body.hours < 1 || body.hours > MAX_LINK_HOURS) {
+    return textResponse("Invalid expiration", 400);
+  }
+  const form = new URLSearchParams({ version: body.version, hours: String(body.hours) });
+  for (const suffix of ["setup.exe", "portable.zip"]) {
+    form.append("objectKey", `ADT ${body.version}/AtomicDriftTuner-${body.version}-${suffix}`);
+  }
+  return generateResult(request, env, url, form, "prepare");
 }
 
 async function handleDownload(request, env, url) {
@@ -627,7 +684,7 @@ function safeEqualBytes(a, b) {
   return result === 0;
 }
 
-function loginPage(errorMessage = "") {
+function loginPage(errorMessage = "", announcement = "") {
   const alert = errorMessage
     ? `<div class="alert" role="alert">${escapeHtml(errorMessage)}</div>`
     : "";
@@ -643,6 +700,7 @@ function loginPage(errorMessage = "") {
         ${alert}
         <form method="POST" action="/admin" class="stack">
           <input type="hidden" name="action" value="login">
+          ${isPreviewVersion(announcement) ? `<input type="hidden" name="announcement" value="${escapeHtml(announcement)}">` : ""}
           <label for="token">Master token</label>
           <input
             id="token"
@@ -903,12 +961,12 @@ function formatBytes(bytes) {
   return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
 
-function redirectToAdmin(cookie) {
+function redirectToAdmin(cookie, announcement = "") {
   return new Response(null, {
     status: 303,
     headers: {
       "Cache-Control": "no-store",
-      Location: ADMIN_PATH,
+      Location: isPreviewVersion(announcement) ? `${ADMIN_PATH}?announcement=${encodeURIComponent(announcement)}` : ADMIN_PATH,
       "Set-Cookie": cookie,
     },
   });

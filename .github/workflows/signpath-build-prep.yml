@@ -65,7 +65,7 @@ jobs:
       - name: Run preview manager tests
         if: ${{ inputs.publish_preview }}
         shell: pwsh
-        run: node --experimental-default-type=module --test cloudflare/preview-downloads/worker.test.mjs cloudflare/preview-downloads/publishing.test.mjs
+        run: node --experimental-default-type=module --test cloudflare/preview-downloads/worker.test.mjs cloudflare/preview-downloads/publishing.test.mjs cloudflare/preview-downloads/validation.test.mjs
       - name: Test publishing failure handling offline
         if: ${{ inputs.publish_preview }}
         shell: pwsh

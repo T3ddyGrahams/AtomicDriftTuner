@@ -33,8 +33,9 @@ export default {
       }
 
       return textResponse("Not found", 404);
-    } catch (error) {
-      console.error("ADT preview Worker request failed", error);
+    } catch {
+      // Upstream exceptions may contain request data or credentials.
+      console.error("ADT preview Worker request failed");
       return textResponse("The preview service hit an unexpected error.", 500);
     }
   },
@@ -189,7 +190,7 @@ async function generateResult(request, env, url, form, mode) {
     .filter(Boolean)
     .sort(compareAssets);
 
-  if (assets.length === 0) {
+  if (assets.length !== objectKeys.length) {
     return adminErrorPage(
       "Only Windows installer (.exe or .msi) and portable (.zip) builds can be shared.",
       400
@@ -363,16 +364,12 @@ async function discoverPreviewReleases(bucket) {
       break;
     }
 
-    if (!page.cursor || page.cursor === cursor) {
+    if (!page.cursor || page.cursor === cursor || objects.length >= MAX_DISCOVERED_OBJECTS) {
       incomplete = true;
       break;
     }
 
     cursor = page.cursor;
-  }
-
-  if (objects.length >= MAX_DISCOVERED_OBJECTS) {
-    incomplete = true;
   }
 
   const assets = objects.map(buildAsset).filter(Boolean);

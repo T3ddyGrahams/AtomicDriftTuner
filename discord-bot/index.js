@@ -5,6 +5,7 @@ const path = require("path");
 
 const {
   Client,
+  ChannelType,
   GatewayIntentBits,
   REST,
   Routes,
@@ -37,7 +38,7 @@ const SHARE_API_URL =
   process.env.ATOMIC_SHARE_API_URL || "http://127.0.0.1:8787";
 const shareApi = createShareApiClient(SHARE_API_URL);
 
-const BOT_VERSION = "0.5.0";
+const BOT_VERSION = "0.5.1";
 
 const requiredVariables = [
   TOKEN,
@@ -52,7 +53,7 @@ if (requiredVariables.some((value) => !value)) {
 }
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
 
 function loadJson(relativePath) {
@@ -465,6 +466,69 @@ client.once(Events.ClientReady, (readyClient) => {
     updatesChannelId: GITHUB_UPDATES_CHANNEL_ID,
     pollSeconds: GITHUB_POLL_SECONDS,
   });
+});
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  try {
+    if (member.user.bot || member.guild.id !== GUILD_ID) return;
+
+    const channels = await member.guild.channels.fetch();
+    const welcomeChannel = channels.find(
+      (channel) =>
+        channel?.name === "welcome" && channel.type === ChannelType.GuildText
+    );
+
+    if (!welcomeChannel) {
+      console.warn("Atomic welcome skipped: #welcome text channel not found.");
+      return;
+    }
+
+    const channelMention = (name) => {
+      const channel = channels.find(
+        (candidate) =>
+          candidate?.name === name &&
+          candidate.type !== ChannelType.GuildCategory
+      );
+
+      if (!channel) {
+        console.warn(`Atomic welcome: #${name} channel not found.`);
+      }
+
+      return channel ? `<#${channel.id}>` : `#${name}`;
+    };
+
+    const content = [
+      `👋 Welcome to the ADT Discord, <@${member.id}>!`,
+      "",
+      "Glad to have you here! ADT is built to make MOZA/AZOM tuning and Assetto Corsa drift setups easier, with real testing and feedback helping shape its development.",
+      "",
+      "Here’s the quickest way to get started:",
+      "",
+      `✅ Read ${channelMention("rules")}`,
+      `ℹ️ Check ${channelMention("welcome-info")} for an introduction to the server`,
+      `📦 Download the latest ADT build from ${channelMention("releases")}`,
+      `❓ Visit ${channelMention("faq")} or ask for help in ${channelMention("tech-support")}`,
+      `💬 Introduce yourself in ${channelMention("general")}—tell us your wheelbase, wheel, favorite drift pack, and car!`,
+      "",
+      "Want to get involved?",
+      "",
+      `💡 Share suggestions in ${channelMention("ideas")}`,
+      `🏁 Post your results in ${channelMention("showcase")}`,
+      `🛠️ Follow development in ${channelMention("development")} and ${channelMention("updates")}`,
+      `📢 Watch ${channelMention("announcements")} for important news`,
+      "",
+      "☕ Want to support ADT and try what’s next? [Buy Me a Coffee](https://buymeacoffee.com/T3ddyGrahams) to get access to preview builds before they’re publicly released. Your support helps keep the development moving!",
+      "",
+      "Ask questions, share feedback, and make yourself at home. Welcome to ADT!",
+    ].join("\n");
+
+    await welcomeChannel.send({
+      content,
+      allowedMentions: { parse: [], users: [member.id] },
+    });
+  } catch (error) {
+    console.error("Atomic welcome failed:", error);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Adaptive touchscreen (local preview.9)
+
+The touchscreen suite covers a cross-origin SimHub launcher leaving its scaled fixed canvas, actual fullscreen entry/exit and a rejected request, responsive layouts across nine landscape/portrait/ultrawide sizes, reachable recording actions and long confirmations on short displays, and resizing while recording without replaying a command. HTTP checks retain framing protection for authenticated controls and allow only the public launcher to be embedded. Installer checks cover generated LAN addresses, port changes, destination validation, backups, and preference for routed physical interfaces.
+
+Use the render and browser commands below, or choose `artifacts/adaptive-browser` as the output directory. The desktop layout runner also checks the separate PC and Pi/tablet address controls.
+
 ## Recorder recovery (local preview.8)
 
 The WPF runner exercises actual recorder start/stop/save handlers with an anonymous telemetry map and isolated history/calibration stores. It records a baseline, applies its calculated recommendation to the fixture calibration, then starts a linked comparison run. Checks cover brief frozen-frame recovery without duplicate samples, unchanged time gaps, prolonged loss, late recovery, manual stopping during an outage, successive starts, car/track changes, packet/time resets and saved stop reasons. The original brief-freeze case failed against preview.7 before the fix. No named AC maps or hardware writes are used.

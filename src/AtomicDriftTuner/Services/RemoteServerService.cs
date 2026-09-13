@@ -245,58 +245,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
 
     public IReadOnlyList<string> GetLanUrls()
     {
-        var urls =
-            new List<string>();
-
-        foreach (
-            var nic in
-            NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (
-                nic.OperationalStatus !=
-                    OperationalStatus.Up ||
-                nic.NetworkInterfaceType ==
-                    NetworkInterfaceType.Loopback)
-            {
-                continue;
-            }
-
-            foreach (
-                var unicast in
-                nic.GetIPProperties()
-                    .UnicastAddresses)
-            {
-                var address =
-                    unicast.Address;
-
-                if (
-                    address.AddressFamily !=
-                        AddressFamily.InterNetwork ||
-                    !IsPrivateOrLoopback(address))
-                {
-                    continue;
-                }
-
-                var url =
-                    $"http://{address}:{Port}/";
-
-                if (
-                    !urls.Contains(
-                        url,
-                        StringComparer.OrdinalIgnoreCase))
-                {
-                    urls.Add(url);
-                }
-            }
-        }
-
-        if (urls.Count == 0)
-        {
-            urls.Add(
-                $"http://localhost:{Port}/");
-        }
-
-        return urls;
+        return LanAddressService.GetUrls(Port);
     }
 
     public async Task StartAsync(
@@ -397,9 +346,17 @@ public sealed partial class RemoteServerService : IAsyncDisposable
                     "X-Content-Type-Options"] =
                     "nosniff";
 
-                context.Response.Headers[
-                    "X-Frame-Options"] =
-                    "DENY";
+                // Only the public, data-free launcher can be embedded by SimHub.
+                // Authenticated controls stay top-level and protected from framing.
+                if (string.Equals(context.Request.Path.Value?.TrimEnd('/'), "/dash/launch", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.Headers["Content-Security-Policy"] =
+                        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
+                }
+                else
+                {
+                    context.Response.Headers["X-Frame-Options"] = "DENY";
+                }
 
                 context.Response.Headers[
                     "Referrer-Policy"] =
@@ -461,6 +418,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
                     "text/html; charset=utf-8"));
 
         app.MapGet("/dash", () => Results.Content(RemoteWebApp.Render(_settingsStore.Load().Theme, touchscreen: true), "text/html; charset=utf-8"));
+        app.MapGet("/dash/launch", () => Results.Content(RemoteWebApp.RenderTouchLauncher(_settingsStore.Load().Theme), "text/html; charset=utf-8"));
 
         app.MapGet(
             "/apple-touch-icon.png",

@@ -9,6 +9,7 @@ const {chromium}=require('playwright');
 const output=path.resolve(process.argv[2]||'artifacts/touch-browser');
 const dash=fs.readFileSync(path.join(output,'dash.html'),'utf8');
 const remote=fs.readFileSync(path.join(output,'remote.html'),'utf8');
+const launcher=fs.readFileSync(path.join(output,'launch.html'),'utf8');
 new vm.Script(dash.match(/<script>([\s\S]*?)<\/script>/)[1]);
 let calls=[],offline=false,token='fixture-token',version=0,current=40,writeAllowed=true;
 let state='ready',canStart=true,canStop=false,canSave=false;
@@ -17,8 +18,9 @@ let dropCommandReply=false,carName='Example drift car';
 const recorder=()=>({windowId:'a'.repeat(32),sessionId:'fixture-run',controlVersion:version.toString(16).padStart(64,'0'),car:'Example drift car',driver:'Test driver',state,canStart,canStop,canSave,samples:state==='ready'?0:3000,elapsedSeconds:state==='ready'?0:75,message:state==='ready'?'Ready to record.':state==='recording'?'Recording in ADT.':state==='unsaved'?'Stop complete. Save your run.':'Session saved.'});
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
-  const send=(status,value,type='application/json')=>{res.writeHead(status,{'Content-Type':type});res.end(type==='application/json'?JSON.stringify(value):value);};
-  if(url.pathname==='/dash')return send(200,dash,'text/html');
+  const send=(status,value,type='application/json',headers={})=>{res.writeHead(status,{'Content-Type':type,...headers});res.end(type==='application/json'?JSON.stringify(value):value);};
+  if(url.pathname==='/dash')return send(200,dash,'text/html',{'X-Frame-Options':'DENY'});
+  if(url.pathname==='/dash/launch')return send(200,launcher,'text/html',{'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"});
   if(url.pathname==='/')return send(200,remote,'text/html');
   if(offline){req.socket.destroy();return;}
   let raw='';for await(const chunk of req)raw+=chunk;
@@ -46,16 +48,54 @@ const server=http.createServer(async(req,res)=>{
     default:return send(404,{error:'No fixture for '+url.pathname});
   }
 });
+// A separate origin and a proportionally scaled canvas reproduce the relevant
+// SimHub WebPageItem behavior. Only the public launcher is framed.
+let adtBase;
+const simhub=http.createServer((req,res)=>{
+  res.writeHead(200,{'Content-Type':'text/html'});
+  res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:black;overflow:hidden}iframe{position:absolute;border:0;width:1280px;height:720px;transform-origin:0 0}</style></head><body><iframe title="SimHub ADT" src="'+adtBase+'/dash/launch"></iframe><script>function fit(){const s=Math.min(innerWidth/1280,innerHeight/720);document.querySelector("iframe").style.transform="translate("+((innerWidth-1280*s)/2)+"px,"+((innerHeight-720*s)/2)+"px) scale("+s+")"}addEventListener("resize",fit);fit();</script></body></html>');
+});
 let browser,checks=0;
 const check=(value,message)=>{assert.ok(value,message);checks++;};
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
+  adtBase=base;
+  await new Promise(resolve=>simhub.listen(0,'127.0.0.1',resolve));
+  const simhubBase='http://127.0.0.1:'+simhub.address().port;
   browser=await chromium.launch({headless:true,channel:'msedge'});
   const context=await browser.newContext({viewport:{width:1280,height:720},hasTouch:true});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(base+'/dash');
+  for(const [width,height] of [[800,480],[320,568],[1024,600]]){
+    await page.setViewportSize({width,height});
+    await page.goto(simhubBase);
+    const open=page.frameLocator('iframe').getByRole('link',{name:'Open ADT',exact:true});
+    const target=await open.boundingBox();
+    check(target.width>=44&&target.height>=44,'SimHub launch target was too small after canvas scaling');
+    await open.tap();
+    await page.waitForURL(base+'/dash');
+    check(await page.evaluate(()=>window.top===window.self&&window.frames.length===0),'ADT remained inside a fixed canvas');
+    check(await page.evaluate(()=>document.querySelector('.wrap').getBoundingClientRect().width===document.documentElement.clientWidth),'Opened dashboard did not fill the device width');
+  }
+  await page.setViewportSize({width:1280,height:720});
+  await page.goto(base+'/dash/launch');
+  await page.waitForURL(base+'/dash');
+  check(await page.locator('#pairCard').isVisible(),'Native/top-level launcher did not open ADT');
+  await page.locator('#fullscreenButton').tap();
+  await page.waitForFunction(()=>!!document.fullscreenElement||!!document.getElementById('displayHelp').textContent);
+  check(await page.evaluate(()=>!!document.fullscreenElement),'Fullscreen failed in the browser fixture');
+  check(await page.locator('#fullscreenButton').getAttribute('aria-pressed')==='true','Fullscreen button state did not follow the browser');
+  await page.locator('#fullscreenButton').tap();
+  await page.waitForFunction(()=>!document.fullscreenElement);
+  await page.evaluate(()=>{
+    window.testRequestFullscreen=document.documentElement.requestFullscreen;
+    document.documentElement.requestFullscreen=()=>Promise.reject(new Error('Fullscreen blocked by host'));
+  });
+  await page.locator('#fullscreenButton').tap();
+  await page.waitForFunction(()=>document.getElementById('displayHelp').textContent.includes('browser could not'));
+  check(!await page.locator('#fullscreenButton').isDisabled()&&await page.locator('#fullscreenButton').getAttribute('aria-pressed')==='false','Fullscreen rejection left the page stuck');
+  await page.evaluate(()=>{document.documentElement.requestFullscreen=window.testRequestFullscreen;document.getElementById('displayHelp').textContent='';});
   await page.locator('.keypad button', {hasText:/^1$/}).tap();
   await page.getByRole('button',{name:'Delete last digit',exact:true}).tap();
   check(await page.locator('#pairCode').inputValue()==='', 'Touch backspace failed');
@@ -71,6 +111,11 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   check(await page.locator('#recordStart').isDisabled(),'Double tap not blocked');
   await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
   check(calls.filter(x=>x==='start').length===1,'Start sent more than once');
+  for(const [width,height] of [[800,480],[480,800],[1920,1080]]){
+    await page.setViewportSize({width,height});
+    await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
+    check((await page.locator('#controlState').textContent())==='RECORDING'&&calls.join(',')==='start','Resizing restarted or stopped a recording');
+  }
   commandDelay=0;
   dropCommandReply=true;
   await page.locator('#recordStop').tap();
@@ -110,17 +155,29 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   writeAllowed=false;
   await page.waitForFunction(()=>document.querySelector('#settings input').disabled);
   check(await page.locator('#revertButton').isDisabled(),'Remote-write opt-out did not disable revert');
-  for(const [width,height] of [[1280,720],[800,480],[390,844],[320,568]]){
+  for(const [width,height] of [[1280,720],[800,480],[1024,600],[480,320],[390,844],[320,568],[720,1280],[1920,1080],[3440,1440]]){
     await page.setViewportSize({width,height});
     for(const tab of ['dashboard','tune','behavior','azom']){
       await page.locator('#nav-'+tab).tap();
       check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),tab+' overflowed at '+width);
+      check(await page.evaluate(()=>Math.abs(document.querySelector('.wrap').getBoundingClientRect().width-document.documentElement.clientWidth)<2),tab+' left fixed-width borders at '+width);
     }
     await page.locator('#nav-dashboard').tap();
     const undersized=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(b=>{const r=b.getBoundingClientRect();return r.width<44||r.height<44;}).map(b=>b.textContent));
     check(undersized.length===0,'Small touch targets: '+undersized.join(','));
-    await page.screenshot({path:path.join(output,'Touchscreen-'+width+'x'+height+'.png'),fullPage:true});
+    for(const id of ['recordStart','recordStop','recordSave']){
+      const button=page.locator('#'+id);await button.scrollIntoViewIfNeeded();
+      check(await button.evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===el;}),id+' was covered at '+width+'x'+height);
+    }
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.screenshot({path:path.join(output,'Touchscreen-'+width+'x'+height+'.png'),fullPage:false});
   }
+  await page.setViewportSize({width:480,height:320});
+  await page.evaluate(()=>{void confirmAction('Long confirmation message for a small touchscreen. '.repeat(35));});
+  const cancel=page.locator('#confirmCancel');await cancel.scrollIntoViewIfNeeded();
+  check(await cancel.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),'Confirmation buttons cannot be reached on a short display');
+  await cancel.tap();
+  check(!await page.locator('#confirmDialog').isVisible(),'Touch confirmation did not close');
   check(errors.length===0,'Browser errors: '+errors.join('; '));
   token='rotated-fixture-token';
   await page.waitForFunction(()=>!document.getElementById('pairCard').classList.contains('hidden'));
@@ -132,5 +189,5 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   await storagePage.locator('#pairCode').fill('654321');await storagePage.locator('#pairButton').tap();
   await storagePage.waitForFunction(()=>!document.getElementById('app').classList.contains('hidden'));
   check(await storagePage.locator('#app').isVisible(),'Blocked browser storage prevented session pairing');
-  console.log('PASS '+checks+' browser assertions: touch pairing, recorder lifecycle, uncertain reply, reconnect, draft retention, context changes, confirmation, write opt-out, responsive tabs and revoked credentials.');
-})().catch(error=>{console.error(error.stack);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
+  console.log('PASS '+checks+' browser assertions: cross-origin SimHub launch, real fullscreen and refusal, device resizing during recording, touch pairing, recorder lifecycle, uncertain reply, reconnect, draft retention, confirmations, responsive tabs and revoked credentials.');
+})().catch(error=>{console.error(error.stack);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.closeAllConnections();simhub.closeAllConnections();await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>simhub.close(resolve))]);});

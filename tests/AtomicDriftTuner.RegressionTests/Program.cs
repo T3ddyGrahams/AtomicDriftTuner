@@ -13,6 +13,7 @@ if (args is ["--render-remote", var renderDirectory])
     Directory.CreateDirectory(renderDirectory);
     File.WriteAllText(Path.Combine(renderDirectory, "remote.html"), RemoteWebApp.Render(new ThemeSettings()));
     File.WriteAllText(Path.Combine(renderDirectory, "dash.html"), RemoteWebApp.Render(new ThemeSettings(), touchscreen: true));
+    File.WriteAllText(Path.Combine(renderDirectory, "launch.html"), RemoteWebApp.RenderTouchLauncher(new ThemeSettings()));
     File.WriteAllText(Path.Combine(renderDirectory, "ADT Control Center.djson"), TouchscreenDashboardService.Render(5190));
     return 0;
 }

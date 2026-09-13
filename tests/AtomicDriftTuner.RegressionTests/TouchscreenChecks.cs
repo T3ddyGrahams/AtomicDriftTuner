@@ -20,7 +20,7 @@ internal static class TouchscreenChecks
             using var d = JsonDocument.Parse(TouchscreenDashboardService.Render(5191));
             var screen = d.RootElement.GetProperty("Screens")[0];
             var item = screen.GetProperty("Items")[0];
-            Check(item.GetProperty("StartAddress").GetString() == "http://127.0.0.1:5191/dash", "Dashboard used a stale LAN address or port");
+            Check(item.GetProperty("StartAddress").GetString() == "http://127.0.0.1:5191/dash/launch", "Dashboard did not use the adaptive launcher and selected port");
             Check(screen.GetProperty("InGameScreen").GetBoolean() && screen.GetProperty("IdleScreen").GetBoolean() && screen.GetProperty("PitScreen").GetBoolean(), "Dashboard disappears when needed");
             Check(!item.GetProperty("ClickThrough").GetBoolean() && item.GetProperty("$type").GetString()!.Contains("WebPageItem"), "Dashboard does not receive touch input");
             Check(d.RootElement.GetProperty("Metadata").GetProperty("PitScreensIndexs")[0].GetInt32() == 0, "Pit metadata disagrees with the screen");
@@ -37,10 +37,49 @@ internal static class TouchscreenChecks
             Check(File.ReadAllText(original) == "Keep my dashboard", "An existing user dashboard was overwritten");
             var backups = Directory.GetFiles(Path.Combine(Path.GetDirectoryName(installed)!, "_Backups"));
             Check(backups.Any(p => File.ReadAllText(p) == initial), "Previous generated dashboard was not backed up");
-            Check(File.ReadAllText(installed).Contains("127.0.0.1:5191/dash") && File.Exists(installed + ".metadata"), "Install did not update dashboard and metadata");
+            Check(File.ReadAllText(installed).Contains("127.0.0.1:5191/dash/launch") && File.Exists(installed + ".metadata"), "Install did not update dashboard and metadata");
             var count = backups.Length; TouchscreenDashboardService.Install(folder, 5191);
             Check(Directory.GetFiles(Path.Combine(Path.GetDirectoryName(installed)!, "_Backups")).Length == count, "Unchanged installation created unnecessary backups");
             try { TouchscreenDashboardService.Install(Path.Combine(root, "not-simhub"), 5190); throw new Exception("Unknown destination accepted"); } catch (InvalidOperationException) { }
+        });
+        run("adaptive launcher uses the user's appearance palette", () =>
+        {
+            var theme = new ThemeSettings { AppBackground = "#112233", PrimaryText = "#ABCDEF", Accent = "#FA8700" };
+            var html = RemoteWebApp.RenderTouchLauncher(theme);
+            Check(html.Contains("--bg:#112233FF;") && html.Contains("--text:#ABCDEFFF;") && html.Contains("--accent:#FA8700FF;"), "Launcher ignored the custom theme");
+            Check(!html.Contains("/* ADT_LAUNCH_PALETTE */"), "Launcher did not render its palette");
+        });
+        run("adaptive dashboard installer carries this PC's LAN address and the current port", () =>
+        {
+            var folder = Path.Combine(root, "simhub-adaptive"); Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "SimHub.Plugins.dll"), "isolated path fixture");
+            var path = TouchscreenDashboardService.Install(folder, 5190, "http://192.168.2.235:5190/");
+            using var first = JsonDocument.Parse(File.ReadAllText(path));
+            Check(first.RootElement.GetProperty("Screens")[0].GetProperty("Items")[0].GetProperty("StartAddress").GetString() ==
+                "http://192.168.2.235:5190/dash/launch", "Separate device got loopback");
+            TouchscreenDashboardService.Install(folder, 5192, "http://10.2.0.7:5190/");
+            Check(File.ReadAllText(path).Contains("http://10.2.0.7:5192/dash/launch"), "Reinstall retained an old machine address or port");
+            foreach (var invalid in new[] { "https://192.168.2.235/", "http://example.com/", "http://8.8.8.8/", "http://192.168.2.235/?token=secret", "http://user:pass@192.168.2.235/", "javascript:alert(1)" })
+            {
+                try { TouchscreenDashboardService.Render(5190, invalid); throw new Exception("Invalid dashboard destination accepted"); }
+                catch (ArgumentException) { }
+            }
+        });
+        run("LAN address selection prefers a routed physical interface over host-only virtual networks", () =>
+        {
+            var urls = LanAddressService.SelectUrls(new[]
+            {
+                new LanAddressService.Candidate(IPAddress.Parse("172.18.16.1"), false, true),
+                new LanAddressService.Candidate(IPAddress.Parse("192.168.124.1"), false, true),
+                new LanAddressService.Candidate(IPAddress.Parse("10.10.0.1"), true, true),
+                new LanAddressService.Candidate(IPAddress.Parse("192.168.2.235"), true, false),
+                new LanAddressService.Candidate(IPAddress.Parse("192.168.2.235"), true, false),
+                new LanAddressService.Candidate(IPAddress.Parse("169.254.2.7"), false, false),
+                new LanAddressService.Candidate(IPAddress.Parse("127.0.0.1"), false, false),
+                new LanAddressService.Candidate(IPAddress.Parse("8.8.8.8"), true, false)
+            }, 5190);
+            Check(urls[0] == "http://192.168.2.235:5190/" && urls.Count == 4, "Suggested an unsuitable or duplicate address");
+            Check(LanAddressService.SelectUrls(Array.Empty<LanAddressService.Candidate>(), 5190).Single() == "http://localhost:5190/", "Offline PC fallback changed");
         });
     }
 
@@ -67,7 +106,18 @@ internal static class TouchscreenChecks
             Check(page.IsSuccessStatusCode, "Missing or ambiguous touchscreen route: " + route);
             var html = await page.Content.ReadAsStringAsync();
             Check(html.Contains("class=\"touchscreen\"") && html.Contains("id=\"recordStart\"") && html.Contains("function renderSettings()") && !html.Contains("/* ADT_TOUCH_SCRIPT */"), "Touchscreen page is incomplete");
+            Check(page.Headers.GetValues("X-Frame-Options").Single() == "DENY", "Authenticated dashboard lost clickjacking protection");
+            Check(html.Contains("id=\"fullscreenButton\"") && html.Contains("function toggleFullscreen()") && !html.Contains("/* ADT_DISPLAY_SCRIPT */"), "Adaptive display controls are missing");
         }
+        foreach (var route in new[] { "/dash/launch", "/dash/launch/", "/DASH/LAUNCH" })
+        {
+            var launch = await http.GetAsync(route);
+            var html = await launch.Content.ReadAsStringAsync();
+            Check(launch.IsSuccessStatusCode && !launch.Headers.Contains("X-Frame-Options"), "SimHub could not embed the public launcher");
+            Check(launch.Headers.GetValues("Content-Security-Policy").Single().Contains("default-src 'none'"), "Launcher security policy missing");
+            Check(html.Contains("target=\"_top\"") && !html.Contains("/api/") && !html.Contains("recordStart"), "Launcher must only open the top-level dashboard");
+        }
+        Check((await http.GetAsync("/dash/launch-extra")).Headers.GetValues("X-Frame-Options").Single() == "DENY", "Framing exception extends beyond the public launcher");
         Check((await http.GetAsync("/api/control/status")).StatusCode == HttpStatusCode.Unauthorized, "Unpaired browser read recorder status");
         var command = new CompanionCommand { Action = "start", WindowId = state.WindowId, SessionId = state.SessionId, ControlVersion = state.ControlVersion };
         Check((await http.PostAsJsonAsync("/api/control/recording", command)).StatusCode == HttpStatusCode.Unauthorized, "Unpaired browser controlled the recorder");

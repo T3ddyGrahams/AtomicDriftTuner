@@ -27,10 +27,12 @@ public static partial class RemoteWebApp
         };
         var css = ":root{" + string.Join("", palette.Select(p => $"--{p.Key}:{Css(p.Value)};")) + "}";
         css += "h1,h2,h3{color:var(--heading)}label{color:var(--label)}button{background:var(--button);color:var(--button-text)}button:hover{background:var(--hover);color:var(--hover-text)}button:disabled{background:var(--disabled);color:var(--disabled-text);opacity:1}input,select,textarea{color:var(--input-text);border-color:var(--input-border)}:focus-visible{outline:2px solid var(--focus)}";
-        return Html.Replace("</style>", TouchStyles + css + "</style>")
+        return Html.Replace("</style>", TouchStyles + (touchscreen ? DisplayStyles : "") + css + "</style>")
             .Replace("<!-- ADT_TOUCH_CONTROLS -->", TouchControls)
             .Replace("<!-- ADT_PAIR_KEYPAD -->", PairKeypad)
             .Replace("/* ADT_TOUCH_SCRIPT */", TouchScript)
+            .Replace("<!-- ADT_DISPLAY_TOOLS -->", touchscreen ? DisplayToolbar : "")
+            .Replace("/* ADT_DISPLAY_SCRIPT */", touchscreen ? DisplayScript : "")
             .Replace("<body>", touchscreen ? "<body class=\"touchscreen\">" : "<body>")
             .Replace("content=\"#0e1116\"", $"content=\"{Css(theme.AppBackground)}\"");
     }
@@ -441,6 +443,7 @@ input[type=number]{
 
     <span class="pill" id="writePill">WRITES OFF</span>
   </div>
+  <!-- ADT_DISPLAY_TOOLS -->
 </header>
 
 <div class="wrap">
@@ -2635,6 +2638,7 @@ $('pairCode').addEventListener(
 );
 
 /* ADT_TOUCH_SCRIPT */
+/* ADT_DISPLAY_SCRIPT */
 
 if(token){
   showApp();

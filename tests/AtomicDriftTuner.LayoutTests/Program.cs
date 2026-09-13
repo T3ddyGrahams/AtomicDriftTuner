@@ -106,7 +106,7 @@ internal static partial class Program
                         foreach (var field in new[] { "InterviewHelpCheck", "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })
                             AssertReachableByScrolling(root, "SetupBodyScroll", field, size);
                     if (name == "RemoteControlWindow")
-                        foreach (var field in new[] { "StartButton", "PairingCodeText", "TouchscreenAddressBox", "CopyTouchscreenAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
+                        foreach (var field in new[] { "StartButton", "PairingCodeText", "TouchscreenAddressBox", "TouchscreenLanAddressBox", "CopyTouchscreenAddressButton", "CopyTouchscreenLanAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
                             AssertReachableByScrolling(root, "RemoteBodyScroll", field, size);
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
                     {

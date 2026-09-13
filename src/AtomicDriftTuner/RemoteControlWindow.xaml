@@ -53,13 +53,17 @@
                 <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TOUCHSCREEN / SIMHUB CONTROL CENTER" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
-                        <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="1. Start ADT Remote below.&#10;2. Install the dashboard, then open ADT Control Center in SimHub → Dash Studio.&#10;3. Launch it on your touchscreen and tap in the pairing code shown below.&#10;4. Prepare Telemetry Recorder in ADT once, then start, stop and save runs from the screen.&#10;&#10;The same page works in a browser. For a phone/tablet, use a LAN address below with /dash at the end. AZOM is optional for recording." TextWrapping="Wrap" Margin="0,8,0,10"/>
+                        <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="1. Start ADT Remote below.&#10;2. On a Pi/tablet, open the other-device address below in its browser. Or install ADT Control Center in SimHub and tap Open ADT on the device.&#10;3. Tap Full screen and enter the pairing code. The page fits landscape, portrait and different screen sizes automatically.&#10;4. Prepare Telemetry Recorder in desktop ADT, then start, stop and save runs from the screen.&#10;&#10;Keep ADT running and both devices on the same home network. AZOM is optional for recording. No resolution changes in the SimHub editor are needed." TextWrapping="Wrap" Margin="0,8,0,10"/>
+                        <TextBlock Text="Screen connected to this PC" Foreground="{DynamicResource FieldLabelBrush}" Margin="0,4,0,4"/>
                         <TextBox x:Name="TouchscreenAddressBox" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Touchscreen address on this PC"/>
+                        <TextBlock Text="Raspberry Pi / tablet / another device" Foreground="{DynamicResource FieldLabelBrush}" Margin="0,8,0,4"/>
+                        <TextBox x:Name="TouchscreenLanAddressBox" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Touchscreen address for another device"/>
                         <WrapPanel>
-                            <Button x:Name="CopyTouchscreenAddressButton" Content="COPY THIS PC'S TOUCHSCREEN ADDRESS" Click="CopyTouchscreenAddress_Click"/>
+                            <Button x:Name="CopyTouchscreenAddressButton" Content="COPY PC ADDRESS" Click="CopyTouchscreenAddress_Click"/>
+                            <Button x:Name="CopyTouchscreenLanAddressButton" Content="COPY PI / TABLET ADDRESS" Click="CopyTouchscreenLanAddress_Click"/>
                             <Button x:Name="InstallTouchscreenButton" Content="INSTALL SIMHUB DASHBOARD" Click="InstallTouchscreen_Click"/>
                         </WrapPanel>
-                        <TextBlock x:Name="TouchscreenInstallText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0" Text="Installs ADT Control Center as a separate dashboard using this PC's local address. Select it in Dash Studio after installation. If you change the Remote port, install it again to update the address."/>
+                        <TextBlock x:Name="TouchscreenInstallText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0" Text="Installs ADT Control Center using this PC's preferred private network address. Other dashboards are preserved. On a Pi/tablet, Open ADT leaves SimHub's fixed canvas so the controls fit this device. Install again if the PC's address or Remote port changes."/>
                     </StackPanel>
                 </Border>
                 <Border Background="{DynamicResource PanelBrush}"

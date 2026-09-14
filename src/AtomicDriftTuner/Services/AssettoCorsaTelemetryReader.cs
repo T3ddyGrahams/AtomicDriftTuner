@@ -138,6 +138,7 @@ public sealed class AssettoCorsaTelemetryReader : IDisposable
         return new TelemetrySample
         {
             HasExtendedSignals = true,
+            LongitudinalVelocityMs = physics.LocalVelocity is { Length: >= 3 } ? ToFinite(physics.LocalVelocity[2]) : null,
             // Keep display/export values finite, but do not let sanitization fabricate evidence.
             InvalidSourceSignals = !new[] { physics.SpeedKmh, physics.SteerAngle, physics.Gas, physics.Brake, physics.Clutch, physics.FinalFF }.All(float.IsFinite) ||
                 !FiniteArray(physics.LocalVelocity, 3) || !FiniteArray(physics.LocalAngularVelocity, 3) ||

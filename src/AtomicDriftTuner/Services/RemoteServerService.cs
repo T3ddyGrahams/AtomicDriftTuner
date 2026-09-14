@@ -1088,6 +1088,10 @@ public sealed partial class RemoteServerService : IAsyncDisposable
                         request.InitiationSharpness
                 };
 
+            var savedAngleGoal = _behaviorStore.Load(input);
+            target.SustainedAngle = savedAngleGoal.SustainedAngle;
+            target.CustomAngleMinDeg = savedAngleGoal.CustomAngleMinDeg;
+            target.CustomAngleMaxDeg = savedAngleGoal.CustomAngleMaxDeg;
             target.Normalize();
 
             _behaviorStore.Save(

@@ -428,6 +428,7 @@ public sealed class AssistantComparisonRow
 
 public sealed class TuningAssistantReport
 {
+    public AssistantNextStep NextStep { get; set; } = new();
     public RunComparison Outcome { get; set; } = new();
     private string _overallAssessment =
         string.Empty;

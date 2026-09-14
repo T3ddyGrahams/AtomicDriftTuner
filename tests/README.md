@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Simple next step and sustained angle goals (local preview.11)
+
+The full regression runner now passes 116 scenarios. Fifteen new scenarios cover the saved per-car angle goal, independent stability preferences, custom range validation, sharing and immutable history, native travel direction, complete held-angle attempts and speed/recovery, 15–100 Hz timing, clipped/gapped/frozen/excluded/invalid recordings, backward slides, legacy unknown recovery, unchanged FFB/setup/gearing generation values, remote save preservation, comparison tradeoffs and goal-aware next steps. Repeated pedal advice requires meaningful repeated evidence; raw observations stay available.
+
+The WPF runner passes 411 geometry assertions and 17 new production-handler checks for saving/reloading angle goals, preserving them when a handling preset changes, optional range controls, simple/advanced visibility and next-step actions. Existing theme, recorder, gearing and guided-workflow checks remain included. PNGs are synthetic previews; driving validation is still needed. Use the commands below, with `artifacts/angle-layout` as an optional output folder.
+
 ## Adaptive touchscreen (local preview.9)
 
 The touchscreen suite covers a cross-origin SimHub launcher leaving its scaled fixed canvas, actual fullscreen entry/exit and a rejected request, responsive layouts across nine landscape/portrait/ultrawide sizes, reachable recording actions and long confirmations on short displays, and resizing while recording without replaying a command. HTTP checks retain framing protection for authenticated controls and allow only the public launcher to be embedded. Installer checks cover generated LAN addresses, port changes, destination validation, backups, and preference for routed physical interfaces.

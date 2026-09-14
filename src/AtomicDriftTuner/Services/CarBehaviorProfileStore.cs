@@ -376,6 +376,7 @@ public sealed class CarBehaviorProfileStore
                 ?? throw new InvalidDataException(
                     $"ADT behavior storage contains an empty profile for '{storedKey}'.");
 
+            if (!target.ValidAngleGoal) throw new InvalidDataException("A saved angle goal is invalid. The original profile file was preserved.");
             target.Normalize();
 
             target.Key =

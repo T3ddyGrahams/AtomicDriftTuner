@@ -32,8 +32,12 @@ public sealed class GuidedWorkflowStore
             Write(Path.Combine(_root, "preferences.json"), saved);
         }
     }
-    public static string GoalSignature(CarBehaviorTarget goal) => string.Join("/", goal.FrontEndBite, goal.RearGrip, goal.SelfSteerSpeed,
-        goal.TransitionSpeed, goal.AngleStability, goal.ThrottleSteering, goal.InitiationSharpness);
+    public static string GoalSignature(CarBehaviorTarget goal)
+    {
+        var handling = string.Join("/", goal.FrontEndBite, goal.RearGrip, goal.SelfSteerSpeed,
+            goal.TransitionSpeed, goal.AngleStability, goal.ThrottleSteering, goal.InitiationSharpness);
+        return !goal.HasAngleGoal ? handling : handling + FormattableString.Invariant($"/angle/{(int)goal.SustainedAngle}/{goal.AngleMinDeg}/{goal.AngleMaxDeg}");
+    }
     private static string Key(TuneInput input) => RunHistoryStore.ContextKey(input) + "-" +
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input.Intent.Kind.ToString())));
     private string PathFor(TuneInput input, string driver, TuningFocus focus)

@@ -10,6 +10,7 @@
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="AdvancedVisibility"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
@@ -96,7 +97,7 @@
                 </Grid>
             </Border>
 
-            <Border Style="{StaticResource AssistantCard}">
+            <Border Style="{StaticResource AssistantCard}" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="DESIRED BEHAVIOR TARGET"
                                FontWeight="Bold"/>
@@ -107,8 +108,26 @@
                                Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
-        <TabControl x:Name="AssistantTabs">
-            <TabItem Header="Assessment">
+            <CheckBox x:Name="AdvancedTelemetryToggle" Content="Show advanced telemetry and recommendations" IsChecked="False" Checked="AdvancedTelemetry_Changed" Unchecked="AdvancedTelemetry_Changed" Margin="0,4,0,10"/>
+        <TabControl x:Name="AssistantTabs" SelectedIndex="0">
+            <TabItem Header="Your next step">
+                <StackPanel Margin="12">
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Goal saved with this run" FontWeight="Bold"/>
+                    <TextBlock x:Name="NextGoalText" Foreground="{DynamicResource FieldLabelBrush}" Text="Select a saved run." TextWrapping="Wrap" Margin="0,4,0,14"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="What ADT noticed" FontWeight="Bold" FontSize="18"/>
+                    <TextBlock x:Name="NextNoticedText" Foreground="{DynamicResource FieldLabelBrush}" Text="Record and save a run to get a next step." TextWrapping="Wrap" FontSize="15" Margin="0,6,0,8"/>
+                    <TextBlock x:Name="NextConfidenceText" Foreground="{DynamicResource SecondaryTextBrush}" Text="Waiting for a run" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Try this next" FontWeight="Bold" FontSize="18"/>
+                    <TextBlock x:Name="NextInstructionText" Foreground="{DynamicResource FieldLabelBrush}" Text="Use the dashboard walkthrough to prepare your recording." TextWrapping="Wrap" FontSize="15" Margin="0,6,0,12"/>
+                    <Expander x:Name="NextWhyExpander" Header="Why this next step?" IsExpanded="False" HorizontalContentAlignment="Stretch">
+                        <StackPanel Margin="8">
+                            <TextBlock x:Name="NextWhyText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap"/>
+                            <Button x:Name="ShowEvidenceButton" Content="View supporting events" Click="ShowEvidence_Click" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Assessment" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -154,7 +173,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Recommendations">
+            <TabItem Header="Recommendations" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -213,7 +232,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Phase Evidence">
+            <TabItem Header="Phase Evidence" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <StackPanel Margin="12">
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="QualityText" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <DataGrid x:Name="PhaseGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="180" MaxHeight="420"
@@ -228,7 +247,7 @@
                     </DataGrid>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Pedal Evidence">
+            <TabItem Header="Pedal Evidence" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <StackPanel Margin="12">
                     <TextBlock x:Name="PedalSectionHeading" Foreground="{DynamicResource SectionHeadingBrush}" Text="How your inputs relate to the car's response" FontWeight="Bold" TextWrapping="Wrap"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="1. Record and save a run. 2. Inspect the events below. 3. Repeat similar pedal inputs when testing one setup change, then open Before / After." TextWrapping="Wrap" Margin="0,6,0,8"/>
@@ -278,14 +297,18 @@
                     <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Baseline run (choose an earlier run by this driver)" TextWrapping="Wrap" FontWeight="Bold"/>
                     <ComboBox x:Name="BaselineSessionBox" AutomationProperties.Name="Baseline run" SelectionChanged="BaselineSession_SelectionChanged" Margin="0,4,0,8"/>
+                    <TextBlock x:Name="ComparisonSimpleText" Foreground="{DynamicResource FieldLabelBrush}" Text="Choose an earlier baseline to check whether the result changed." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Expander x:Name="ComparisonReasonsExpander" Header="Comparison conditions and limitations" IsExpanded="False" HorizontalContentAlignment="Stretch" Margin="0,0,0,8">
                     <TextBlock x:Name="ComparisonHeaderText"
                                Text="Choose an earlier baseline. ADT checks the recorded driver, track, conditions, tune and Desired Behavior."
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>
+                    </Expander>
                     </StackPanel>
 
-                    <DataGrid Grid.Row="1"
+                    <Expander Grid.Row="1" x:Name="ComparisonDetailsExpander" Header="View detailed measurements" IsExpanded="False" HorizontalContentAlignment="Stretch">
+                    <DataGrid
                               x:Name="ComparisonGrid"
                               MinHeight="180"
                               MaxHeight="420"
@@ -303,6 +326,7 @@
                             <DataGridTextColumn Header="Interpretation" Binding="{Binding Interpretation, Mode=OneWay}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="280" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
+                    </Expander>
                 </Grid>
             </TabItem>
             <TabItem Header="Tune &amp; Run History">
@@ -346,7 +370,8 @@
                        TextWrapping="Wrap"
                        Margin="0,0,12,0"/>
 
-            <WrapPanel x:Name="AssistantActions">
+            <Button x:Name="NextActionButton" Content="Back to dashboard" Click="NextAction_Click" HorizontalAlignment="Left" FontWeight="Bold"/>
+            <WrapPanel x:Name="AssistantActions" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <Button x:Name="ApplyCalibrationButton"
                         Content="Apply Calibration Recommendation"
                         ToolTip="Save the current report's bounded telemetry correction to ADT calibration for this exact hardware/car context."

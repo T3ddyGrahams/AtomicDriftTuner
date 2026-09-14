@@ -26,7 +26,8 @@ public sealed class RunHistoryStore
     public static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, Json), Json)!;
     public static bool SameBehavior(CarBehaviorTarget? a, CarBehaviorTarget? b) =>
         a is not null && b is not null && a.FrontEndBite == b.FrontEndBite && a.RearGrip == b.RearGrip && a.SelfSteerSpeed == b.SelfSteerSpeed &&
-        a.TransitionSpeed == b.TransitionSpeed && a.AngleStability == b.AngleStability && a.ThrottleSteering == b.ThrottleSteering && a.InitiationSharpness == b.InitiationSharpness;
+        a.TransitionSpeed == b.TransitionSpeed && a.AngleStability == b.AngleStability && a.ThrottleSteering == b.ThrottleSteering && a.InitiationSharpness == b.InitiationSharpness &&
+        a.SustainedAngle == b.SustainedAngle && (!a.HasAngleGoal || a.AngleMinDeg == b.AngleMinDeg && a.AngleMaxDeg == b.AngleMaxDeg);
     public static string ContextKey(TuneInput input) => Hash(JsonSerializer.Serialize(new[] { input.Hardware.Id, input.Wheel.Id,
         input.DriftPack.Id, input.Car.SourceFolderName ?? input.Car.Id }.Select(s => s.Trim().ToLowerInvariant())));
     private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
@@ -134,7 +135,7 @@ public sealed class RunHistoryStore
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
         Enum.IsDefined(v.Focus) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
-        v.SetupSha256 is not null && v.Settings is not null && v.DesiredBehavior is not null && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
+        v.SetupSha256 is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
         new[] { v.DesiredBehavior.FrontEndBite, v.DesiredBehavior.RearGrip, v.DesiredBehavior.SelfSteerSpeed, v.DesiredBehavior.TransitionSpeed,
             v.DesiredBehavior.AngleStability, v.DesiredBehavior.ThrottleSteering, v.DesiredBehavior.InitiationSharpness }.All(x => x is >= -2 and <= 2);
 

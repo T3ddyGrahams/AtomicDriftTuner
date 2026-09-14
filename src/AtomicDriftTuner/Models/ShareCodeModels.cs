@@ -409,6 +409,9 @@ public sealed class AtomicShareIntent
 
 public sealed class AtomicShareBehavior
 {
+    public SustainedAnglePreference SustainedAngle { get; set; }
+    public double? CustomAngleMinDeg { get; set; }
+    public double? CustomAngleMaxDeg { get; set; }
     public int FrontEndBite { get; set; }
 
     public int RearGrip { get; set; }
@@ -431,13 +434,16 @@ public sealed class AtomicShareBehavior
         TransitionSpeed == 0 &&
         AngleStability == 0 &&
         ThrottleSteering == 0 &&
-        InitiationSharpness == 0;
+        InitiationSharpness == 0 && SustainedAngle == SustainedAnglePreference.Current;
 
     public CarBehaviorTarget ToTarget()
     {
         var target =
             new CarBehaviorTarget
             {
+                SustainedAngle = SustainedAngle,
+                CustomAngleMinDeg = CustomAngleMinDeg,
+                CustomAngleMaxDeg = CustomAngleMaxDeg,
                 FrontEndBite = FrontEndBite,
                 RearGrip = RearGrip,
                 SelfSteerSpeed = SelfSteerSpeed,

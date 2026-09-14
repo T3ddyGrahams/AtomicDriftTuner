@@ -32,10 +32,22 @@ internal static class PedalAssistantGuidance
                 Status = repeated ? "INPUT / RESPONSE CONTEXT" : "INSUFFICIENT REPEATED EVIDENCE", Confidence = confidence,
                 Evidence = $"{phases} event(s) near initiation/transition; {rotation} with ≥5° higher absolute angle afterward. " +
                     "Timing association only, not a technique score. Open Pedal Evidence for timestamps, other inputs and limitations. " + next });
-            if (events.Count > 0)
+            var meaningful = events.Where(e => e.ResponseComplete && e.Confidence == "MEDIUM" && e.Phase == "Sustained drift" &&
+                (goal.HasAngleGoal && e.Kind == "Throttle lift" && e.AngleChangeDeg <= -5 ||
+                 goal.RearGrip > 0 && e.Kind == "Throttle application" && e.AngleChangeDeg >= 5 ||
+                 goal.AngleStability > 0 && e.Kind is "Brake application" or "Brake release" && Math.Abs(e.AngleChangeDeg ?? 0) >= 8))
+                .GroupBy(e => e.Kind).OrderByDescending(g => g.Count()).FirstOrDefault();
+            if (meaningful?.Count() >= 3 && confidence != "LOW")
+            {
+                var observed = meaningful.Key == "Throttle lift" ? "Angle repeatedly fell around throttle lifts." :
+                    meaningful.Key == "Throttle application" ? "Angle repeatedly increased around throttle applications." :
+                    "Larger angle changes repeatedly accompanied braking or brake release.";
                 report.Recommendations.Add(new AssistantRecommendation { Domain = domain, Priority = "Repeat inputs", Area = RecommendationArea.General,
-                    Change = next, Why = $"Recorded goal: {desired}. {complete} usable response window(s); pedal use can confound setup, self-steer and stability observations.",
+                    Change = observed + " Keep this setup for another run and repeat the same section to check the pattern. Corner exit or planned deceleration may explain it.",
+                    Why = $"Recorded goal: {(goal.HasAngleGoal ? goal.AngleGoalLabel : desired)}. {meaningful.Count()} similar events with complete response windows. " +
+                        "Timing alone does not identify the cause. " + next,
                     Confidence = confidence });
+            }
         }
         report.PreserveNotes.Add("Pedal evidence provides context and repeat-run guidance; it does not change generated FFB, gearing, calibration or car setup values.");
     }

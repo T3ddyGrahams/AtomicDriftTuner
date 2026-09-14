@@ -188,7 +188,8 @@ internal static class PedalChecks
             Check(report.Assessments.Any(a => a.Behavior == "Throttle and rear response" && a.Desired == "More planted rear"), "Current goals replaced saved rear goal");
             Check(report.Assessments.Any(a => a.Behavior == "Clutch and initiation" && a.Desired == "Progressive initiation"), "Wrong initiation goal");
             Check(JsonSerializer.Serialize(report.ProposedCalibration) == calibration && JsonSerializer.Serialize(s) == json, "Pedals changed calibration or raw session");
-            Check(report.Recommendations.Any(r => r.Area == RecommendationArea.General && r.Change.Contains("planted-rear")), "Missing user guidance");
+            Check(report.Assessments.Any(r => r.Evidence.Contains("planted-rear")) &&
+                report.Recommendations.All(r => r.Priority != "Repeat inputs"), "Detailed guidance was lost or an isolated pedal response became homework");
             Check(report.Assessments.Single(a => a.Behavior == "Braking and balance").Confidence == "LOW", "One braking episode counted as repeated applications");
         });
         test("older recordings reanalyze without file changes and unknown pedal coverage blocks attribution", () =>

@@ -409,9 +409,10 @@ public partial class TuningAssistantWindow : Window
             $"Angle stability {Signed(_behavior.AngleStability)} • " +
             $"Throttle steering {Signed(_behavior.ThrottleSteering)} • " +
             $"Initiation {Signed(_behavior.InitiationSharpness)}" +
+            $" • {_behavior.AngleGoalLabel}" +
             (
                 _behavior.IsNeutral
-                    ? " • Neutral per-car behavior target."
+                    ? " • Neutral handling preferences."
                     : $" • {_behavior.ActiveBiasCount} active per-car behavior bias(es)."
             );
     }
@@ -421,6 +422,7 @@ public partial class TuningAssistantWindow : Window
         SavedTelemetrySession selected,
         SavedTelemetrySession? previous)
     {
+        RenderNextStep(report.NextStep);
         AssessmentGrid.ItemsSource =
             null;
 
@@ -478,11 +480,15 @@ public partial class TuningAssistantWindow : Window
 
         if (previous is null)
         {
+            ComparisonSimpleText.Text = "Choose an earlier baseline to check whether the result changed.";
             ComparisonHeaderText.Text =
                 "Select an earlier baseline above when available. Save a baseline and another run after testing a recommendation to compare them.";
         }
         else
         {
+            ComparisonSimpleText.Text = report.Outcome.Comparable ? $"{report.Outcome.Verdict}. " +
+                (report.Outcome.RecommendationTestTracked ? "The recommendation test is recorded; add your feedback in Tune & Run History." : "This is an observed difference; improvement from the tune is not confirmed.") :
+                "These runs do not yet give a fair comparison. Open the conditions and limitations below to see what needs checking.";
             ComparisonHeaderText.Text =
                 $"After: {selected.DisplayName}\nBaseline: {previous.DisplayName}\n" +
                 report.Outcome.Summary + "\n\n" + string.Join("\n", report.Outcome.Limitations.Select(x => "• " + x));
@@ -491,10 +497,7 @@ public partial class TuningAssistantWindow : Window
         UpdateActionAvailability(
             selected);
 
-        StatusText.Text =
-            $"Session analyzed: {selected.Analysis.DriftTimeSeconds:0}s detected drift • " +
-            $"{selected.Analysis.TransitionCount} transition(s) • " +
-            $"{report.Recommendations.Count} recommendation row(s).";
+        StatusText.Text = "Run reviewed. Your next step is above; the full analysis is available in Advanced telemetry.";
     }
 
     private void UpdateActionAvailability(
@@ -537,6 +540,8 @@ public partial class TuningAssistantWindow : Window
     {
         _report =
             null;
+        RenderNextStep(new AssistantNextStep());
+        ComparisonSimpleText.Text = "Choose a saved run and an earlier baseline to compare.";
 
         _reportSession =
             null;

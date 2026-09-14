@@ -102,6 +102,9 @@ public sealed class ShareCodeService
 
             Behavior = new AtomicShareBehavior
             {
+                SustainedAngle = behavior.SustainedAngle,
+                CustomAngleMinDeg = behavior.CustomAngleMinDeg,
+                CustomAngleMaxDeg = behavior.CustomAngleMaxDeg,
                 FrontEndBite = behavior.FrontEndBite,
                 RearGrip = behavior.RearGrip,
                 SelfSteerSpeed = behavior.SelfSteerSpeed,
@@ -675,6 +678,7 @@ public sealed class ShareCodeService
 
         sb.AppendLine(
             $"Angle Stability {Signed(b.AngleStability)} • Throttle Steering {Signed(b.ThrottleSteering)} • Initiation {Signed(b.InitiationSharpness)}");
+        sb.AppendLine(b.ToTarget().AngleGoalLabel);
 
         sb.AppendLine();
 
@@ -1134,6 +1138,8 @@ public sealed class ShareCodeService
     private static void ValidateBehavior(
         AtomicShareBehavior behavior)
     {
+        if (!new CarBehaviorTarget { SustainedAngle = behavior.SustainedAngle, CustomAngleMinDeg = behavior.CustomAngleMinDeg, CustomAngleMaxDeg = behavior.CustomAngleMaxDeg }.ValidAngleGoal)
+            throw new InvalidDataException("The shared angle goal or range is invalid.");
         foreach (var value in new[]
         {
             behavior.FrontEndBite,

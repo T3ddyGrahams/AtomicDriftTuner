@@ -1923,6 +1923,9 @@ public sealed class CarSetupTuningEngine
             UpdatedUtc =
                 source.UpdatedUtc,
 
+            SustainedAngle = source.SustainedAngle,
+            CustomAngleMinDeg = source.CustomAngleMinDeg,
+            CustomAngleMaxDeg = source.CustomAngleMaxDeg,
             FrontEndBite =
                 source.FrontEndBite,
 

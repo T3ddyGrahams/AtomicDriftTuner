@@ -16,6 +16,9 @@ public sealed class TelemetrySample
     public int PacketId { get; set; }
 
     public double SpeedKmh { get; set; }
+    // AC local Z velocity; absent in older recordings. Negative means backward travel.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? LongitudinalVelocityMs { get; set; }
 
     public double Throttle { get; set; }
 

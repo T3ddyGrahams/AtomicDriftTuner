@@ -54,9 +54,24 @@
                     </Expander.Header>
                     <Border CornerRadius="10" Padding="14" Margin="0,8,0,0">
                         <StackPanel>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="What angle do you want to hold?" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <ComboBox x:Name="AngleGoalBox" AutomationProperties.Name="Sustained drift angle goal" SelectionChanged="AngleGoal_Changed"/>
+                            <TextBlock x:Name="AngleGoalHelpText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Expander x:Name="AngleRangeExpander" Header="Optional angle range for this car" IsExpanded="False" Margin="0,0,0,10" HorizontalContentAlignment="Stretch">
+                                <StackPanel Margin="8">
+                                    <CheckBox x:Name="CustomAngleRangeCheck" Content="Choose my target range" Checked="AngleRange_Changed" Unchecked="AngleRange_Changed"/>
+                                    <StackPanel x:Name="CustomAngleRangePanel" Visibility="Collapsed">
+                                        <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Lower angle (degrees)" Margin="0,8,0,0"/>
+                                        <Slider x:Name="AngleMinSlider" AutomationProperties.Name="Lower target drift angle" Minimum="20" Maximum="80" Value="45" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AngleRangeSlider_Changed"/>
+                                        <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Upper angle (degrees)" Margin="0,8,0,0"/>
+                                        <Slider x:Name="AngleMaxSlider" AutomationProperties.Name="Upper target drift angle" Minimum="25" Maximum="85" Value="65" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AngleRangeSlider_Changed"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="AngleRangeText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Expander>
                             <WrapPanel Margin="0,0,0,8">
                                 <StackPanel Width="210" Margin="0,0,8,0">
-                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Behavior preset" FontWeight="Bold"/>
+                                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Handling preset" FontWeight="Bold"/>
                                     <ComboBox x:Name="BehaviorPresetBox" SelectionChanged="BehaviorPresetBox_SelectionChanged"/>
                                 </StackPanel>
                                 <Button Content="Reset Neutral" Click="ResetBehavior_Click" VerticalAlignment="Bottom"/>

@@ -35,6 +35,7 @@ public partial class CarSetupWindow : Window
         AggressivenessBox.ItemsSource = Enum.GetValues<SetupAggressiveness>();
         AggressivenessBox.SelectedItem = SetupAggressiveness.Balanced;
 
+        AngleGoalBox.ItemsSource = new[] { "Keep my current angle", "Sustain more angle", "Sustain more extreme angle" };
         BehaviorPresetBox.ItemsSource = new[]
         {
             "Neutral",
@@ -593,7 +594,7 @@ public partial class CarSetupWindow : Window
             BehaviorPresetBox.SelectedItem = MatchPreset(_behavior);
             UpdateBehaviorLabels();
 
-            BehaviorStatusText.Text = _behavior.IsNeutral
+            BehaviorStatusText.Text = _behavior.HasAngleGoal ? $"Loaded {_behavior.AngleGoalLabel} for {_behavior.DisplayName}. Handling preferences are shown below." : _behavior.IsNeutral
                 ? "No saved behavior bias for this car yet; neutral handling target is active."
                 : $"Loaded saved behavior target for {_behavior.DisplayName} • {_behavior.ActiveBiasCount} active bias(es) • updated {_behavior.UpdatedUtc.ToLocalTime():g}.";
         }
@@ -632,7 +633,9 @@ public partial class CarSetupWindow : Window
             }
 
             BehaviorStatusText.Text =
-                _behavior.IsNeutral
+                _behavior.HasAngleGoal
+                    ? $"Saved for {_input.Car.DisplayName}: {_behavior.AngleGoalLabel}. Record a new baseline when this goal changes."
+                    : _behavior.IsNeutral
                     ? "Neutral behavior target saved for this car."
                     : $"Saved {_behavior.ActiveBiasCount} desired-behavior bias(es) for {_input.Car.DisplayName}.";
         }
@@ -750,6 +753,7 @@ public partial class CarSetupWindow : Window
                 _ => new CarBehaviorTarget()
             };
 
+            ReadAngleGoal(target);
             ApplyBehaviorToControls(target);
             UpdateBehaviorLabels();
 
@@ -814,6 +818,7 @@ public partial class CarSetupWindow : Window
             ThrottleSteering = SliderInt(ThrottleSteeringSlider),
             InitiationSharpness = SliderInt(InitiationSlider)
         };
+        ReadAngleGoal(target);
         target.Normalize();
         return target;
     }
@@ -821,6 +826,7 @@ public partial class CarSetupWindow : Window
     private void ApplyBehaviorToControls(CarBehaviorTarget target)
     {
         target.Normalize();
+        ApplyAngleGoal(target);
         FrontEndBiteSlider.Value = target.FrontEndBite;
         RearGripSlider.Value = target.RearGrip;
         SelfSteerSlider.Value = target.SelfSteerSpeed;
@@ -833,6 +839,7 @@ public partial class CarSetupWindow : Window
     private void UpdateBehaviorLabels()
     {
         if (!_uiReady) return;
+        UpdateAngleGoalLabels();
         FrontEndBiteValueText.Text = Describe(SliderInt(FrontEndBiteSlider), "calmer", "more aggressive");
         RearGripValueText.Text = Describe(SliderInt(RearGripSlider), "looser", "more planted");
         SelfSteerValueText.Text = Describe(SliderInt(SelfSteerSlider), "slower", "faster");
@@ -1030,7 +1037,8 @@ public partial class CarSetupWindow : Window
             behavior.TransitionSpeed.ToString(),
             behavior.AngleStability.ToString(),
             behavior.ThrottleSteering.ToString(),
-            behavior.InitiationSharpness.ToString());
+            behavior.InitiationSharpness.ToString(),
+            GuidedWorkflowStore.GoalSignature(behavior));
     }
 
     private string? TryGetSelectedPath()
@@ -1054,6 +1062,9 @@ public partial class CarSetupWindow : Window
                 source.DisplayName,
             UpdatedUtc =
                 source.UpdatedUtc,
+            SustainedAngle = source.SustainedAngle,
+            CustomAngleMinDeg = source.CustomAngleMinDeg,
+            CustomAngleMaxDeg = source.CustomAngleMaxDeg,
             FrontEndBite =
                 source.FrontEndBite,
             RearGrip =

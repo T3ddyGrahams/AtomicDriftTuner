@@ -22,6 +22,8 @@ public sealed class DriftAssistantReportBuilder
             var axis = m.Key switch { "initiation" => goal.InitiationSharpness, "transition" => goal.TransitionSpeed, "front-response" or "front-slip-share" => goal.FrontEndBite,
                 "rear-slip-share" => goal.RearGrip, "self-steer" => goal.SelfSteerSpeed, "stability" => goal.AngleStability, "throttle-rotation" => goal.ThrottleSteering, _ => 0 };
             var desired = m.Key switch { "initiation" => axis > 0 ? "Sharper initiation" : axis < 0 ? "Progressive initiation" : "Balanced initiation",
+                "angle-time" or "angle-hold" => goal.AngleGoalLabel, "angle-speed" => "Retain useful speed while holding the requested angle",
+                "angle-recovery" => "Return from the requested angle with control",
                 "transition" => axis > 0 ? "Quicker transitions" : axis < 0 ? "Smoother transitions" : "Balanced transitions",
                 "front-response" or "front-slip-share" => axis > 0 ? "More front bite" : axis < 0 ? "Calmer front response" : "Neutral front target",
                 "rear-slip-share" => axis > 0 ? "More planted rear" : axis < 0 ? "Looser rear" : "Neutral rear target",
@@ -30,6 +32,8 @@ public sealed class DriftAssistantReportBuilder
                 "throttle-rotation" => axis > 0 ? "More powered rotation" : axis < 0 ? "Less powered rotation" : "Neutral powered rotation", _ => "Controlled, without saturation/loss" };
             string status = m.Value is null ? "INSUFFICIENT DATA" : "OBSERVED PROXY";
             string guidance = "";
+            if (m.Key.StartsWith("angle-"))
+                status = m.Confidence == "LOW" ? "MORE COMPLETE ATTEMPTS NEEDED" : "OBSERVED AGAINST SAVED ANGLE GOAL";
             if (m.Value is double value && m.Key is "initiation" or "transition")
             {
                 var target = RunComparisonEngine.TimingTarget(axis);
@@ -79,6 +83,12 @@ public sealed class DriftAssistantReportBuilder
         r.OverallAssessment = a.Assessment;
         r.PreserveNotes.Add("No Desired Behavior profile or hardware setting changes merely by analyzing a run.");
         if (previous is not null) { r.Outcome = new RunComparisonEngine().Compare(previous, selected); r.Comparison = r.Outcome.Metrics; }
+        r.NextStep = AssistantNextStepBuilder.Build(r, goal, selected, previous);
+        if (recorded is not null && !RunHistoryStore.SameBehavior(recorded, behavior))
+            r.NextStep = new AssistantNextStep { Goal = AssistantNextStepBuilder.DescribeGoal(recorded),
+                Noticed = "Your current saved goals have changed. This run still belongs to the earlier goals.",
+                Instruction = $"Record a new baseline for your current goal: {AssistantNextStepBuilder.DescribeGoal(behavior)}.",
+                Confidence = "New baseline needed", Why = r.ConfidenceReason };
         return r;
     }
 }

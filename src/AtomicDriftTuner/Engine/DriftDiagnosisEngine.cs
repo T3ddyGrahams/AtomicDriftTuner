@@ -1,4 +1,5 @@
 using AtomicDriftTuner.Models;
+using AtomicDriftTuner.Services;
 
 namespace AtomicDriftTuner.Engine;
 
@@ -11,6 +12,8 @@ public sealed class DriftDiagnosisEngine
         ArgumentNullException.ThrowIfNull(session);
         var r = new TelemetryAnalysis();
         var d = r.Diagnosis;
+        var goal = RunHistoryStore.ValidContext(session.Context) ? session.Context!.Tune!.DesiredBehavior : null;
+        double driftLimit = goal?.HasAngleGoal == true ? 90 : 72;
         var blocks = new List<List<Frame>>();
         var block = new List<Frame>();
         TelemetrySample? previous = null;
@@ -42,7 +45,7 @@ public sealed class DriftDiagnosisEngine
         var frames = blocks.SelectMany(x => x).ToList();
         r.SampleCount = frames.Count;
         r.EffectiveSampleRateHz = Time(frames) > 0 ? frames.Count(f => f.Dt > 0) / Time(frames) : 0;
-        var drift = frames.Where(f => Drifting(f.Sample)).ToList();
+        var drift = frames.Where(f => Drifting(f.Sample, driftLimit)).ToList();
         r.DriftTimeSeconds = Time(drift);
         r.DriftTimePct = r.DurationSeconds > 0 ? 100 * r.DriftTimeSeconds / r.DurationSeconds : 0;
         d.UsableDriftSeconds = r.DriftTimeSeconds;
@@ -62,12 +65,16 @@ public sealed class DriftDiagnosisEngine
         r.AverageRearWheelSlipWhileDrifting = Mean(drift, s => Math.Abs(s.RearWheelSlipAvg));
         r.AverageFfbAbsWhileDrifting = Mean(drift, s => Math.Abs(s.FinalFfb));
         r.FfbClippingPctWhileDrifting = Mean(drift, s => Math.Abs(s.FinalFfb) >= .98 ? 100 : 0);
-        foreach (var continuous in blocks) FindPhases(continuous, d.Events);
+        foreach (var continuous in blocks) FindPhases(continuous, d.Events, driftLimit);
         var entries = d.Events.Where(e => e.Phase == "Initiation").ToList();
         var transitions = d.Events.Where(e => e.Phase == "Transition").ToList();
         r.DriftEntries = entries.Count; r.TransitionCount = transitions.Count;
         r.AverageTransitionSeconds = transitions.Count > 0 ? transitions.Average(e => e.DurationSeconds) : 0;
         r.SpinEvents = d.Events.Count(e => e.Phase == "Extreme angle");
+        d.AngleGoal = DriftAngleGoalEngine.Analyze(blocks, goal, d);
+        if (d.AngleGoal.Enabled)
+            r.SpinEvents = d.AngleGoal.ControlConcerns + d.Events.Count(e => e.Phase == "Extreme angle" &&
+                !d.AngleGoal.Attempts.Any(a => a.Complete && (a.ControlConcern || !a.RecoveryObserved) && a.StartSeconds <= e.EndSeconds && a.EndSeconds >= e.StartSeconds));
         var windows = entries.Concat(transitions).OrderBy(e => e.StartSeconds).ToList();
         var steady = new List<Frame>();
         double variationSum = 0, variationTime = 0;
@@ -82,7 +89,7 @@ public sealed class DriftDiagnosisEngine
                 var s = f.Sample;
                 while (phaseIndex < windows.Count && windows[phaseIndex].EndSeconds + .4 < s.TimeSeconds) phaseIndex++;
                 bool inPhase = phaseIndex < windows.Count && windows[phaseIndex].StartSeconds - .4 <= s.TimeSeconds;
-                if (!Drifting(s) || Math.Abs(s.SlipAngleDeg) < 20 || inPhase)
+                if (!Drifting(s, driftLimit) || Math.Abs(s.SlipAngleDeg) < 20 || inPhase)
                 { last = null; lastRateSign = 0; flips = 0; cluster = false; continue; }
                 steady.Add(f);
                 if (last is not null && f.Dt > 0 && Math.Sign(s.SlipAngleDeg) == Math.Sign(last.Sample.SlipAngleDeg))
@@ -142,7 +149,8 @@ public sealed class DriftDiagnosisEngine
             "Time-normalized angle movement outside entries and transitions. Changing track curvature can also increase this proxy.");
         Metric("oscillation", "Steering oscillation clusters", Time(steady) >= 8 ? r.OscillationEvents * 60 / Time(steady) : null, "/min", Time(steady), -1,
             "Cluster rate in sustained drift; entry/transition steering reversals are not counted.");
-        Metric("extreme-angle", "Extreme-angle events", r.DriftTimeSeconds >= 8 ? r.SpinEvents * 60 / r.DriftTimeSeconds : null, "/min", r.DriftTimeSeconds, -1,
+        Metric("extreme-angle", d.AngleGoal.Enabled ? "Angle control observations" : "Extreme-angle events", r.DriftTimeSeconds >= 8 ? r.SpinEvents * 60 / r.DriftTimeSeconds : null, "/min", r.DriftTimeSeconds, -1,
+            d.AngleGoal.Enabled ? "Backward travel, ≥90° excursions, major speed loss or no observed settled return after an angle attempt. Intentional deceleration can contribute; this is not a confirmed spin." :
             "Sustained ≥72° body slip. This is a loss/extreme-entry proxy, not a confirmed spin.");
         Metric("throttle-rotation", "Powered rotation proxy", Time(powered) >= 5 ? Mean(powered, s => Math.Abs(s.YawRateDegPerSec)) : null, "°/s", Time(powered), -1,
             "Yaw in sustained drift above 70% throttle. An association, not a measured throttle-to-yaw causal effect.");
@@ -154,7 +162,8 @@ public sealed class DriftDiagnosisEngine
         if (!session.Samples.Any(s => s?.HasExtendedSignals == true)) d.QualityNotes.Add("Legacy recording: pit limiter, AI, off-track and damage signals were not captured.");
         if (session.Context?.Interrupted == true) d.QualityNotes.Add("Recording was interrupted; improvement attribution is disabled.");
         if (d.TimelineReset) d.QualityNotes.Add("Recording time or packet sequence restarted. Later frames were ignored; record a fresh uninterrupted run.");
-        d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events);
+        d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events, driftLimit);
+        if (d.AngleGoal.Enabled) d.QualityNotes.Add(d.AngleGoal.Summary);
         r.Findings.Add(d.Pedals.Summary);
         r.Findings.AddRange(d.QualityNotes);
         r.Findings.AddRange(d.Metrics.Select(m => $"{m.Name}: {m.DisplayValue}. {m.Evidence}"));
@@ -174,7 +183,7 @@ public sealed class DriftDiagnosisEngine
         analysis.Diagnosis.InvalidSamples <= session.Samples.Count * .1 &&
         analysis.Diagnosis.Discontinuities <= Math.Max(1, analysis.DurationSeconds / 10);
 
-    private static void FindPhases(List<Frame> frames, List<DriftEvent> events)
+    private static void FindPhases(List<Frame> frames, List<DriftEvent> events, double driftLimit)
     {
         double lowSince = -1, entryStart = -1, reached = -1, transitionStart = -1, oppositeSince = -1, extremeSince = -1;
         int stableSign = 0, pendingSign = 0;
@@ -184,17 +193,17 @@ public sealed class DriftDiagnosisEngine
         foreach (var f in frames)
         {
             var s = f.Sample; var t = s.TimeSeconds; var angle = Math.Abs(s.SlipAngleDeg); var sign = Math.Sign(s.SlipAngleDeg);
-            if (s.SpeedKmh >= 15 && angle >= 72)
+            if (s.SpeedKmh >= 15 && angle >= driftLimit)
             {
                 if (extremeSince < 0) extremeSince = t;
                 if (!extremeReported && t - extremeSince >= .2)
                 {
-                    events.Add(new DriftEvent { Phase = "Extreme angle", StartSeconds = extremeSince, EndSeconds = t, SpeedKmh = s.SpeedKmh, Evidence = "Sustained body slip at or above 72°." });
+                    events.Add(new DriftEvent { Phase = "Extreme angle", StartSeconds = extremeSince, EndSeconds = t, SpeedKmh = s.SpeedKmh, Evidence = $"Sustained body slip at or above {driftLimit:0}°." });
                     extremeReported = true;
                 }
             }
             else { extremeSince = -1; extremeReported = false; }
-            if (s.SpeedKmh < 20 || angle >= 72)
+            if (s.SpeedKmh < 20 || angle >= driftLimit)
             { lowSince = entryStart = reached = transitionStart = oppositeSince = pendingSince = -1; stableSign = pendingSign = 0; continue; }
             if (angle < 5)
             {
@@ -247,13 +256,15 @@ public sealed class DriftDiagnosisEngine
     }
 
     private static bool Valid(TelemetrySample s) => !s.InvalidSourceSignals && double.IsFinite(s.TimeSeconds) && s.TimeSeconds >= 0 &&
+        (s.LongitudinalVelocityMs is not double longitudinal || double.IsFinite(longitudinal) && Math.Abs(longitudinal) <= 200) &&
         new[] { s.SpeedKmh, s.SlipAngleDeg, s.SteeringAngleDeg, s.SteeringRateDegPerSec, s.YawRateDegPerSec,
             s.Throttle, s.Brake, s.Clutch, s.FinalFfb, s.FrontWheelSlipAvg, s.RearWheelSlipAvg, s.LateralG, s.LongitudinalG, s.DamageTotal }.All(double.IsFinite) &&
         s.SpeedKmh is >= 0 and <= 500 && Math.Abs(s.SlipAngleDeg) <= 180 && Math.Abs(s.SteeringAngleDeg) <= 3000 &&
         Math.Abs(s.SteeringRateDegPerSec) <= 15000 && Math.Abs(s.YawRateDegPerSec) <= 2000 && Math.Abs(s.FinalFfb) <= 10 &&
         Math.Abs(s.FrontWheelSlipAvg) <= 10000 && Math.Abs(s.RearWheelSlipAvg) <= 10000 &&
         s.Throttle is >= 0 and <= 1.01 && s.Brake is >= 0 and <= 1.01 && s.Clutch is >= 0 and <= 1.01;
-    private static bool Drifting(TelemetrySample s) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) is >= 10 and < 72;
+    private static bool Drifting(TelemetrySample s, double limit) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) >= 10 && Math.Abs(s.SlipAngleDeg) < limit &&
+        (limit <= 72 || s.LongitudinalVelocityMs is null or >= 0);
     private static double Time(List<Frame> frames) => frames.Sum(f => f.Dt);
     private static double Mean(List<Frame> frames, Func<TelemetrySample, double> value) => Time(frames) > 0 ? frames.Sum(f => value(f.Sample) * f.Dt) / Time(frames) : 0;
     private static double Peak(List<Frame> frames, Func<TelemetrySample, double> value) => frames.Count > 0 ? frames.Max(f => value(f.Sample)) : 0;

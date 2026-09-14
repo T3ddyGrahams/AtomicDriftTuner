@@ -9,8 +9,10 @@ internal static class PedalDiagnosisEngine
     private sealed record Edge(double Start, double End, int From, double Before, double After);
     private const double Dwell = .12;
 
-    internal static PedalDiagnosis Analyze(List<List<Frame>> blocks, List<DriftEvent> phases)
+    internal static PedalDiagnosis Analyze(List<List<Frame>> blocks, List<DriftEvent> phases, double driftLimit = 72)
     {
+        bool Drifting(TelemetrySample s) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) >= 10 && Math.Abs(s.SlipAngleDeg) < driftLimit &&
+            (driftLimit <= 72 || s.LongitudinalVelocityMs is null or >= 0);
         var result = new PedalDiagnosis();
         var drift = blocks.SelectMany(b => b).Where(f => Drifting(f.Sample)).ToList();
         result.DriftSeconds = drift.Sum(f => f.Dt);
@@ -158,7 +160,6 @@ internal static class PedalDiagnosisEngine
         for (int i = LowerBound(block, start); i < block.Count && block[i].Sample.TimeSeconds <= end; i++) frames.Add(block[i]);
         return frames;
     }
-    private static bool Drifting(TelemetrySample s) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) is >= 10 and < 72;
     private static double Mean(List<Frame> frames, Func<TelemetrySample, double> value)
     {
         var seconds = frames.Sum(f => f.Dt);

@@ -185,6 +185,20 @@ public sealed class CarBehaviorTarget
     // Smooth initiation < 0 > sharp initiation
     public int InitiationSharpness { get; set; }
 
+    // Recorded evaluation goals, separate from the seven setup-generation biases.
+    public SustainedAnglePreference SustainedAngle { get; set; }
+    public double? CustomAngleMinDeg { get; set; }
+    public double? CustomAngleMaxDeg { get; set; }
+    [JsonIgnore] public bool HasAngleGoal => SustainedAngle != SustainedAnglePreference.Current;
+    [JsonIgnore] public double AngleMinDeg => CustomAngleMinDeg ?? (SustainedAngle == SustainedAnglePreference.ExtremeAngle ? 65 : 45);
+    [JsonIgnore] public double AngleMaxDeg => CustomAngleMaxDeg ?? (SustainedAngle == SustainedAnglePreference.ExtremeAngle ? 80 : 65);
+    [JsonIgnore] public string AngleGoalLabel => !HasAngleGoal ? "Keep my current angle" :
+        (SustainedAngle == SustainedAnglePreference.ExtremeAngle ? "Sustain more extreme angle" : "Sustain more angle") + $" ({AngleMinDeg:0}–{AngleMaxDeg:0}°)";
+    [JsonIgnore] public bool ValidAngleGoal => Enum.IsDefined(SustainedAngle) &&
+        (CustomAngleMinDeg is null && CustomAngleMaxDeg is null ||
+         CustomAngleMinDeg is double min && CustomAngleMaxDeg is double max &&
+         double.IsFinite(min) && double.IsFinite(max) && min >= 20 && max <= 85 && max - min >= 5);
+
     [JsonIgnore]
     public bool IsNeutral =>
         FrontEndBite == 0 &&
@@ -212,6 +226,8 @@ public sealed class CarBehaviorTarget
 
     public void Normalize()
     {
+        if (!Enum.IsDefined(SustainedAngle)) SustainedAngle = SustainedAnglePreference.Current;
+        if (!ValidAngleGoal) { CustomAngleMinDeg = null; CustomAngleMaxDeg = null; }
         FrontEndBite =
             Math.Clamp(
                 FrontEndBite,

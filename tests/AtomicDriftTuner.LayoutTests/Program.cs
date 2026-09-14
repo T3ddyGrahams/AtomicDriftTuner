@@ -67,6 +67,7 @@ internal static partial class Program
             CheckRecordingRecovery(output);
             CheckGearingWorkflow(output);
             CheckGuidedModes(output);
+            CheckAngleSummary(output);
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
@@ -76,7 +77,7 @@ internal static partial class Program
                 ["AzomSettingsWindow"] = ["SavePreferencesButton"],
                 ["SetupWizardWindow"] = ["SaveButton", "CloseWithoutSavingButton"],
                 ["TelemetryWindow"] = ["RecordButton", "StopButton", "SaveButton"],
-                ["TuningAssistantWindow"] = ["ApplyCalibrationButton", "OpenSetupButton"],
+                ["TuningAssistantWindow"] = ["NextActionButton"],
                 ["ShareCodeWindow"] = ["ShareCopyActions"],
                 ["RemoteControlWindow"] = ["CloseButton"],
                 ["DiagnosticsWindow"] = ["RefreshButton", "CopyButton", "ExportButton"],
@@ -98,7 +99,15 @@ internal static partial class Program
                         foreach (var field in new[] { "GearBox", "UnitsBox", "LowSpeedBox", "HighSpeedBox", "LowRpmBox", "HighRpmBox", "CalculateButton", "SaveTargetButton" })
                             AssertReachableByScrolling(root, "GearingScroll", field, size);
                     if (name == "CarSetupWindow")
+                    {
                         AssertReachableByScrolling(root, "CarSetupScroll", "OpenGearingButton", size);
+                        AssertReachableByScrolling(root, "CarSetupScroll", "AngleGoalBox", size);
+                        ((Expander)root.FindName("AngleRangeExpander")).IsExpanded = true;
+                        ((StackPanel)root.FindName("CustomAngleRangePanel")).Visibility = Visibility.Visible;
+                        foreach (var field in new[] { "CustomAngleRangeCheck", "AngleMinSlider", "AngleMaxSlider" })
+                            AssertReachableByScrolling(root, "CarSetupScroll", field, size);
+                        ((Expander)root.FindName("AngleRangeExpander")).IsExpanded = false;
+                    }
                     if (name == "TelemetryWindow")
                         foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox", "CompareSavedRunButton" })
                             AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);
@@ -108,6 +117,15 @@ internal static partial class Program
                     if (name == "RemoteControlWindow")
                         foreach (var field in new[] { "StartButton", "PairingCodeText", "TouchscreenAddressBox", "TouchscreenLanAddressBox", "CopyTouchscreenAddressButton", "CopyTouchscreenLanAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
                             AssertReachableByScrolling(root, "RemoteBodyScroll", field, size);
+                    if (name == "TuningAssistantWindow")
+                    {
+                        AssertReachableByScrolling(root, "AssistantBodyScroll", "NextInstructionText", size);
+                        if (size.Width is 430 or 1800) Render(root, size, Path.Combine(output, $"NextStep-{size.Width}-{size.Height}.png"));
+                        ((CheckBox)root.FindName("AdvancedTelemetryToggle")).IsChecked = true;
+                        Layout(root, size);
+                        AssertVisible(root, "ApplyCalibrationButton", size);
+                        AssertVisible(root, "OpenSetupButton", size);
+                    }
                     foreach (var tab in Descendants(root).OfType<TabControl>().ToArray())
                     {
                         for (int i = 0; i < tab.Items.Count; i++)
@@ -143,6 +161,7 @@ internal static partial class Program
                         }
                         tab.SelectedIndex = 0;
                     }
+                    if (name == "TuningAssistantWindow") ((CheckBox)root.FindName("AdvancedTelemetryToggle")).IsChecked = false;
                     Layout(root, size);
                     if (size.Width is 430 or 1800) Render(root, size, Path.Combine(output, $"{name}-{size.Width}-{size.Height}.png"));
                 }
@@ -265,6 +284,7 @@ internal static partial class Program
     private static void Seed(FrameworkElement root)
     {
         SeedPedalEvidence(root);
+        SeedAngleSummary(root);
         if (root.FindName("GuidedHelpCheck") is CheckBox help)
         {
             if (root.FindName("GuidedFocusBox") is not null) throw new Exception("The removed tuning-mode selector is still present.");

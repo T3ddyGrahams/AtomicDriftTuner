@@ -54,6 +54,7 @@ public partial class MainWindow
             GuidedInstructionsText.Text = $"{input.Car.DisplayName} · {input.Hardware.Model} · Driver: {driver.Name}\n{step.Instructions}";
             if (step.Stage == GuidedStage.Goals) GuidedInstructionsText.Text += $"\nSaved goals: front bite {goal.FrontEndBite:+0;-0;0}, rear grip {goal.RearGrip:+0;-0;0}, self-steer {goal.SelfSteerSpeed:+0;-0;0}, transition {goal.TransitionSpeed:+0;-0;0}, stability {goal.AngleStability:+0;-0;0}, throttle {goal.ThrottleSteering:+0;-0;0}, initiation {goal.InitiationSharpness:+0;-0;0}.";
             if (step.Stage == GuidedStage.Test) GuidedInstructionsText.Text += "\nSelected test: " + j.Recommendation;
+            if (step.Stage == GuidedStage.Goals && goal.HasAngleGoal) GuidedInstructionsText.Text += "\nAngle goal: " + goal.AngleGoalLabel + ".";
             GuidedNextButton.Content = step.Action;
             GuidedNextButton.IsEnabled = true;
             GuidedReadyCheck.Visibility = step.Stage == GuidedStage.Prepare && (j.TuneGenerated || !TuningFocusOptions.IncludesFfb(prefs.Focus)) ? Visibility.Visible : Visibility.Collapsed;

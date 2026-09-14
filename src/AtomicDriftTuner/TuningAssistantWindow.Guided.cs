@@ -16,6 +16,7 @@ public partial class TuningAssistantWindow
         OpenSetupButton.Visibility = TuningFocusOptions.IncludesCar(focus) ? Visibility.Visible : Visibility.Collapsed;
         if (_report is not null)
         {
+            RenderNextStep(_report.NextStep);
             RecommendationGrid.ItemsSource = _report.Recommendations.Where(r => TuningFocusOptions.Allows(focus, r)).ToList();
             BehaviorGuidanceText.Text = TuningFocusOptions.IncludesCar(focus) ? _report.SuggestedBehaviorSummary :
                 "Keep the car setup fixed in this workflow. Full phase diagnosis remains in Assessments; choose an FFB recommendation to test wheel feel.";
@@ -34,7 +35,7 @@ public partial class TuningAssistantWindow
         if (sessionId.Length == 0) return;
         SessionBox.SelectedItem = _sessions.FirstOrDefault(s => s.Session.Id == sessionId && s.Session.Context?.DriverId == driverId);
         if (SessionBox.SelectedItem is null) StatusText.Text = "The planned run is not in the recent list. Choose the correct run explicitly; no replacement was selected.";
-        else AssistantTabs.SelectedIndex = ((SavedTelemetrySession)SessionBox.SelectedItem).Session.Context?.RecommendationSessionId.Length > 0 ? 3 : 1;
+        else SelectAssistantTab("Your next step");
     }
     private void TestRecommendation_Click(object sender, RoutedEventArgs e)
     {

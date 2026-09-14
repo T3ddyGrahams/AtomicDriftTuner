@@ -4,12 +4,32 @@ Introduced in development preview 1 and included in public beta **0.9.0-preview.
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.
 
-## Pedal evidence — local preview.10
+## Simple results and angle goals — local preview.11
+
+Tuning Assistant opens at **Your next step**: the goal saved with the run, what ADT noticed, confidence, and one next action. **Why this next step?** explains the evidence. **Plan this test** uses the existing recorded-test workflow; **Review comparison** shows the reason two runs cannot be compared; **Rate and save this comparison** leads to driver feedback. **Back to dashboard** returns to the recording walkthrough. It does not start a recording or apply settings by itself.
+
+Turn on **Show advanced telemetry and recommendations** to see Assessment, Recommendations, Phase Evidence and Pedal Evidence. Before / After and Tune & Run History remain available in the simple view. Technical metric tables and comparison conditions expand separately. Detailed pedal analysis is retained, but ordinary activity does not become homework: pedal repeat-run advice requires at least three similar, complete, goal-relevant response windows during sustained drift. Such timing associations can still reflect corner exit or intentional deceleration.
+
+To request more angle:
+
+1. Open **Desired Car Behavior** for the selected car. Under **What angle do you want to hold?**, choose **Keep my current angle**, **Sustain more angle** or **Sustain more extreme angle**.
+2. The starting ranges are 45–65° and 65–80° of body angle relative to travel. They are provisional targets, not universal car limits. **Optional angle range for this car → Choose my target range** accepts 20–85°, with at least 5° between endpoints. Steering geometry, power, grip and driving inputs constrain what is achievable.
+3. Keep the handling and angle-stability preferences that describe your car. A stable/forgiving handling preset can coexist with the extreme-angle goal. Save Desired Behavior. The angle goal is evaluated separately and does not itself change generated setup, gearing or FFB values.
+4. Record a fresh baseline, including at least three attempts and the return from each one. Keep recording for at least two seconds after leaving the target band. Use comparable track sections and inputs when testing a change.
+5. Read **Your next step**. The optional metrics show time in the requested band, typical continuous hold, speed retained and observed settled returns. Brief peaks and above-band angle are not rewarded as a sustained hold. A control concern calls for reviewing the attempts.
+
+Angle attempts require at least 0.5s in the band at ≥20 km/h, a continuous 0.3s entry window and 2s recovery window with fresh travel-direction data. Time below the lower bound minus 5° for at least 0.5s ends the attempt. Recovery is a proxy: forward travel below that boundary for ≥0.5s at useful speed, without a major loss of speed or backward travel. At least 0.2s backward travel or ≥90° slip, or over 40% end/entry speed loss, triggers a concern. Planned deceleration can also cause speed loss. Missing/sparse windows have unknown recovery; they cannot establish success. Scoring needs at least three complete attempts, ≥20s clean drift, and no more incomplete than complete attempts. These thresholds require driving validation.
+
+The explicit angle goal replaces the usual 72° extreme-angle warning with the angle-attempt/control assessment. A requested high angle with speed and observed recovery is no longer treated as a loss of control solely for exceeding 72°. New runs record local longitudinal velocity because AC's existing ADT slip signal folds forward and backward travel together. Older runs remain readable but cannot establish this recovery evidence without that channel.
+
+Goals and custom ranges persist per car, in share codes and in immutable tune/run snapshots. Remote handling updates preserve the desktop angle goal. Changing the goal or range requires a fresh baseline; older runs keep their original goals. Matching angle-goal comparisons permit changed angle exposure, while keeping unrelated handling changes descriptive and retaining speed, pedal-use and control checks. Longer holds with worse speed/recovery can yield **Tradeoff**, not an unqualified improvement. Wider-line scoring is not included: ADT does not yet have a track-position reference for the desired line.
+
+## Pedal evidence — introduced in local preview.10
 
 ADT now relates recorded throttle, brake and clutch changes to the surrounding car response. These signals come directly from Assetto Corsa telemetry; SimHub and AZOM are not required for this analysis.
 
 1. Record and save a normal 60–120 second run with the correct car and driver selected. Keep your current setup for this first check.
-2. Open **Tuning Assistant → Pedal Evidence**. The event list shows throttle applications/lifts, brake applications/releases, throttle/brake overlap and complete clutch signal cycles near drifting.
+2. Open **Tuning Assistant**, enable **Show advanced telemetry and recommendations**, then select **Pedal Evidence**. The event list shows throttle applications/lifts, brake applications/releases, throttle/brake overlap and complete clutch signal cycles near drifting.
 3. Select an event. **Selected event — full explanation** wraps the entire explanation below the table, including on a narrow monitor. Scroll down to read it; the table also scrolls horizontally.
 4. Read the before/after angle, yaw, speed, rear wheel-slip, RPM and steering evidence. The other pedal ranges and gear-change note help identify simultaneous inputs. Missing response windows say so instead of inventing a result.
 5. Read the pedal rows in **Assessments** and **Recommendations**. They relate the evidence to that run's saved rear-grip, powered-rotation, stability, transition and initiation goals. Overlap and clutch use may be intentional; these are observations, not driver-error scores.
@@ -33,7 +53,7 @@ Raw saved sessions are reanalyzed when reopened. Legacy runs with unverified sig
 2. Enter an AC session. Open **Telemetry Recorder**, connect, enter a driver name and tune name such as `Baseline A`, and describe the layout, conditions and task. Reuse the same driver name and description for the comparison run.
 3. **Attach AC Setup Snapshot** using the saved `.ini` actually used in AC. Tick the tune-use confirmation only if you are using the generated ADT targets and that setup. ADT captures generated AC FFB/AZOM targets; it cannot read back your live wheelbase settings.
 4. Record a representative run with several initiations and transitions in both directions, plus sustained drift. Aim for at least 60–120 seconds with at least 20 seconds of clean drift. Stop and **Save Session**.
-5. Open **Tuning Assistant**. Read Assessments, Recommendations, Phase Evidence and Pedal Evidence. Keep the recorded Desired Behavior fixed while testing a setup change. **Open AC Setup with Guidance** loads temporary guidance into the setup tuner; the existing Generate/Save workflow previews and writes a new setup file.
+5. Open **Tuning Assistant** and read **Your next step**. Open the optional advanced view for Assessments, Recommendations, Phase Evidence and Pedal Evidence. Keep the recorded Desired Behavior fixed while testing a setup change. **Open AC Setup with Guidance** loads temporary guidance into the setup tuner; the existing Generate/Save workflow previews and writes a new setup file.
 6. Test one small change. Return to the recorder, name the new tune `Test B`, attach the new setup, select the original run under **Recommendation baseline**, and describe the exact recommendation/change tested. Confirm tune use again. Record on the same track/layout, under comparable conditions and with similar speed, line and driving inputs; save.
 7. In Tuning Assistant, select Test B and choose Baseline A under **Before / After**. Inspect metric changes, comparison limitations and the captured tune differences under **Tune & Run History**.
 8. Choose your outcome rating and add notes, then **Save Run Review**. ADT retains the measured outcome, your rating and any disagreement. Repeat a comparable run before deciding to keep the change. Review drafts survive switching runs/baselines in the open window; save them to retain them after closing.
@@ -69,7 +89,7 @@ These checks establish a documented association, not proof of causation or autom
 
 ## Data and recovery
 
-- Existing raw sessions remain under `%LOCALAPPDATA%\AtomicDriftTuner\TelemetrySessions`. New JSON adds run context; CSV remains compatible with the existing columns. The extra quality and history metadata lives in JSON.
+- Existing raw sessions remain under `%LOCALAPPDATA%\AtomicDriftTuner\TelemetrySessions`. New JSON adds run context; existing CSV columns retain their order, with `longitudinal_velocity_ms` appended in preview.11 (blank when unavailable). The extra quality and history metadata lives in JSON.
 - `%LOCALAPPDATA%\AtomicDriftTuner\RunHistory` contains `drivers`, `tunes` and `reviews`. Driver names map to persistent local IDs. Tune/review records are new files written atomically; existing versions are never overwritten.
 - Each recording snapshots saved Desired Behavior, generated tune values and optional numeric AC setup values, filename and SHA-256. It does not store an absolute setup path. A tune version can remain even when recording is cancelled or the run is not saved.
 - Histories are scoped to driver and rig/car. Recent selectors show up to 200 matching runs, tune versions or reviews (100 recommendation baselines in the recorder); files remain on disk beyond that display limit.
@@ -78,8 +98,8 @@ These checks establish a documented association, not proof of causation or autom
 
 ## Validation for this preview
 
-Local preview.10 passes 101 regression scenarios, including 14 new pedal scenarios and the existing 8,000 built-in tuning-combination range sweep. Pedal checks cover timed input/response evidence, 15/25/50/100 Hz equivalence, spikes, invalid/frozen/excluded/gapped recordings, shifts versus possible clutch patterns, missing signals, phase association, input comparison, saved-goal guidance and storage reanalysis. Existing phase diagnosis, history, recorder, guided workflow, gearing and touchscreen regression checks also pass.
+Local preview.11 passes 116 regression scenarios, including 15 new angle/summary scenarios, the 14 pedal scenarios and the existing 8,000 built-in tuning-combination range sweep. New checks cover optional/custom goals, per-car/share/history storage, preserved setup/FFB values, native forward/backward velocity, held angle and speed/recovery, 15/25/50/100 Hz equivalence, peaks, invalid/frozen/excluded/gapped recordings, interrupted windows, timeline resets, unknown legacy recovery, remote handling saves, changed goals, comparison tradeoffs and the simple next step. Existing phase diagnosis, history, recorder, guided workflow, gearing and touchscreen regression checks also pass.
 
-WPF checks cover 381 geometry assertions, 167 theme assertions, 16 companion-recorder, 50 recording-recovery, 14 gearing and 25 guided-workflow/report-binding assertions. The new tab, selected-event explanation and exposure table are checked at narrow, portrait, short-landscape and ultrawide dimensions. Production report handlers are exercised with isolated data; no game or wheelbase writes are performed. See [test commands](../tests/README.md).
+WPF checks cover 411 geometry assertions, 167 theme assertions, 16 companion-recorder, 50 recording-recovery, 14 gearing, 25 guided-workflow/report-binding and 17 angle-goal/next-step assertions. Angle controls, the simple result and optional advanced tables are checked at narrow, portrait, short-landscape and ultrawide dimensions. Production save/reload, preset, visibility and next-action handlers are exercised with isolated data; no game or wheelbase writes are performed. See [test commands](../tests/README.md).
 
 Synthetic checks verify implementation behavior; they do not establish real-world tuning quality. The next acceptance step is the baseline/change/repeat driving workflow above, using the maintainer's car and driver profile.

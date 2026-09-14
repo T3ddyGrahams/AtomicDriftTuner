@@ -12,6 +12,9 @@ public sealed class RunComparisonEngine
         var a = RunHistoryStore.ValidContext(before.Session.Context) ? before.Session.Context : null;
         var b = RunHistoryStore.ValidContext(after.Session.Context) ? after.Session.Context : null;
         var x = before.Analysis; var y = after.Analysis;
+        bool angleGoal = a?.Tune?.DesiredBehavior.HasAngleGoal == true && b?.Tune?.DesiredBehavior.HasAngleGoal == true &&
+            RunHistoryStore.SameBehavior(a.Tune.DesiredBehavior, b.Tune.DesiredBehavior);
+        bool angleExposureChanged = Math.Abs(x.AverageDriftAngleDeg - y.AverageDriftAngleDeg) > 10;
         void Require(bool valid, string why) { if (!valid) result.Limitations.Add(why); }
         Require(before.Session.Id != after.Session.Id && before.Session.StartedUtc < after.Session.StartedUtc, "Choose a distinct, earlier baseline run.");
         Require(a?.Schema == "adt/run-context/1" && b?.Schema == "adt/run-context/1", "Legacy or unknown run context: driver, track, conditions and recorded goals are required.");
@@ -31,7 +34,11 @@ public sealed class RunComparisonEngine
         Require(x.Diagnosis.InvalidSamples <= before.Session.Samples.Count * .1 && y.Diagnosis.InvalidSamples <= after.Session.Samples.Count * .1 &&
             x.Diagnosis.Discontinuities <= Math.Max(1, x.DurationSeconds / 10) && y.Diagnosis.Discontinuities <= Math.Max(1, y.DurationSeconds / 10), "Too many invalid frames or continuity breaks.");
         Require(Math.Abs(x.AverageSpeedWhileDriftingKmh - y.AverageSpeedWhileDriftingKmh) <= Math.Max(8, x.AverageSpeedWhileDriftingKmh * .2), "Drift speeds differ substantially.");
-        Require(Math.Abs(x.AverageDriftAngleDeg - y.AverageDriftAngleDeg) <= 10, "Average drift angle differs by more than 10°; the driving tasks may not match.");
+        Require(angleGoal || !angleExposureChanged, "Average drift angle differs by more than 10°; the driving tasks may not match.");
+        if (angleGoal)
+            Require(x.Diagnosis.AngleGoal.CompletedAttempts >= 3 && y.Diagnosis.AngleGoal.CompletedAttempts >= 3 &&
+                x.Diagnosis.AngleGoal.IncompleteAttempts <= x.Diagnosis.AngleGoal.CompletedAttempts && y.Diagnosis.AngleGoal.IncompleteAttempts <= y.Diagnosis.AngleGoal.CompletedAttempts,
+                "Both runs need at least three complete angle attempts with entry and recovery evidence. Incomplete attempts cannot establish improvement.");
         double Share(double seconds, double total) => total > 0 ? seconds / total : 0;
         Require(Math.Abs(Share(x.Diagnosis.LeftDriftSeconds, x.DriftTimeSeconds) - Share(y.Diagnosis.LeftDriftSeconds, y.DriftTimeSeconds)) <= .25, "Left/right drift exposure differs substantially.");
         Require(new[] { (x.Diagnosis.LowSpeedSeconds, y.Diagnosis.LowSpeedSeconds), (x.Diagnosis.MediumSpeedSeconds, y.Diagnosis.MediumSpeedSeconds),
@@ -58,6 +65,8 @@ public sealed class RunComparisonEngine
                       Math.Abs(current - TimingTarget(first.Key == "transition" ? desired.TransitionSpeed : desired.InitiationSharpness))
                     : change * direction;
                 if (!result.Comparable) row.Interpretation = "Descriptive change only: comparison conditions were not met.";
+                else if (angleGoal && angleExposureChanged && !first.Key.StartsWith("angle-") && first.Key is not ("extreme-angle" or "oscillation" or "clipping"))
+                    row.Interpretation = "Descriptive handling context: angle exposure changed while testing the saved angle goal.";
                 else if (first.Confidence == "LOW" || second.Confidence == "LOW") row.Interpretation = "Descriptive change only: this metric has too little evidence to score.";
                 else if (direction == 0) row.Interpretation = "Context/proxy only; no directional goal was recorded for this axis.";
                 else
@@ -106,10 +115,11 @@ public sealed class RunComparisonEngine
 
     public static double TimingTarget(int bias) => .9 - .2 * Math.Clamp(bias, -2, 2);
     private static bool KnownSame(string? a, string? b) => !string.IsNullOrWhiteSpace(a) && !string.IsNullOrWhiteSpace(b) && string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-    private static double NoiseFloor(string key) => key switch { "initiation" or "transition" => .08, "front-response" => .02, "rear-slip-share" => 3, "self-steer" => 30, "stability" => 1, "oscillation" or "extreme-angle" => .5, "clipping" => 1, "throttle-rotation" => 3, _ => 1 };
+    private static double NoiseFloor(string key) => key switch { "angle-hold" => .3, "angle-time" or "angle-speed" => 5, "angle-recovery" => 10, "initiation" or "transition" => .08, "front-response" => .02, "rear-slip-share" => 3, "self-steer" => 30, "stability" => 1, "oscillation" or "extreme-angle" => .5, "clipping" => 1, "throttle-rotation" => 3, _ => 1 };
     private static int GoalDirection(string key, CarBehaviorTarget b) => key switch
     {
         "initiation" or "transition" => 1,
+        "angle-time" or "angle-hold" or "angle-speed" or "angle-recovery" => b.HasAngleGoal ? 1 : 0,
         "front-response" => Math.Sign(b.FrontEndBite), "rear-slip-share" => -Math.Sign(b.RearGrip),
         "self-steer" => Math.Sign(b.SelfSteerSpeed), "throttle-rotation" => Math.Sign(b.ThrottleSteering),
         "stability" => b.AngleStability < 0 ? 0 : -1,

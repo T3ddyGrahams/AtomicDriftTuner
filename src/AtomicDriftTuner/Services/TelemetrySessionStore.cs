@@ -486,7 +486,7 @@ public sealed class TelemetrySessionStore
                             encoderShouldEmitUTF8Identifier: false)))
             {
                 writer.WriteLine(
-                    "time_s,speed_kmh,throttle,brake,clutch,gear,rpm,steer_angle,steer_rate_deg_s,slip_angle_deg,yaw_rate_deg_s,lat_g,long_g,front_wheel_slip,rear_wheel_slip,final_ff,front_pressure,rear_pressure");
+                    "time_s,speed_kmh,throttle,brake,clutch,gear,rpm,steer_angle,steer_rate_deg_s,slip_angle_deg,yaw_rate_deg_s,lat_g,long_g,front_wheel_slip,rear_wheel_slip,final_ff,front_pressure,rear_pressure,longitudinal_velocity_ms");
 
                 foreach (var sample in session.Samples)
                 {
@@ -547,7 +547,8 @@ public sealed class TelemetrySessionStore
                                     sample.FrontTyrePressureAvg),
 
                                 FormatNumber(
-                                    sample.RearTyrePressureAvg)
+                                    sample.RearTyrePressureAvg),
+                                sample.LongitudinalVelocityMs is double velocity ? FormatNumber(velocity) : ""
                             }));
                 }
 

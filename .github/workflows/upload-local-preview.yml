@@ -1,6 +1,9 @@
 name: Upload Local Preview Privately
 
 on:
+  push:
+    branches: ['main']
+    paths: ['.github/adt-private-upload-request.json']
   workflow_dispatch:
     inputs:
       request_json:
@@ -24,7 +27,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-          sparse-checkout: scripts/private-preview-transfer
+          sparse-checkout: |
+            scripts/private-preview-transfer
+            .github
           sparse-checkout-cone-mode: true
       - uses: actions/setup-node@v4
         with:
@@ -40,11 +45,16 @@ jobs:
           ADT_REQUEST_JSON: ${{ inputs.request_json }}
         run: |
           node --input-type=module -e '
-            import { mkdirSync, writeFileSync } from "node:fs";
+            import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
             import { join } from "node:path";
+            import { parseManifest } from "./scripts/private-preview-transfer/core.mjs";
             const dir = join(process.env.RUNNER_TEMP, "adt-upload");
+            const raw = process.env.GITHUB_EVENT_NAME === "push"
+              ? readFileSync(".github/adt-private-upload-request.json", "utf8")
+              : process.env.ADT_REQUEST_JSON;
+            const request = parseManifest(raw);
             mkdirSync(dir, { recursive: true });
-            writeFileSync(join(dir, "request.json"), process.env.ADT_REQUEST_JSON, { flag: "wx" });
+            writeFileSync(join(dir, "request.json"), JSON.stringify(request), { flag: "wx" });
           '
       - name: Issue encrypted permission for these two files
         env:

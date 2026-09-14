@@ -18,7 +18,7 @@ Install the locked dependencies with `npm ci --ignore-scripts --no-audit --no-fu
 
 1. Put the existing `AtomicDriftTuner-<version>-setup.exe` and `AtomicDriftTuner-<version>-portable.zip` in a local package folder.
 2. Create a new private local state folder with the prepare command below. Use a location outside anything to be committed or uploaded. On Windows, privacy relies on the parent folder's inherited NTFS permissions.
-3. Start **Upload Local Preview Privately** with the complete `request.json` as `request_json`. This request contains a public encryption key, release version, filenames, sizes, hashes and link lifetime. It contains no private key.
+3. Submit the complete public `request.json` as `.github/adt-private-upload-request.json` in a reviewed commit to `main`; this automatically starts **Upload Local Preview Privately**. Alternatively, start it manually with the JSON as `request_json`. The request contains a public encryption key, release version, filenames, sizes, hashes and link lifetime. It contains no private key. Never commit any other state files.
 4. Retrieve `grant.json` from the `adt-private-upload-<run-id>` artifact. Verify its exact repository, workflow, trusted main commit and run ID through GitHub before using it. Encryption authenticates the recipient, not the producer; do not accept a grant from an arbitrary attachment.
 5. Run the upload command. It sends both local files directly to private R2 with overwrite protection and verifies the uploaded bytes. The running workflow independently verifies both files before preparing links.
 6. After the workflow succeeds, run the links command. It saves the private announcement locally without printing signed URLs.
@@ -33,7 +33,7 @@ Never commit or upload the state directory, private key or announcement. Keep st
 
 ## Privacy and recovery
 
-Only the encrypted permission bundle is an Actions artifact. Packages, plaintext upload permissions and supporter links do not appear in public logs or artifacts. Public workflow inputs contain release metadata and the temporary public encryption key.
+Only the encrypted permission bundle is an Actions artifact. Packages, plaintext upload permissions and supporter links do not appear in public logs or artifacts. The public request file or manual workflow input contains release metadata and the temporary public encryption key. Only a change to the exact request path on `main` triggers automatic transfer; unrelated pushes and pull requests do not.
 
 Permissions cover only the two exact package objects and the corresponding private announcement; they expire in 30 minutes. The workflow waits 20 minutes for uploads. Within an active grant, retries verify and reuse an already uploaded matching object. If permission expires after a partial upload, stop for reviewed recovery: new grants refuse existing objects. Never automatically delete or overwrite a published package.
 

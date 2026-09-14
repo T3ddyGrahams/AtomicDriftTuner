@@ -1,0 +1,16 @@
+{
+  "name": "adt-private-upload-helper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1132.0",
+    "@aws-sdk/s3-request-presigner": "3.1132.0"
+  }
+}

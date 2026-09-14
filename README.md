@@ -10,7 +10,7 @@
 > **Signing status:** Preparation only; SignPath signing is not enabled.<br>
 > **Privacy policy:** [PRIVACY.md](PRIVACY.md)
 
-Local development preview **0.9.0-preview.11** adds a simpler next-step screen and saved goals for sustaining more angle, including extreme angle. Detailed phase and pedal evidence remains available on demand. See [the angle-goal walkthrough](docs/TELEMETRY_INTELLIGENCE.md#simple-results-and-angle-goals--local-preview11). This local preview has not been published as a public release.
+Local development preview **0.9.0-preview.12** starts with empty hardware/car selections and remembers each user's choices afterward. Setup asks **Car tuning only** or **Car + FFB**, then guides the user through preparation, recording, one change, comparison and review. SimHub/AZOM instructions adapt to that choice and the optional connection. Existing tuning intelligence, sustained-angle goals and run history remain. See [the start-to-finish walkthrough](docs/GUIDED_WORKFLOW.md). This local preview has not been published as a public release.
 
 ADT is designed to answer a practical drifting question:
 

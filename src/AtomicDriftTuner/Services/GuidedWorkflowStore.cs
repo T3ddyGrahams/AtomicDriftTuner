@@ -16,9 +16,13 @@ public sealed class GuidedWorkflowStore
     public GuidedPreferences Preferences()
     {
         var preferences = Read(Path.Combine(_root, "preferences.json"), new GuidedPreferences(), ValidPreferences);
-        // The combined workflow is restored. Keep historical scope metadata and journey
-        // files intact, but never reopen a hidden, limited-scope workflow for new work.
-        preferences.Focus = TuningFocus.Both;
+        // Legacy FFB-only history remains readable through its explicit journey path.
+        // Reading preferences must never rewrite that history or assume a new choice.
+        if (preferences.Focus == TuningFocus.FfbOnly)
+        {
+            preferences.Focus = TuningFocus.Both;
+            preferences.FocusChoiceConfirmed = false;
+        }
         return preferences;
     }
     public void SavePreferences(GuidedPreferences preferences)
@@ -28,7 +32,11 @@ public sealed class GuidedWorkflowStore
         {
             _ = Preferences();
             var saved = RunHistoryStore.Clone(preferences);
-            saved.Focus = TuningFocus.Both;
+            if (saved.Focus == TuningFocus.FfbOnly)
+            {
+                saved.Focus = TuningFocus.Both;
+                saved.FocusChoiceConfirmed = false;
+            }
             Write(Path.Combine(_root, "preferences.json"), saved);
         }
     }

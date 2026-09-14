@@ -1,8 +1,8 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
-**Local preview.11:** In **Desired Car Behavior**, choose **Sustain more extreme angle** if that is your goal, then save and record a fresh baseline. The optional range lets you choose a target suited to the car. Tuning Assistant now opens at **Your next step**, showing what ADT noticed and one action to take. Enable **Show advanced telemetry and recommendations** to inspect the full phase/pedal tables. ADT assesses held angle, speed retained and observed recovery; extra angle alone does not establish improvement. Start with the quick test in `docs/TELEMETRY_INTELLIGENCE.md`. SimHub/AZOM is optional for telemetry.
+**Local preview.12:** New users choose their own hardware, car and drift target; ADT no longer starts with the developer's default rig and car. Setup asks **Car tuning only** or **Car + FFB**, then **Your Next Step** explains what to do now, when it is complete and what comes next. Short instructions are the default; enable **Show more explanation and examples** for extra help. ADT remembers selections for the current Windows user. This local build does not change the public preview.3 release.
 
-The original combined workflow, five-second recording recovery, adaptive fullscreen touchscreen and existing tuning calculations remain. Open **Remote → START REMOTE → INSTALL SIMHUB DASHBOARD**, then launch **ADT Control Center** in SimHub Dash Studio. Tap **Open ADT**, pair, and use **Full screen** if needed. Prepare the desktop recorder once, then use **Start run → Stop run → Save run** on the touchscreen. The `/dash` page also works directly on a phone/tablet using the PC's LAN address. See `docs/TOUCHSCREEN.md` and `docs/GUIDED_WORKFLOW.md`. Existing histories and Desired Behavior remain available.
+Existing tuning calculations, angle goals, pedal/phase diagnosis, histories, five-second recording recovery and adaptive fullscreen touchscreen remain. For the touchscreen, open **Remote → START REMOTE → INSTALL SIMHUB DASHBOARD**, then launch **ADT Control Center** in SimHub Dash Studio. Tap **Open ADT**, pair, and use **Full screen** if needed. Prepare the desktop recorder once, then use **Start run → Stop run → Save run**. The `/dash` page also works directly on a phone/tablet using the PC's LAN address. See `docs/TOUCHSCREEN.md`, `docs/GUIDED_WORKFLOW.md` and `docs/TELEMETRY_INTELLIGENCE.md`.
 
 **Testing v0.9.0-preview.3?** Follow the [release checklist](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-checklist.md) and review the [compatibility tracker](https://github.com/T3ddyGrahams/AtomicDriftTuner/blob/main/docs/testing/v0.9.0-preview.3-compatibility.md). This guide covers installation and the broader testing workflow.
 
@@ -27,17 +27,20 @@ Do not run the portable version directly from inside the ZIP.
 
 ## 2. First Launch
 
-On first launch, ADT will guide you through **Setup & Paths**.
+Launch the executable from this build; an older shortcut may still open preview.3. In **Setup & Paths**:
 
-Confirm or browse to:
+1. Choose **Car tuning only** to work on handling/setup while keeping FFB fixed, or **Car + FFB** to include the forces you feel through the steering wheel.
+2. Enter the driver name you will reuse for comparisons. Enable the extra-explanation checkbox if you want more help.
+3. For **Car + FFB**, answer whether you have SimHub and AZOM: Yes, No or Not sure. **Check for Me / Check Again** checks the optional connection. Manual FFB instructions are available without either program. Car-only skips these questions.
+4. Confirm the **Assetto Corsa install** folder containing `content\cars`, and the **Assetto Corsa user data** folder, normally Documents `Assetto Corsa`. Redirected and OneDrive Documents locations are supported. Check the SimHub folder only if using that integration.
+5. Choose **Check AC Paths** if needed, then **Save & Continue**. Saving does not apply any car or wheelbase settings.
+6. Under **Car & Hardware**, select your wheelbase, rim, pack, car and drift target. Choosing a pack does not choose its first car for you. Hardware identifies the rig for comparisons even in car-only mode.
 
-1. **SimHub** — the folder containing `SimHubWPF.exe`.
-2. **Assetto Corsa install** — the folder containing `content\cars`.
-3. **Assetto Corsa user data** — normally your Windows Documents `Assetto Corsa` folder.
+ADT remembers your choices and edited profile values for this Windows account. A saved installed car is restored only after a scan finds that exact car and folder; if it is unavailable, choose a car explicitly. If active-car detection is enabled, verify the car it finds in AC.
 
-Redirected Documents and OneDrive Documents locations are supported.
+**Upgrading from preview.3:** Choose your own rig/car and workflow once. The old default selections were startup values, not a copy of the developer's saved history. Existing local tunes, Desired Behavior, recordings and reviews remain available. Installer and portable copies use the same ADT data folders for the current Windows user; a separate executable is not a separate user profile.
 
-Use **Test Everything** to validate the detected paths, then choose **Save & Continue**.
+**Quick check:** Close and reopen ADT after choosing your rig/car. Confirm that your choices return, that a different pack needs an explicit car choice, and that **Change My Setup** can switch between the two workflows. Use a fresh baseline when starting a comparison in a different workflow.
 
 ---
 
@@ -76,7 +79,7 @@ Verify:
 - drift pack,
 - installed car,
 - Assetto Corsa paths,
-- SimHub connection,
+- SimHub connection if using live wheelbase control,
 - bridge status if using bridge-dependent features.
 
 If ADT automatically detects the active car or pack, verify that the detected information is correct.
@@ -99,16 +102,16 @@ When reporting recommendation quality, tell us what Desired Behavior settings yo
 
 For telemetry-assisted recommendations:
 
-1. Start Assetto Corsa and load the car you want to test.
-2. Confirm ADT sees the correct active context.
-3. Open **Telemetry Recorder**.
-4. Record a representative drifting session.
-5. Include sustained drifts, transitions, and normal corrections where possible.
-6. Save the session.
-7. Open **Tuning Assistant**.
-8. Review the observations, recommendations, and confidence.
-9. Make only changes you are comfortable testing.
-10. Record another representative session after the change.
+1. Follow **Your Next Step** to confirm the car/driver, save Desired Behavior and prepare a named baseline setup. Car-only keeps FFB fixed; Car + FFB also guides FFB preparation.
+2. Start Assetto Corsa and load that car, track and setup.
+3. Open **Telemetry Recorder**. Attach the exact setup file loaded in AC, enter the conditions/task and check the driver. Confirm the settings in use, then Connect.
+4. Record roughly 60–120 seconds with sustained drifts, transitions and normal corrections. Click **Stop → Save Session**. Stop alone does not save.
+5. Open **Tuning Assistant** and read **Your next step**. **Why this next step?** explains the evidence; the optional advanced view contains the full diagnosis.
+6. If ADT offers a supported recommendation, choose **Plan this test**, prepare that one change and load the new setup or verify the FFB settings. Keep Desired Behavior unchanged.
+7. Choose **Record Comparison Run**. Check the baseline, attach the setup now loaded in AC and describe the change. Repeat the same section under comparable conditions, then stop and save.
+8. Open **Before / After**, then rate how it felt in **Tune & Run History**, add notes and choose **Save Run Review**. Keep, revert manually or test again based on the measured result and your feedback.
+
+SimHub and AZOM are not required for recording. ADT needs enough clean drifting for guided progress; short/interrupted runs remain available for inspection. An inconclusive comparison explains what prevented a fair result.
 
 Before/After testing is especially valuable.
 

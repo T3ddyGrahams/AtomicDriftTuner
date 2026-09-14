@@ -26,14 +26,31 @@ internal static partial class Program
         try
         {
             var integrations = (StackPanel)wizard.FindName("IntegrationInterviewPanel");
-            Check(wizard.FindName("InterviewFocusBox") is null, "removed tuning-mode choices are still in the interview");
+            var focusBox = (ComboBox)wizard.FindName("InterviewFocusBox");
+            Check(focusBox.Items.Count == 2 && focusBox.Items.Cast<TuningFocusOptions.Option>().All(x => x.Focus != TuningFocus.FfbOnly), "interview did not offer exactly the two supported choices");
+            Check(focusBox.SelectedIndex == -1 && !((Button)wizard.FindName("SaveButton")).IsEnabled, "unconfirmed user could save a preselected mode");
+            Check(integrations.Visibility == Visibility.Collapsed, "unconfirmed user saw optional integration questions before choosing scope");
+            focusBox.SelectedItem = TuningFocusOptions.Current.Single(x => x.Focus == TuningFocus.Both);
             var p = (GuidedPreferences)Call(wizard, "InterviewPreferences")!;
-            Check(p.Focus == TuningFocus.Both && p.WantLiveConnection, "combined workflow or integration preferences lost");
+            Check(p.Focus == TuningFocus.Both && p.FocusChoiceConfirmed && p.WantLiveConnection && !p.ShowDetailedHelp, "combined choice, simple help or integration preferences lost");
             Check(integrations.Visibility == Visibility.Visible, "optional integration questions disappeared");
+            focusBox.SelectedItem = TuningFocusOptions.Current.Single(x => x.Focus == TuningFocus.CarSetupOnly);
+            p = (GuidedPreferences)Call(wizard, "InterviewPreferences")!;
+            Check(p.Focus == TuningFocus.CarSetupOnly && p.WantLiveConnection && p.SimHub == "Yes" && p.Azom == "Yes", "car-only selection erased saved integration answers");
+            Check(integrations.Visibility == Visibility.Collapsed && ((Border)wizard.FindName("OptionalSimHubCard")).Visibility == Visibility.Collapsed, "car-only retained the live-connection path UI");
+            Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("not needed"), "car-only instructions still required FFB tools");
+            var carMissing = (List<string>)Call(wizard, "BuildUnresolvedPathMessages")!;
+            Check(!carMissing.Any(x => x.Contains("SimHub")), "retained live preference caused a car-only connection warning");
+            preferences.SavePreferences(p);
+            Check(preferences.Preferences().Focus == TuningFocus.CarSetupOnly && preferences.Preferences().FocusChoiceConfirmed, "saved car-only choice reopened as combined");
+            var carContent = (FrameworkElement)wizard.Content; Layout(carContent, new Size(680, 850));
+            Render(carContent, new Size(680, 850), Path.Combine(output, "Workflow-Interview-CarOnly.png"));
+            focusBox.SelectedItem = TuningFocusOptions.Current.Single(x => x.Focus == TuningFocus.Both);
+            Check(((CheckBox)wizard.FindName("UseLiveGuidanceBox")).IsChecked == true && integrations.Visibility == Visibility.Visible, "returning to combined did not restore connection choices");
             ((ComboBox)wizard.FindName("SimHubChoiceBox")).SelectedItem = "No";
             ((ComboBox)wizard.FindName("AzomChoiceBox")).SelectedItem = "No";
             Check(((CheckBox)wizard.FindName("UseLiveGuidanceBox")).IsChecked == false, "No integrations left live guidance selected");
-            Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("MANUAL FFB"), "manual steps not shown");
+            Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("Manual FFB"), "simple manual steps not shown");
             var missing = (List<string>)Call(wizard, "BuildUnresolvedPathMessages")!;
             Check(!missing.Any(x => x.Contains("SimHub")), "manual setup warned about an optional SimHub path");
             ((CheckBox)wizard.FindName("InterviewHelpCheck")).IsChecked = false;
@@ -45,6 +62,8 @@ internal static partial class Program
                 ((ScrollViewer)wizard.FindName("SetupBodyScroll")).ScrollToHome(); Layout(content, new Size(680, 850));
                 Render(content, new Size(680, 850), Path.Combine(output, $"Workflow-Interview-{(detailed ? "Detailed" : "Simple")}.png"));
             }
+            focusBox.SelectedIndex = -1;
+            Check(!((GuidedPreferences)Call(wizard, "InterviewPreferences")!).FocusChoiceConfirmed && !((Button)wizard.FindName("SaveButton")).IsEnabled, "cleared choice retained confirmation");
         }
         finally { Set(wizard, "_closingAfterSave", true); wizard.Close(); }
 

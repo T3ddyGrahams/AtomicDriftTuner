@@ -539,6 +539,8 @@ public sealed class AppSettings
 
     public bool FirstRunCompleted { get; set; }
 
+    public SessionSelection? LastSessionSelection { get; set; }
+
     public string? AssettoCorsaRoot { get; set; }
 
     public string? AssettoCorsaDocumentsRoot { get; set; }

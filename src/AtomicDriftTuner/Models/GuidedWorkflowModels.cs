@@ -12,7 +12,8 @@ public sealed class GuidedPreferences
     public bool WantLiveConnection { get; set; }
     public string DriverName { get; set; } = "Local driver";
     public TuningFocus Focus { get; set; } = TuningFocus.Both;
-    public bool ShowDetailedHelp { get; set; } = true;
+    public bool FocusChoiceConfirmed { get; set; }
+    public bool ShowDetailedHelp { get; set; }
 }
 
 public sealed class GuidedJourney

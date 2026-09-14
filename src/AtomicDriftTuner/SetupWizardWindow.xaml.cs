@@ -159,7 +159,7 @@ public partial class SetupWizardWindow : Window
             if (!initialLoad)
             {
                 OverallStatusText.Text =
-                    "Detection complete. Review the paths and use Test Everything if you want to verify live integrations before saving.";
+                    "Detection complete. Review the paths, optionally check them, then Save & Continue.";
             }
         }
         catch (Exception ex)
@@ -395,11 +395,6 @@ public partial class SetupWizardWindow : Window
             var lines =
                 new List<string>
                 {
-                    SimHubLocator.IsValidRoot(
-                        simHubPath)
-                        ? "✓ SimHub path is valid."
-                        : "✗ SimHub path is not valid.",
-
                     _machine.ValidateAssettoCorsaRoot(
                         acRoot)
                         ? "✓ Assetto Corsa install is valid."
@@ -410,6 +405,15 @@ public partial class SetupWizardWindow : Window
                         ? "✓ Assetto Corsa user-data folder exists."
                         : "• Assetto Corsa user-data folder is not present yet. It may be created after AC has been run."
                 };
+
+            var preferences = InterviewPreferences();
+            if (!preferences.FocusChoiceConfirmed || !TuningFocusOptions.IncludesFfb(preferences.Focus) ||
+                !preferences.WantLiveConnection || preferences.SimHub == "No" || preferences.Azom == "No")
+            {
+                OverallStatusText.Text = string.Join(Environment.NewLine, lines);
+                return;
+            }
+            lines.Add(SimHubLocator.IsValidRoot(simHubPath) ? "✓ SimHub path is valid." : "✗ SimHub path is not valid.");
 
             try
             {
@@ -668,11 +672,12 @@ public partial class SetupWizardWindow : Window
 
         try
         {
+            var preferences = InterviewPreferences();
+            if (!preferences.FocusChoiceConfirmed || !TuningFocusOptions.IsCurrent(preferences.Focus))
+                throw new InvalidDataException("Choose Car tuning only or Car + FFB before saving your workflow.");
+            if (string.IsNullOrWhiteSpace(preferences.DriverName)) throw new InvalidDataException("Enter a driver name before saving your workflow.");
             var unresolved =
                 BuildUnresolvedPathMessages();
-
-            var preferences = InterviewPreferences();
-            if (string.IsNullOrWhiteSpace(preferences.DriverName)) throw new InvalidDataException("Enter a driver name before saving your workflow.");
 
             if (unresolved.Count > 0)
             {
@@ -780,7 +785,7 @@ public partial class SetupWizardWindow : Window
         RefreshPathStatusesOnly();
 
         OverallStatusText.Text =
-            "Path fields have unsaved changes. Test Everything is optional; save when the values look correct.";
+            "Path fields have unsaved changes. Checking paths is optional; save when the values look correct.";
     }
 
     private void RefreshStatuses()
@@ -1070,7 +1075,14 @@ public partial class SetupWizardWindow : Window
             _canInstallBridge;
 
         SaveButton.IsEnabled =
-            !_busy;
+            !_busy && InterviewFocusBox.SelectedItem is TuningFocusOptions.Option &&
+            !string.IsNullOrWhiteSpace(InterviewDriverBox.Text);
+
+        InterviewFocusBox.IsEnabled = !_busy;
+        InterviewDriverBox.IsEnabled = !_busy;
+        InterviewHelpCheck.IsEnabled = !_busy;
+        SimHubChoiceBox.IsEnabled = AzomChoiceBox.IsEnabled = CheckGuidedConnectionButton.IsEnabled = !_busy;
+        if (_interviewReady) UpdateInterviewInstructions();
 
         CloseWithoutSavingButton.IsEnabled =
             !_busy;

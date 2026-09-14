@@ -3,6 +3,14 @@
     <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="8" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
   </shell:WindowChrome.WindowChrome>
   <Window.Resources>
+    <Style x:Key="EmptyPickerHint" TargetType="TextBlock">
+      <Setter Property="Visibility" Value="Collapsed"/>
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+      <Setter Property="Margin" Value="10,4,28,10"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="IsHitTestVisible" Value="False"/>
+      <Style.Triggers><DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+    </Style>
     <Style TargetType="TextBox" BasedOn="{StaticResource AtomicTextBoxStyle}">
       <Setter Property="Margin" Value="0,4,0,10" />
       <Setter Property="Padding" Value="10,7" />
@@ -194,6 +202,7 @@
             <Border x:Name="GuidedWorkflowCard" Style="{StaticResource PanelCard}" Margin="0,0,0,14">
               <StackPanel>
                 <TextBlock Text="YOUR NEXT STEP" Style="{StaticResource CardKicker}"/>
+                <TextBlock x:Name="GuidedFocusText" Text="Choose what you want to tune in Setup &amp; Paths." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,5"/>
                 <CheckBox x:Name="GuidedHelpCheck" Checked="GuidedHelp_Changed" Unchecked="GuidedHelp_Changed" Margin="0,5">
                   <TextBlock Text="Show more explanation and examples" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" TextWrapping="Wrap"/>
                 </CheckBox>
@@ -201,6 +210,7 @@
                 <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="GuidedInstructionsText" TextWrapping="Wrap" Margin="0,5"/>
                 <TextBlock x:Name="GuidedDetailsText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,5"/>
                 <TextBlock x:Name="GuidedDoneText" Foreground="{DynamicResource SectionHeadingBrush}" TextWrapping="Wrap" Margin="0,5"/>
+                <TextBlock x:Name="GuidedComingNextText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,3,0,8"/>
                 <TextBlock x:Name="GuidedProgressText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,5,0,10"/>
                 <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver — progress is remembered for this car, rig and driver" TextWrapping="Wrap"/>
                 <ComboBox x:Name="GuidedDriverBox" IsEditable="True" DisplayMemberPath="Name" Text="Local driver" AutomationProperties.Name="Guided workflow driver" Margin="0,4"/>
@@ -223,7 +233,7 @@
                   <Button x:Name="GuidedResetButton" Content="Start a New Baseline" Click="NewGuidedBaseline_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4" ToolTip="Restart guided progress for this car and driver. Saved runs, tunes and reviews remain available."/>
                 </WrapPanel>
                 <Expander Header="See the whole start-to-finish process" Margin="0,8,0,0">
-                  <TextBlock x:Name="GuidedOverviewText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,8" Text="1. Select your car and driver.&#10;2. Save your Desired Behavior goals.&#10;3. Save a baseline and prepare your settings.&#10;4. Record and save the first drive.&#10;5. Read the findings and select one recommendation.&#10;6. Apply that change and repeat the same drive.&#10;7. Compare the runs and rate how it felt.&#10;8. Save your review: keep, revert manually, or test again.&#10;&#10;Wheel feel and car setup stay together in one workflow. Change one thing at a time so ADT can assess its effect. Recordings, tune versions, goals and reviews remain saved."/>
+                  <TextBlock x:Name="GuidedOverviewText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,8" Text="1. Select your car and driver.&#10;2. Save your Desired Behavior goals.&#10;3. Save a baseline and prepare your settings.&#10;4. Record and save the first drive.&#10;5. Read the findings and select one recommendation.&#10;6. Apply that change and repeat the same drive.&#10;7. Compare the runs and rate how it felt.&#10;8. Save your review: keep, revert manually, or test again.&#10;&#10;Choose Car tuning only or Car + FFB in Setup &amp; Paths. Change one thing at a time so ADT can assess its effect. Recordings, tune versions, goals and reviews remain saved."/>
                 </Expander>
                 <Expander Foreground="{DynamicResource PrimaryTextBrush}" Header="What does each Save or Apply button do?" Margin="0,10,0,0">
                   <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Save ADT Profile remembers your selections and generated recommendations.&#10;Save Desired Behavior remembers how you want this car to feel.&#10;Save AC Setup File creates a separate file: load it from AC's Setup menu.&#10;Apply Wheelbase Settings explicitly sends supported changes through a connected integration and checks readback.&#10;Save Session stores a recording. Save Run Review stores your rating and the comparison.&#10;Generating a recommendation does not apply it. You can use the sidebar tools at any time." TextWrapping="Wrap" Margin="0,8"/>
@@ -237,14 +247,20 @@
                 <StackPanel>
                   <TextBlock Text="CURRENT SESSION" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
                   <TextBlock Text="Car &amp; Hardware" Style="{StaticResource SectionTitle}" Margin="0,3,0,12" TextWrapping="Wrap" />
+                  <TextBlock x:Name="SessionSelectionStatusText" Text="Choose your own hardware and car. Your selections will be remembered on this Windows account." Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                  <TextBlock Text="Hardware identifies your rig for run comparisons, including when you choose car tuning only." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
                   <TextBlock Text="Wheelbase" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                  <ComboBox x:Name="HardwareBox" SelectionChanged="HardwareBox_SelectionChanged" />
+                  <Grid><ComboBox x:Name="HardwareBox" AutomationProperties.Name="Your wheelbase" SelectionChanged="HardwareBox_SelectionChanged" />
+                    <TextBlock Text="Choose your wheelbase…" Tag="{Binding SelectedItem, ElementName=HardwareBox}" Style="{StaticResource EmptyPickerHint}"/></Grid>
                   <TextBlock Text="Steering wheel / rim" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                  <ComboBox x:Name="WheelBox" SelectionChanged="WheelBox_SelectionChanged" />
+                  <Grid><ComboBox x:Name="WheelBox" AutomationProperties.Name="Your steering wheel or rim" SelectionChanged="WheelBox_SelectionChanged" />
+                    <TextBlock Text="Choose your wheel or rim…" Tag="{Binding SelectedItem, ElementName=WheelBox}" Style="{StaticResource EmptyPickerHint}"/></Grid>
                   <TextBlock Text="Drift pack" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                  <ComboBox x:Name="PackBox" SelectionChanged="PackBox_SelectionChanged" />
+                  <Grid><ComboBox x:Name="PackBox" AutomationProperties.Name="Your drift pack" SelectionChanged="PackBox_SelectionChanged" />
+                    <TextBlock Text="Choose your drift pack…" Tag="{Binding SelectedItem, ElementName=PackBox}" Style="{StaticResource EmptyPickerHint}"/></Grid>
                   <TextBlock Text="Car" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                  <ComboBox x:Name="CarBox" SelectionChanged="CarBox_SelectionChanged" />
+                  <Grid><ComboBox x:Name="CarBox" AutomationProperties.Name="Your car" SelectionChanged="CarBox_SelectionChanged" />
+                    <TextBlock Text="Choose your car…" Tag="{Binding SelectedItem, ElementName=CarBox}" Style="{StaticResource EmptyPickerHint}"/></Grid>
                   <Border Style="{StaticResource InsetPanel}" Margin="0,2,0,0">
                     <StackPanel>
                       <TextBlock x:Name="ActiveCarStatusText" Text="Active AC car: waiting for an on-track session." Foreground="{DynamicResource PrimaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
@@ -259,7 +275,8 @@
                   <TextBlock Text="DRIVER INTENT" Style="{StaticResource CardKicker}" TextWrapping="Wrap" />
                   <TextBlock Text="Drift Target" Style="{StaticResource SectionTitle}" Margin="0,3,0,12" TextWrapping="Wrap" />
                   <TextBlock Text="Choose the high-level behavior ADT should prioritize." Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6" />
-                  <ComboBox x:Name="IntentBox" SelectionChanged="IntentBox_SelectionChanged" />
+                  <Grid><ComboBox x:Name="IntentBox" AutomationProperties.Name="Your drift target" SelectionChanged="IntentBox_SelectionChanged" />
+                    <TextBlock Text="Choose your drift target…" Tag="{Binding SelectedItem, ElementName=IntentBox}" Style="{StaticResource EmptyPickerHint}"/></Grid>
                   <Border Style="{StaticResource InsetPanel}" Margin="0,2,0,10">
                     <StackPanel>
                       <TextBlock Text="Generated behavior estimate" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
@@ -338,7 +355,7 @@
                   <WrapPanel VerticalAlignment="Center" Margin="0,8,0,0">
                     <Button Content="Full AZOM" Style="{StaticResource ModernButtonStyle}" Click="OpenAzomSettings_Click" />
                     <Button Content="Back to My Next Step" Click="BackToGuided_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
-                    <Button Content="Generate New Tune" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0" />
+                    <Button Content="Generate New Tune" IsEnabled="{Binding IsEnabled, ElementName=DashboardGenerateButton}" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0" />
                   </WrapPanel>
                 </StackPanel>
                 <layout:AdaptivePanel MinItemWidth="270" MaxColumns="3" Spacing="12">
@@ -472,11 +489,11 @@
                     <StackPanel>
                       <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HARDWARE DETAILS" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
                       <TextBlock Text="Peak Torque (Nm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                      <TextBox x:Name="PeakTorqueBox" />
+                      <TextBox x:Name="PeakTorqueBox" LostKeyboardFocus="SessionValue_LostFocus" />
                       <TextBlock Text="Wheel Diameter (mm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                      <TextBox x:Name="WheelDiameterBox" />
+                      <TextBox x:Name="WheelDiameterBox" LostKeyboardFocus="SessionValue_LostFocus" />
                       <TextBlock Text="Wheel Inertia Factor" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                      <TextBox x:Name="WheelInertiaBox" />
+                      <TextBox x:Name="WheelInertiaBox" LostKeyboardFocus="SessionValue_LostFocus" />
                       <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="PACK CONTEXT" FontSize="12" FontWeight="Bold" Margin="0,4,0,7" TextWrapping="Wrap" />
                       <TextBlock x:Name="PackInfoText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" FontSize="10" />
                     </StackPanel>
@@ -492,19 +509,19 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                           <TextBlock Text="Mass (kg)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <TextBox x:Name="CarMassBox" />
+                          <TextBox x:Name="CarMassBox" LostKeyboardFocus="SessionValue_LostFocus" />
                           <TextBlock Text="Caster (deg)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <TextBox x:Name="CasterBox" />
+                          <TextBox x:Name="CasterBox" LostKeyboardFocus="SessionValue_LostFocus" />
                           <TextBlock Text="Front Tire Width (mm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <TextBox x:Name="FrontTireBox" />
+                          <TextBox x:Name="FrontTireBox" LostKeyboardFocus="SessionValue_LostFocus" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                           <TextBlock Text="Power (hp)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <TextBox x:Name="CarPowerBox" />
+                          <TextBox x:Name="CarPowerBox" LostKeyboardFocus="SessionValue_LostFocus" />
                           <TextBlock Text="Steering Lock / side (deg)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <TextBox x:Name="LockBox" />
+                          <TextBox x:Name="LockBox" LostKeyboardFocus="SessionValue_LostFocus" />
                           <TextBlock Text="Grip" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
-                          <ComboBox x:Name="GripBox" />
+                          <ComboBox x:Name="GripBox" SelectionChanged="SessionGrip_Changed" />
                         </StackPanel>
                       </Grid>
                       <Button Content="Mark Edited Car Data as Verified" Style="{StaticResource ModernButtonStyle}" Click="VerifyCarData_Click" Margin="0" />

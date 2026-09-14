@@ -1,38 +1,46 @@
-# Start-to-finish tuning — local preview.11
+# Start-to-finish tuning — local preview.12
 
-Local 0.9.0-preview.11 keeps the combined tuning workflow, touchscreen and gearing support, and adds a simple next-step view plus saved sustained-angle goals. It is a local test build; the public release remains preview.3.
+Local 0.9.0-preview.12 starts with your own hardware/car choices and asks what you want to tune. It keeps the existing tuning intelligence, sustained-angle goals, run history, touchscreen and gearing support. It is a local test build; the public release remains preview.3.
 
-## One combined workflow
+## Choose what to tune
 
-Wheel feel and car setup stay together in **Your Next Step**. There is no separate FFB-only/car-only selector. Review the full recommendations and test one change at a time, keeping the same car, driver, track, conditions and Desired Behavior during a comparison.
+| Choice | What the walkthrough includes |
+| --- | --- |
+| **Car tuning only** | Car handling/setup and supported gearing. Keep your current FFB and wheelbase settings fixed. SimHub and AZOM are not required. |
+| **Car + FFB** | Car setup plus wheel feedback. ADT asks about optional SimHub/AZOM and explains manual entry or supported live settings. Test one change at a time. |
 
-FFB means the forces you feel through the steering wheel. Assetto Corsa's Controls → Force Feedback page changes wheel feel; its in-pits Setup menu changes the car setup. ADT remembers progress for the selected car, rig, driver and session intent.
+FFB means the forces you feel through the steering wheel. Assetto Corsa's Controls → Force Feedback page changes wheel feel; its in-pits Setup menu changes the car setup. Hardware selection is required in both workflows to identify the rig used for comparisons; selecting it does not apply FFB settings. ADT remembers progress for the selected workflow, car, rig, driver and session intent.
 
-Leave **Show more explanation and examples** on for the fuller instructions. Turn it off for short instructions. Every step also says **Ready when**. Expand **See the whole start-to-finish process** to see what comes next.
+New users start with short instructions. Turn on **Show more explanation and examples** for fuller instructions; an existing help preference is remembered. Every step says **Ready when** and what comes next. Expand **See the whole start-to-finish process** to see the route for your chosen workflow. Detailed telemetry remains available on demand.
 
 ## Start here
 
 1. Launch this preview's executable. An older desktop shortcut may point to an older build.
-2. In **Your Next Step**, choose **Set Up My Workflow** or **Change My Setup** to review the optional software, driver name and AC folders.
-3. If asked about SimHub or AZOM, choose Yes, No or Not sure. **Check for Me / Check Again** only inspects what ADT can find/reach; it installs nothing and applies nothing.
-4. Choose **Save & Continue**, then follow the current step on the dashboard.
+2. On first launch, choose **Car tuning only** or **Car + FFB** in **Setup & Paths**. Enter a consistent driver name and check the AC install/user folders. If setup is closed, use **Choose What to Tune** on the dashboard; later, use **Change My Setup** to review these choices.
+3. For **Car + FFB**, answer Yes, No or Not sure for SimHub and AZOM. **Check for Me / Check Again** only inspects what ADT can find/reach; it installs nothing and applies nothing. Car-only hides these optional connection questions.
+4. Choose **Save & Continue**, then use **Choose My Car & Hardware** or open **Car & Hardware**. Select your wheelbase, rim, pack, car and drift target. Scan AC for installed cars. A pack selection does not select its first car automatically.
+5. Follow **Your Next Step** on the dashboard. Generation becomes available once the required selections are complete; restoring selections does not generate or apply a tune.
 
 SimHub is an optional companion program. AZOM is an optional SimHub plugin for supported wheelbase settings. ADT reads driving telemetry directly from Assetto Corsa, so neither is required for recording.
+
+Fresh or older settings without saved session selections start blank instead of assuming the developer's rig/car. ADT remembers your selections and edited profile values for this Windows account afterward. Saved installed cars wait for a scan matching their exact car ID and folder; unavailable profiles remain unselected instead of being replaced with the first item. If active-car detection is enabled, verify the detected car before confirming the session.
 
 ## The eight steps
 
 1. **Choose your car and driver.** Scan the AC installation, select the installed car/pack, check the wheelbase and rim, and use a consistent driver name. Choose **Confirm This Car & Rig** when ADT and AC match.
 2. **Describe your driving goals.** Choose **Open Desired Behavior**. Leave **Keep my current angle** selected, or choose **Sustain more angle** / **Sustain more extreme angle**. The optional custom range is body angle relative to travel, not steering-wheel rotation. Handling presets and the stability preference remain separate. Save your goals and return to the walkthrough, then choose **Use Saved Desired Behavior**. A changed goal needs a fresh baseline. This goals-only window does not generate/apply car or FFB settings.
-3. **Save and prepare your starting tune.** In AC's pits, save a named baseline setup. Write down or screenshot current FFB/wheelbase settings before changing them. Choose **Generate & Review FFB**; enter/apply and verify the supported values using the instructions below. For an optional ADT starting car tune: Load Baseline → Generate Car Setup → Save AC Setup File under a new name → load it in AC. Tick the readiness confirmation only when it is true.
+3. **Save and prepare your starting tune.** In AC's pits, save a named baseline setup and load it. **Car tuning only:** keep FFB unchanged; no FFB generation or calibration is required. **Car + FFB:** also write down or screenshot current FFB/wheelbase settings, choose **Generate & Review FFB**, then enter/apply and verify the supported values using the instructions below. In either mode, an optional ADT starting car tune follows Load Baseline → Generate Car Setup → Save AC Setup File under a new name → load it in AC. Tick the readiness confirmation only when it is true.
 4. **Record your first drive.** In Recorder, attach the exact setup loaded in AC, enter the conditions/task, and check the driver. Confirm the selected settings are in use, click Connect, then Record. Drive roughly 60–120 seconds with several entries and transitions. Click Stop, then Save Session. Stop alone does not save.
 5. **Read the next step.** Choose **Review Baseline Findings**. **Your next step** shows the goal saved with the run, what ADT noticed, confidence and one action. Expand **Why this next step?** for the explanation. When a supported recommendation is available, **Plan this test** returns to the dashboard with that test selected. Otherwise follow the request for another run or a review. Enable **Show advanced telemetry and recommendations** for all assessments, recommendations and phase/pedal evidence; the original **Test This Recommendation** action remains available there. Planning does not apply settings.
-6. **Make that change and repeat the drive.** For a car change, save a new setup and load it in AC. For an FFB calibration, save the explicit calibration, regenerate/review the values, then enter/apply them in the game/wheelbase software as needed. Keep the same Desired Behavior, car, track, conditions and task. Choose **Record Comparison Run**, verify the actual setup attachment, describe the change, confirm use again, record, stop and save.
+6. **Make that change and repeat the drive.** For a car change, save a new setup and load it in AC. In **Car + FFB**, an FFB calibration test means saving the explicit calibration, regenerating/reviewing the values, then entering/applying them in the game/wheelbase software as needed. Car-only keeps FFB fixed. Keep the same workflow, Desired Behavior, car, driver, rig, track, conditions and task. Choose **Record Comparison Run**, verify the actual setup attachment, describe the change, confirm use again, record, stop and save.
 7. **Compare and rate it.** In Before / After, verify the baseline and read the result and limitations. In Tune & Run History, choose Better, Worse, No noticeable difference or Tradeoff, add notes, choose a next action and click **Save Run Review**. Driver feedback does not overwrite the measured outcome.
 8. **Keep, revert manually, or test again.** Keep and verify: save the preferred settings and repeat a comparable run. Revert manually: load the original baseline AC setup and/or restore the earlier FFB values from Tune & Run History. Test again: choose **Record Comparison Run Again** on the dashboard. These decisions are saved; they do not automatically apply or undo settings.
 
 A short, interrupted or unreliable recording stays available for inspection. Guided progress requires at least 20 seconds of clean, reliably sampled drifting. A completed review does not mean an improvement was established. If no supported recommendation is available, retain the baseline and collect more representative evidence.
 
 ## With or without SimHub/AZOM
+
+The connection walkthrough is for **Car + FFB**. **Car tuning only** goes straight to preparing the car setup and recording. It does not require installing SimHub, AZOM or the bridge. You can change the workflow later in **Setup & Paths** without deleting earlier runs.
 
 | Situation | What to do |
 | --- | --- |
@@ -49,6 +57,7 @@ For Content Manager, AC FFB is under Settings → Assetto Corsa → Controls →
 
 ## Saving, intelligence and comparisons
 
+- ADT automatically remembers your current hardware/car/target selections and edited profile values locally. This is separate from saving a generated profile or applying settings.
 - **Save ADT Profile** remembers selections and generated targets. It does not apply them.
 - **Save Desired Behavior** remembers the car's driving goals.
 - **Save AC Setup File** creates a separate .ini. Load it in the game's Setup menu to use it.
@@ -58,12 +67,12 @@ For Content Manager, AC FFB is under Settings → Assetto Corsa → Controls →
 
 All raw telemetry, phase diagnosis, goal interpretation, confidence thresholds and numerical tuning calculations are preserved. Assessments, full recommendations, before/after metrics, tune versions and reviews remain available.
 
-Progress/preferences remain under %LOCALAPPDATA%\AtomicDriftTuner\GuidedWorkflow using the original combined-workflow path. A limited-scope choice saved by preview.6 now opens the combined workflow. The earlier limited-scope recordings and progress files are preserved. Record a fresh combined baseline before using those older runs to plan a new guided comparison; their measured results remain available in history.
+Progress/preferences remain under `%LOCALAPPDATA%\AtomicDriftTuner\GuidedWorkflow`. Car-only and combined journeys are kept separately; combined progress keeps its original path. Changing the choice does not relabel or delete recordings, tune versions or reviews. Use a baseline recorded in the same workflow for a new recommendation test. Older users are asked to confirm a current choice once; legacy FFB-only recordings remain readable, but FFB-only is not offered for new workflows.
 
 The separate executable still uses the normal ADT settings/history folders. Use one ADT version at a time. No installer, car physics, live hardware values or public release is changed merely by opening this build.
 
 ## Verification and remaining hands-on checks
 
-Regression checks cover unchanged intelligence and legacy history, restored combined progress, real touchscreen HTTP routes, recording guards and dashboard installation/backups. WPF checks cover the guidance and scrolling; browser checks exercise touch pairing, start/stop/save, reconnects, editable values and responsive tabs.
+For this build, check that a fresh Windows user starts without a rig/car, that chosen profiles and edited values return after reopening, and that choosing a different pack requires an explicit car choice. Test both workflow choices: car-only should skip FFB preparation and connection questions; combined should adapt to manual or available live control. See [test commands and automated coverage](../tests/README.md).
 
 Confirm the manual/live instructions match your rig, record a baseline and comparison, and save a review. For the touchscreen, follow [Touchscreen setup](TOUCHSCREEN.md), pair, then try Start run → Stop run → Save run. Real driving, physical monitor/DPI moves, screen-reader behavior, SimHub window placement and live AZOM setting application still require hands-on testing. Existing analysis limitations are explained in TELEMETRY_INTELLIGENCE.md; final-drive support is described in GEARING.md.

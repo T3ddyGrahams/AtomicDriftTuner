@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Clean startup and two-choice guidance (local preview.12)
+
+The regression runner passes 118 scenarios. The WPF runner passes 48 startup-selection assertions using actual dashboard controls with isolated settings: fresh and legacy startup, explicit car choice, saved/custom/partial values, missing profiles, installed-car identity checks, preserved unrelated preferences and cleared stale remote context. It also passes 34 guided-mode assertions, covering the required Car tuning only / Car + FFB choice, simple help, adaptive integration questions, preserved answers and existing recording/review behavior.
+
+Existing coverage also passes: 411 geometry, 167 theme, 16 companion recorder, 50 recorder recovery, 14 gearing and 17 angle-goal UI assertions. Run the commands below with `artifacts/startup-layout` for this build's PNGs. Startup tests suppress machine startup and use isolated storage; they do not replace a real install or driving check.
+
 ## Simple next step and sustained angle goals (local preview.11)
 
 The full regression runner now passes 116 scenarios. Fifteen new scenarios cover the saved per-car angle goal, independent stability preferences, custom range validation, sharing and immutable history, native travel direction, complete held-angle attempts and speed/recovery, 15–100 Hz timing, clipped/gapped/frozen/excluded/invalid recordings, backward slides, legacy unknown recovery, unchanged FFB/setup/gearing generation values, remote save preservation, comparison tradeoffs and goal-aware next steps. Repeated pedal advice requires meaningful repeated evidence; raw observations stay available.

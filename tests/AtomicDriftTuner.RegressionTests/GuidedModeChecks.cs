@@ -9,9 +9,10 @@ internal static class GuidedModeChecks
 {
     public static void Run(Action<string, Action> test, string root)
     {
-        test("all three guided modes provide instructions details completion and an action at every stage", () =>
+        test("both offered guided modes provide instructions and the next milestone at every stage", () =>
         {
-            foreach (var focus in Enum.GetValues<TuningFocus>())
+            Check(TuningFocusOptions.Current.Select(x => x.Focus).SequenceEqual(new[] { TuningFocus.CarSetupOnly, TuningFocus.Both }), "New work offered an unwanted third mode");
+            foreach (var focus in TuningFocusOptions.Current.Select(x => x.Focus))
             {
                 var p = new GuidedPreferences { Focus = focus }; var j = new GuidedJourney { Focus = focus };
                 var stages = new HashSet<GuidedStage>();
@@ -19,8 +20,9 @@ internal static class GuidedModeChecks
                 {
                     var s = GuidedWorkflowEngine.Next(p, j, "goal"); stages.Add(s.Stage);
                     Check(s.Instructions.Length > 30 && s.Details.Length > 50 && s.Completion.Length > 20 && s.Action.Length > 0, "Incomplete instructions: " + s.Stage);
+                    Check(GuidedWorkflowEngine.ComingNext(s.Stage).StartsWith("Next:") && GuidedWorkflowEngine.Overview(focus).Contains("baseline"), "Next milestone or route missing");
                 }
-                Inspect(); p.Completed = true; Inspect(); j.CarConfirmed = true; Inspect(); j.GoalSignature = "goal"; Inspect();
+                Inspect(); p.Completed = true; p.FocusChoiceConfirmed = true; Inspect(); j.CarConfirmed = true; Inspect(); j.GoalSignature = "goal"; Inspect();
                 var prepare = GuidedWorkflowEngine.Next(p, j, "goal");
                 Check(focus == TuningFocus.CarSetupOnly ? prepare.Action.Contains("Confirm") : prepare.Action.Contains("Generate"), "Wrong preparation branch");
                 j.TuneGenerated = true; Inspect(); j.TuneReady = true; Inspect(); j.BaselineId = "before"; Inspect();
@@ -40,7 +42,7 @@ internal static class GuidedModeChecks
         });
         test("FFB-only guidance distinguishes unchanged setup snapshots from tuning the car", () =>
         {
-            var p = new GuidedPreferences { Focus = TuningFocus.FfbOnly, SimHub = "No", Azom = "No" };
+            var p = new GuidedPreferences { Focus = TuningFocus.FfbOnly, SimHub = "No", Azom = "No", ShowDetailedHelp = true };
             var text = GuidedWorkflowEngine.Instructions(p, null);
             Check(text.Contains("Controls") && text.Contains("Keep your existing car setup fixed") && !text.Contains("Generate Car Setup"), "FFB path instructed car tuning");
             Check(GuidedWorkflowEngine.RecordingHelp(p.Focus, false).Contains("only a snapshot"), "Setup attachment was not explained");
@@ -51,7 +53,7 @@ internal static class GuidedModeChecks
             var folder = Path.Combine(root, "guided-mode-legacy"); Directory.CreateDirectory(folder);
             File.WriteAllText(Path.Combine(folder, "preferences.json"), "{\"Schema\":\"adt/guided-preferences/1\",\"Completed\":true,\"DriverName\":\"Tester\",\"SimHub\":\"Yes\",\"Azom\":\"No\"}");
             var store = new GuidedWorkflowStore(folder); var input = Input(); var driver = Guid.NewGuid().ToString("N");
-            Check(store.Preferences().Focus == TuningFocus.Both && store.Preferences().ShowDetailedHelp, "Legacy defaults lost");
+            Check(store.Preferences().Focus == TuningFocus.Both && !store.Preferences().FocusChoiceConfirmed, "Legacy user skipped the new scope choice");
             store.Update(input, driver, j => { j.BaselineId = "original"; j.SetupPath = "baseline.ini"; });
             var original = Directory.GetFiles(folder).Single(x => !x.EndsWith("preferences.json"));
             var bytes = File.ReadAllBytes(original);
@@ -68,7 +70,7 @@ internal static class GuidedModeChecks
             reopened.Reset(input, driver);
             Check(reopened.Journey(input, driver).SetupPath == "baseline.ini" && reopened.Journey(input, driver, TuningFocus.FfbOnly).BaselineId == "FfbOnly", "Reset affected historical progress or setup path");
         });
-        test("restored combined workflow preserves saved settings and old limited-scope history", () =>
+        test("scope choices persist while legacy FFB-only reopens unconfirmed without rewriting history", () =>
         {
             var folder = Path.Combine(root, "guided-combined-restore"); Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, "preferences.json");
@@ -76,17 +78,49 @@ internal static class GuidedModeChecks
             store.Update(input, driver, j => j.BaselineId = "combined");
             foreach (var focus in new[] { TuningFocus.FfbOnly, TuningFocus.CarSetupOnly })
             {
-                var legacy = new GuidedPreferences { Focus = focus, Completed = true, DriverName = "Keep driver", SimHub = "Yes", Azom = "No", ShowDetailedHelp = false };
+                var legacy = new GuidedPreferences { Focus = focus, Completed = true, FocusChoiceConfirmed = true, DriverName = "Keep driver", SimHub = "Yes", Azom = "No", ShowDetailedHelp = true };
                 File.WriteAllText(path, JsonSerializer.Serialize(legacy));
                 var bytes = File.ReadAllBytes(path);
                 store.Update(input, driver, j => j.BaselineId = "historical", focus);
                 var actual = store.Preferences();
-                Check(actual.Focus == TuningFocus.Both && actual.DriverName == legacy.DriverName && actual.Completed && !actual.ShowDetailedHelp && actual.SimHub == "Yes" && actual.Azom == "No", "Restoring combined workflow lost preferences");
+                var expected = focus == TuningFocus.FfbOnly ? TuningFocus.Both : focus;
+                Check(actual.Focus == expected && actual.FocusChoiceConfirmed == (focus != TuningFocus.FfbOnly) && actual.DriverName == legacy.DriverName && actual.Completed && actual.ShowDetailedHelp && actual.SimHub == "Yes" && actual.Azom == "No", "Reopening lost preferences or confirmed a legacy hidden mode");
                 Check(File.ReadAllBytes(path).SequenceEqual(bytes), "Reading preferences rewrote the original");
-                Check(store.Journey(input, driver).BaselineId == "combined" && store.Journey(input, driver, focus).BaselineId == "historical", "Restoration lost or mixed progress");
+                Check(store.Journey(input, driver, TuningFocus.Both).BaselineId == "combined" && store.Journey(input, driver, focus).BaselineId == "historical", "Reopening lost or mixed progress");
                 store.SavePreferences(legacy);
-                Check(JsonSerializer.Deserialize<GuidedPreferences>(File.ReadAllText(path))!.Focus == TuningFocus.Both && legacy.Focus == focus, "Save restored a hidden mode or mutated the caller");
+                var saved = JsonSerializer.Deserialize<GuidedPreferences>(File.ReadAllText(path))!;
+                Check(saved.Focus == expected && saved.FocusChoiceConfirmed == (focus != TuningFocus.FfbOnly) && legacy.Focus == focus && legacy.FocusChoiceConfirmed, "Save restored a hidden mode, lost car-only, or mutated the caller");
             }
+        });
+        test("fresh and legacy users explicitly choose scope before any saved journey can advance", () =>
+        {
+            var folder = Path.Combine(root, "guided-explicit-choice"); var store = new GuidedWorkflowStore(folder);
+            var fresh = store.Preferences();
+            Check(!fresh.Completed && !fresh.FocusChoiceConfirmed && !fresh.ShowDetailedHelp, "Fresh users did not start with a simple unconfirmed workflow");
+            var journey = new GuidedJourney { CarConfirmed = true, GoalSignature = "goal", BaselineId = "before", AfterId = "after", Reviewed = true };
+            foreach (var focus in TuningFocusOptions.Current.Select(x => x.Focus))
+            {
+                var p = new GuidedPreferences { Completed = true, Focus = focus };
+                Check(GuidedWorkflowEngine.Next(p, journey, "goal").Stage == GuidedStage.Welcome, "An old user bypassed scope selection");
+                p.FocusChoiceConfirmed = true; p.ShowDetailedHelp = true; store.SavePreferences(p);
+                var reopened = new GuidedWorkflowStore(folder).Preferences();
+                Check(reopened.Focus == focus && reopened.FocusChoiceConfirmed && reopened.ShowDetailedHelp, "The explicit choice was not remembered");
+                Check(GuidedWorkflowEngine.Next(reopened, journey, "goal").Stage == GuidedStage.Complete, "Confirming scope erased an existing journey");
+            }
+        });
+        test("simple connection help names the next action for each detected state", () =>
+        {
+            var p = new GuidedPreferences { FocusChoiceConfirmed = true, SimHub = "Yes", Azom = "Yes", WantLiveConnection = true };
+            foreach (var (state, expected) in new (IntegrationState?, string)[]
+            {
+                (null, "Check for Me"), (new(false, false, false, false, false, false), "Choose its folder"),
+                (new(true, false, true, false, false, false), "Start SimHub"),
+                (new(true, true, false, false, false, false), "Install / Repair"),
+                (new(true, true, true, false, false, false), "Enable ADT's bridge"),
+                (new(true, true, true, true, false, false), "AZOM was not detected"),
+                (new(true, true, true, true, true, false), "not readable"),
+                (new(true, true, true, true, true, true), "Apply explicitly")
+            }) Check(GuidedWorkflowEngine.Instructions(p, state).Contains(expected), "Simple instructions omitted: " + expected);
         });
         test("late recording updates belong to their original mode after switching workflows", () =>
         {

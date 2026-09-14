@@ -12,7 +12,7 @@ internal static class GuidedChecks
         {
             var p = new GuidedPreferences(); var j = new GuidedJourney(); var goal = "0/0/0/0/0/0/0";
             void At(GuidedStage stage) => Check(GuidedWorkflowEngine.Next(p, j, goal).Stage == stage, "Unexpected stage: " + GuidedWorkflowEngine.Next(p, j, goal).Title);
-            At(GuidedStage.Welcome); p.Completed = true; At(GuidedStage.Car);
+            At(GuidedStage.Welcome); p.Completed = true; At(GuidedStage.Welcome); p.FocusChoiceConfirmed = true; At(GuidedStage.Car);
             j.CarConfirmed = true; At(GuidedStage.Goals); j.GoalSignature = goal; At(GuidedStage.Prepare);
             j.TuneGenerated = true; At(GuidedStage.Prepare); // Generated must not imply applied/ready.
             j.TuneReady = true; At(GuidedStage.Baseline); j.BaselineId = Guid.NewGuid().ToString("N"); At(GuidedStage.Findings);
@@ -23,7 +23,7 @@ internal static class GuidedChecks
         test("changed desired behavior requires a new baseline even after a completed review", () =>
         {
             var j = new GuidedJourney { CarConfirmed = true, GoalSignature = "old", TuneReady = true, BaselineId = "before", AfterId = "after", Reviewed = true };
-            Check(GuidedWorkflowEngine.Next(new() { Completed = true }, j, "new").Stage == GuidedStage.GoalsChanged, "Changed goals reused completed progress");
+            Check(GuidedWorkflowEngine.Next(new() { Completed = true, FocusChoiceConfirmed = true }, j, "new").Stage == GuidedStage.GoalsChanged, "Changed goals reused completed progress");
         });
         test("manual workflow avoids requiring SimHub or AZOM", () =>
         {
@@ -35,12 +35,12 @@ internal static class GuidedChecks
         });
         test("installed but closed SimHub leaves AZOM availability unknown", () =>
         {
-            var text = GuidedWorkflowEngine.Instructions(new() { SimHub = "Yes", Azom = "Yes", WantLiveConnection = true }, new(true, false, true, false, false, false));
+            var text = GuidedWorkflowEngine.Instructions(new() { SimHub = "Yes", Azom = "Yes", WantLiveConnection = true, ShowDetailedHelp = true }, new(true, false, true, false, false, false));
             Check(text.Contains("installed but is not running") && text.Contains("unknown"), "Offline was mistaken for uninstalled");
         });
         test("live guidance distinguishes missing bridge AZOM and unreadable settings", () =>
         {
-            var p = new GuidedPreferences { WantLiveConnection = true };
+            var p = new GuidedPreferences { WantLiveConnection = true, ShowDetailedHelp = true };
             Check(GuidedWorkflowEngine.Instructions(p, new(true, true, false, false, false, false)).Contains("Install / Repair"), "Missing bridge step absent");
             Check(GuidedWorkflowEngine.Instructions(p, new(true, true, true, true, false, false)).Contains("did not detect AZOM"), "AZOM detection not distinguished");
             Check(GuidedWorkflowEngine.Instructions(p, new(true, true, true, true, true, false)).Contains("not readable"), "Unreadable settings marked ready");

@@ -67,6 +67,7 @@ internal static partial class Program
             CheckRecordingRecovery(output);
             CheckGearingWorkflow(output);
             CheckGuidedModes(output);
+            CheckStartupSelection(output);
             CheckAngleSummary(output);
             Progress("Checking adaptive panel");
             CheckAdaptivePanel();

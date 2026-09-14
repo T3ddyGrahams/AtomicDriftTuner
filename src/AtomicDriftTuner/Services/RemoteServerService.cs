@@ -201,6 +201,12 @@ public sealed partial class RemoteServerService : IAsyncDisposable
         RaiseStateChanged();
     }
 
+    public void ClearTuneContext()
+    {
+        lock (_stateGate) { _currentInput = null; _tune = new RemoteTuneContext(); }
+        RaiseStateChanged();
+    }
+
     public void SetRemoteWritesEnabled(
         bool enabled)
     {

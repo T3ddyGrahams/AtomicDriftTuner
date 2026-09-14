@@ -38,7 +38,11 @@
             <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="YOUR TUNING WORKFLOW" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="ADT will adapt the next steps to your answers. SimHub and AZOM are optional for AC setup and telemetry." TextWrapping="Wrap" Margin="0,5,0,10"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="First choose what you want to tune. ADT will show one next step at a time." TextWrapping="Wrap" Margin="0,5,0,10"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="What would you like to tune?"/>
+                    <ComboBox x:Name="InterviewFocusBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="What would you like to tune" Margin="0,3,0,6"/>
+                    <TextBlock x:Name="InterviewFocusDescription" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="InterviewOverviewText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <CheckBox x:Name="InterviewHelpCheck" Checked="InterviewChanged" Unchecked="InterviewChanged" Margin="0,4">
                         <TextBlock Text="Show more explanation and examples in my walkthrough" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" TextWrapping="Wrap"/>
                     </CheckBox>
@@ -222,7 +226,7 @@
                 <TextBlock x:Name="OverallStatusText"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"
-                           Text="Test Everything is optional. Missing integrations do not prevent ADT from opening, and paths can be changed later."/>
+                           Text="Checking paths is optional. Choose your workflow and save when the paths look correct. You can change these choices later."/>
             </Border>
 
         </StackPanel>
@@ -239,7 +243,7 @@
                         Margin="0,4,8,4"/>
 
                 <Button x:Name="TestEverythingButton"
-                        Content="Test Everything"
+                        Content="Check AC Paths"
                         Click="TestEverything_Click"
                         Padding="16,9"
                         Margin="0,4,8,4"/>

@@ -4,6 +4,12 @@ Introduced in development preview 1 and included in public beta **0.9.0-preview.
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.
 
+## First-run choices and guidance — local preview.12
+
+Setup now asks **Car tuning only** or **Car + FFB**. Car-only keeps FFB fixed and skips FFB preparation and optional connection questions. Combined also explains manual FFB entry or supported SimHub/AZOM live control. Both use the same underlying telemetry diagnosis, Desired Behavior, confidence rules, comparison checks and immutable history. The selected workflow focuses the suggested test; it does not remove raw evidence or rewrite earlier runs.
+
+New users select their own hardware, car and drift target instead of receiving the developer's startup defaults. ADT remembers these choices per Windows user. Hardware is still identified in car-only mode so comparisons refer to the same rig. Follow [the start-to-finish walkthrough](GUIDED_WORKFLOW.md) for preparation, recording, testing one change and saving a review. Keep the workflow unchanged during a comparison; changing it preserves the earlier journey and history.
+
 ## Simple results and angle goals — local preview.11
 
 Tuning Assistant opens at **Your next step**: the goal saved with the run, what ADT noticed, confidence, and one next action. **Why this next step?** explains the evidence. **Plan this test** uses the existing recorded-test workflow; **Review comparison** shows the reason two runs cannot be compared; **Rate and save this comparison** leads to driver feedback. **Back to dashboard** returns to the recording walkthrough. It does not start a recording or apply settings by itself.
@@ -49,12 +55,12 @@ Raw saved sessions are reanalyzed when reopened. Legacy runs with unverified sig
 
 ## Try a before/after test
 
-1. Select the correct wheelbase, rim, drift pack and installed car. Save that car's Desired Behavior in AC Car Setup. Generate your ADT tune and use the intended settings in AC/AZOM.
+1. Choose **Car tuning only** or **Car + FFB**, then select the correct wheelbase, rim, drift pack, installed car and drift target. Save that car's Desired Behavior. Save/load a named baseline car setup. In Car + FFB, also generate/review the FFB tune and enter/apply the intended supported values. Car-only keeps the existing FFB fixed.
 2. Enter an AC session. Open **Telemetry Recorder**, connect, enter a driver name and tune name such as `Baseline A`, and describe the layout, conditions and task. Reuse the same driver name and description for the comparison run.
-3. **Attach AC Setup Snapshot** using the saved `.ini` actually used in AC. Tick the tune-use confirmation only if you are using the generated ADT targets and that setup. ADT captures generated AC FFB/AZOM targets; it cannot read back your live wheelbase settings.
+3. **Attach AC Setup Snapshot** using the saved `.ini` actually used in AC. Tick the mode-specific tune-use confirmation only when true: car-only confirms the chosen setup with unchanged FFB; combined also confirms the selected FFB targets. ADT's generated AC FFB/AZOM snapshot is not proof of your live wheelbase settings.
 4. Record a representative run with several initiations and transitions in both directions, plus sustained drift. Aim for at least 60–120 seconds with at least 20 seconds of clean drift. Stop and **Save Session**.
 5. Open **Tuning Assistant** and read **Your next step**. Open the optional advanced view for Assessments, Recommendations, Phase Evidence and Pedal Evidence. Keep the recorded Desired Behavior fixed while testing a setup change. **Open AC Setup with Guidance** loads temporary guidance into the setup tuner; the existing Generate/Save workflow previews and writes a new setup file.
-6. Test one small change. Return to the recorder, name the new tune `Test B`, attach the new setup, select the original run under **Recommendation baseline**, and describe the exact recommendation/change tested. Confirm tune use again. Record on the same track/layout, under comparable conditions and with similar speed, line and driving inputs; save.
+6. Test one small change in the same workflow. Return to the recorder, name the new tune `Test B`, attach the new setup, select the original run under **Recommendation baseline**, and describe the exact recommendation/change tested. Confirm tune use again. Record on the same track/layout, under comparable conditions and with similar speed, line and driving inputs; save.
 7. In Tuning Assistant, select Test B and choose Baseline A under **Before / After**. Inspect metric changes, comparison limitations and the captured tune differences under **Tune & Run History**.
 8. Choose your outcome rating and add notes, then **Save Run Review**. ADT retains the measured outcome, your rating and any disagreement. Repeat a comparable run before deciding to keep the change. Review drafts survive switching runs/baselines in the open window; save them to retain them after closing.
 
@@ -79,7 +85,7 @@ Metrics are weighted by elapsed time, rather than giving high-rate recordings mo
 
 ## Comparison and recommendation attribution
 
-Overall comparison requires the same known driver, exact car/pack, wheelbase/rim, track, conditions/task, session intent and recorded Desired Behavior; verified active-car identity; at least 20 seconds of usable drift and 15 Hz sampling in each run; acceptable continuity; and similar speed, angle, left/right exposure, speed-band distribution, average throttle and the pedal context measures above.
+Overall comparison requires the same known driver, exact car/pack, wheelbase/rim, tuning workflow, track, conditions/task, session intent and recorded Desired Behavior; verified active-car identity; at least 20 seconds of usable drift and 15 Hz sampling in each run; acceptable continuity; and similar speed, angle, left/right exposure, speed-band distribution, average throttle and the pedal context measures above.
 
 The comparison engine uses a 15% change tolerance with a minimum per-metric floor and requires at least three scored metrics. Faster or more responsive runs with worsened control can receive **Tradeoff**. Rejected comparisons still show descriptive differences and the reason they are inconclusive.
 
@@ -96,7 +102,7 @@ These checks establish a documented association, not proof of causation or autom
 - The reader marks invalid source values before sanitizing them for display. The analyzer breaks at gaps, frozen packets and invalid samples; excludes pit limiter, AI/reverse, four wheels off-track and impact evidence; and refuses attribution after a timeline restart or interrupted run. Legacy recordings lack some exclusion signals and say so.
 - Malformed history entries are skipped individually and preserved. Malformed or unsupported additive run context is treated as unknown while retaining usable raw telemetry. Saved reviews retain the outcome at review time; reopening raw sessions recalculates observations using the current analyzer.
 
-## Validation for this preview
+## Existing intelligence validation (local preview.11)
 
 Local preview.11 passes 116 regression scenarios, including 15 new angle/summary scenarios, the 14 pedal scenarios and the existing 8,000 built-in tuning-combination range sweep. New checks cover optional/custom goals, per-car/share/history storage, preserved setup/FFB values, native forward/backward velocity, held angle and speed/recovery, 15/25/50/100 Hz equivalence, peaks, invalid/frozen/excluded/gapped recordings, interrupted windows, timeline resets, unknown legacy recovery, remote handling saves, changed goals, comparison tradeoffs and the simple next step. Existing phase diagnosis, history, recorder, guided workflow, gearing and touchscreen regression checks also pass.
 

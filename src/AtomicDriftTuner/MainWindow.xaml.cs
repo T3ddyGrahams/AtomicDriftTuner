@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private readonly AssettoCorsaScanner _scanner = new();
     private readonly AssettoCorsaSessionIdentityReader _sessionIdentityReader = new();
     private readonly DispatcherTimer _activeCarTimer = new() { Interval = TimeSpan.FromSeconds(1) };
-    private readonly AppSettingsStore _appSettingsStore = new();
+    private readonly AppSettingsStore _appSettingsStore;
     private readonly TelemetryHubService _telemetryHub = new();
     private readonly RemoteServerService _remoteServer;
 
@@ -60,13 +60,17 @@ public partial class MainWindow : Window
     private bool _compactLayout;
     private double _sidebarWidth = 220;
 
-    public MainWindow()
+    public MainWindow() : this(new AppSettingsStore(), true) { }
+
+    // Isolated construction allows the real dashboard controls to be exercised without machine startup.
+    internal MainWindow(AppSettingsStore settingsStore, bool initializeMachineServices)
     {
+        _appSettingsStore = settingsStore;
         _remoteServer = new RemoteServerService(_telemetryHub);
         InitializeComponent();
         ApplyWindowVersionText();
         UpdateWindowStateUi();
-        Services.WindowBoundsService.Attach(this);
+        if (initializeMachineServices) Services.WindowBoundsService.Attach(this);
 
         HardwareBox.ItemsSource = _hardware;
         WheelBox.ItemsSource = _wheels;
@@ -74,28 +78,23 @@ public partial class MainWindow : Window
         IntentBox.ItemsSource = _intents;
         GripBox.ItemsSource = Enum.GetValues<GripLevel>();
 
-        HardwareBox.SelectedIndex = Math.Max(0, _hardware.FindIndex(x => x.Id == "moza-r12"));
-        WheelBox.SelectedIndex = Math.Max(0, _wheels.FindIndex(x => x.Id == "moza-cs-pro"));
-        PackBox.SelectedIndex = Math.Max(0, _packs.FindIndex(x => x.Id == "gravy"));
-        IntentBox.SelectedIndex = Math.Max(0, _intents.FindIndex(x => x.Kind == DriftStyleKind.Realistic));
-
-        PopulateHardware();
-        PopulateWheel();
-        RefreshCarsForPack();
-
         var settings = _appSettingsStore.Load();
+        RestoreSessionSelection(settings.LastSessionSelection);
         _azomPreferences = settings.AzomPreferences ?? new AzomUserPreferences();
         AutoScanCarsBox.IsChecked = settings.AutoScanInstalledCars;
         AutoSelectActiveCarBox.IsChecked = settings.AutoSelectActiveCar;
 
         if (!string.IsNullOrWhiteSpace(settings.AssettoCorsaRoot))
             AcRootBox.Text = settings.AssettoCorsaRoot;
-        else
+        else if (initializeMachineServices)
             TryAutoDetect(showMessage: false);
 
         _activeCarTimer.Tick += ActiveCarTimer_Tick;
-        Loaded += MainWindow_Loaded;
-        InitializeGuidedWorkflow();
+        if (initializeMachineServices)
+        {
+            Loaded += MainWindow_Loaded;
+            InitializeGuidedWorkflow();
+        }
 
         _remoteServer.StateChanged += (_, _) =>
             Dispatcher.BeginInvoke(
@@ -127,6 +126,8 @@ public partial class MainWindow : Window
 
         Closed += async (_, _) =>
         {
+            RememberSessionSelection();
+            _selectionReady = false;
             // All docked workspaces stay alive while navigating so their state is
             // preserved. Close every backing Window only when ADT itself exits.
             foreach (var toolWindow in _embeddedContentCache.Keys.ToList())
@@ -142,6 +143,7 @@ public partial class MainWindow : Window
             _telemetryHub.Dispose();
         };
 
+        _selectionReady = true;
         UpdateRemoteContextSafely();
     }
 
@@ -269,9 +271,16 @@ public partial class MainWindow : Window
     {
         Loaded -= MainWindow_Loaded;
 
-        var settings = _appSettingsStore.Load();
-        if (!settings.FirstRunCompleted)
-            OpenSetupWizard(firstRun: true);
+        try
+        {
+            var settings = _appSettingsStore.Load();
+            if (!settings.FirstRunCompleted || !_workflow.Preferences().FocusChoiceConfirmed)
+                OpenSetupWizard(firstRun: true);
+        }
+        catch (Exception ex)
+        {
+            GuidedInstructionsText.Text = "Setup could not load. Your saved files were preserved. Open Diagnostics for file locations and include this message when requesting help: " + ex.Message;
+        }
 
         // Startup detection runs after the first-run path wizard so it can use
         // the final configured AC root. Manual controls remain available.
@@ -305,6 +314,7 @@ public partial class MainWindow : Window
             var settings = _appSettingsStore.Load();
             GuidedDriverBox.Text = _workflow.Preferences().DriverName;
             _guidedConnection = null;
+            GuidedReadyCheck.IsChecked = false;
             RefreshGuidedWorkflow();
 
             _azomPreferences =
@@ -354,14 +364,14 @@ public partial class MainWindow : Window
 
     private void PopulateHardware()
     {
-        if (HardwareBox.SelectedItem is not HardwareProfile h) return;
+        if (HardwareBox.SelectedItem is not HardwareProfile h) { PeakTorqueBox.Text = ""; return; }
         PeakTorqueBox.Text = h.PeakTorqueNm.ToString("0.##", CultureInfo.InvariantCulture);
         UpdateCalibrationStatusSafely();
     }
 
     private void PopulateWheel()
     {
-        if (WheelBox.SelectedItem is not SteeringWheelProfile w) return;
+        if (WheelBox.SelectedItem is not SteeringWheelProfile w) { WheelDiameterBox.Text = WheelInertiaBox.Text = ""; return; }
         WheelDiameterBox.Text = w.DiameterMm.ToString("0.##", CultureInfo.InvariantCulture);
         WheelInertiaBox.Text = w.InertiaFactor.ToString("0.00", CultureInfo.InvariantCulture);
         UpdateCalibrationStatusSafely();
@@ -369,7 +379,12 @@ public partial class MainWindow : Window
 
     private void RefreshCarsForPack(string? preferredCarId = null)
     {
-        if (PackBox.SelectedItem is not DriftPackProfile pack) return;
+        if (PackBox.SelectedItem is not DriftPackProfile pack)
+        {
+            _visibleCars = []; CarBox.ItemsSource = _visibleCars; CarBox.SelectedIndex = -1;
+            PackInfoText.Text = "Choose a drift pack, then choose your car.";
+            PopulateCar(); return;
+        }
 
         var installedForPack = _installedCars
             .Where(x => x.PackId == pack.Id)
@@ -407,14 +422,21 @@ public partial class MainWindow : Window
         CarBox.ItemsSource = null;
         CarBox.ItemsSource = _visibleCars;
 
-        int index = preferredCarId is null ? 0 : _visibleCars.FindIndex(x => x.Id == preferredCarId);
-        CarBox.SelectedIndex = index >= 0 ? index : 0;
+        int index = preferredCarId is null ? -1 : _visibleCars.FindIndex(x => x.Id == preferredCarId);
+        CarBox.SelectedIndex = index;
         PopulateCar();
     }
 
     private void PopulateCar()
     {
-        if (CarBox.SelectedItem is not CarProfile c) return;
+        if (CarBox.SelectedItem is not CarProfile c)
+        {
+            CarMassBox.Text = CarPowerBox.Text = CasterBox.Text = LockBox.Text = FrontTireBox.Text = "";
+            GripBox.SelectedIndex = -1;
+            CarSourceText.Text = "Choose your car after selecting a drift pack. Scan AC to see your installed cars.";
+            ConfidenceScoreText.Text = ConfidenceText.Text = "";
+            return;
+        }
         CarMassBox.Text = c.MassKg.ToString("0.##", CultureInfo.InvariantCulture);
         CarPowerBox.Text = c.PowerHp.ToString("0.##", CultureInfo.InvariantCulture);
         CasterBox.Text = c.CasterDeg.ToString("0.##", CultureInfo.InvariantCulture);
@@ -589,6 +611,7 @@ public partial class MainWindow : Window
                 return false;
         }
 
+        var scanSelection = CaptureSessionSelection();
         _scanInProgress = true;
         try
         {
@@ -634,6 +657,8 @@ public partial class MainWindow : Window
                 ScanStatusText.Text += $" {result.Warnings.Count} folder(s) had metadata warnings.";
 
             RefreshCarsForPack(preferredCarId);
+            RestorePendingCarSelection();
+            RestoreSameCarNumbers(scanSelection);
 
             if (selectActiveAfterScan)
                 TryApplyActiveCarSelection(force: true, allowRescan: false);
@@ -657,6 +682,10 @@ public partial class MainWindow : Window
         finally
         {
             _scanInProgress = false;
+            ClearGeneratedSelection();
+            QueueRememberSessionSelection();
+            UpdateSelectionReadiness();
+            UpdateRemoteContextSafely();
         }
     }
 
@@ -790,6 +819,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        var activeSelection = CaptureSessionSelection();
         var pack = _packs.FirstOrDefault(x => x.Id == car.PackId) ??
                    _packs.First(x => x.Id == "custom-pack");
 
@@ -803,6 +833,7 @@ public partial class MainWindow : Window
         int carIndex = _visibleCars.FindIndex(x => x.Id == car.Id);
         if (carIndex >= 0 && CarBox.SelectedIndex != carIndex)
             CarBox.SelectedIndex = carIndex;
+        RestoreSameCarNumbers(activeSelection);
 
         string packText = car.PackId == "custom-pack"
             ? "Custom / Other Pack (no known signature matched)"
@@ -810,6 +841,8 @@ public partial class MainWindow : Window
 
         ActiveCarStatusText.Text =
             $"Active AC: {car.DisplayName} [{model}] • {packText} • {trackText} • auto-selected.";
+        _pendingCarSelection = null;
+        QueueRememberSessionSelection();
 
         // SelectionChanged normally updates the phone context. Calling this
         // explicitly also covers the case where the same items were already selected.
@@ -2024,6 +2057,7 @@ public partial class MainWindow : Window
 
     private void UpdateRemoteContextSafely()
     {
+        UpdateSelectionReadiness();
         RefreshGuidedWorkflow();
         try
         {
@@ -2032,40 +2066,44 @@ public partial class MainWindow : Window
                 PackBox.SelectedItem is null ||
                 CarBox.SelectedItem is null ||
                 IntentBox.SelectedItem is null)
+            {
+                _remoteServer.ClearTuneContext();
                 return;
+            }
 
             _remoteServer.UpdateTuneContext(BuildInput(), null);
         }
         catch
         {
             // Selection changes can fire while editable fields are being populated.
+            _remoteServer.ClearTuneContext();
         }
     }
 
     private void HardwareBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         PopulateHardware();
-        UpdateRemoteContextSafely();
+        SessionSelectionChanged();
     }
 
     private void WheelBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         PopulateWheel();
-        UpdateRemoteContextSafely();
+        SessionSelectionChanged();
     }
 
     private void PackBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         RefreshCarsForPack();
-        UpdateRemoteContextSafely();
+        SessionSelectionChanged(carChoice: true);
     }
 
     private void CarBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         PopulateCar();
-        UpdateRemoteContextSafely();
+        SessionSelectionChanged(carChoice: true);
     }
 
     private void IntentBox_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        UpdateRemoteContextSafely();
+        SessionSelectionChanged();
 }

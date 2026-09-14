@@ -108,6 +108,15 @@ internal static partial class Program
             ((ComboBox)assistant.FindName("NextActionBox")).SelectedItem = "Undecided";
             Call(assistant, "RestoreReviewDraft", run);
             Check((string)((ComboBox)assistant.FindName("NextActionBox")).SelectedItem == "Revert manually", "saved next action did not reload");
+            run.Analysis = PedalFixture();
+            Call(assistant, "RenderReport", report, run, null);
+            Check(((DataGrid)assistant.FindName("PedalGrid")).Items.Count == run.Analysis.Diagnosis.Pedals.Events.Count, "pedal events not bound by production report handler");
+            Check(((DataGrid)assistant.FindName("PedalContextGrid")).Items.Count == 11, "pedal exposure missing");
+            Check(((TextBlock)assistant.FindName("PedalLimitationsText")).Text.Contains("assists"), "pedal limitations missing");
+            assistant.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+            Check(((TextBlock)assistant.FindName("PedalSelectedEvidenceText")).Text == run.Analysis.Diagnosis.Pedals.Events[0].Evidence, "selected-event explanation is not bound");
+            Call(assistant, "ClearReport", "No run", "", "", "");
+            Check(((DataGrid)assistant.FindName("PedalGrid")).Items.Count == 0 && ((DataGrid)assistant.FindName("PedalContextGrid")).Items.Count == 0, "cleared report retained stale pedal evidence");
         }
         finally { assistant.Close(); }
         Progress($"PASS {checks} guided mode UI assertions with isolated preferences, recordings and reviews.");

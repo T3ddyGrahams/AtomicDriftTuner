@@ -63,6 +63,7 @@ public sealed class DriftAssistantReportBuilder
                 Area = m.Key is "clipping" ? RecommendationArea.Ffb : m.Key is "oscillation" or "extreme-angle" ? RecommendationArea.General : RecommendationArea.CarSetup,
                 Change = guidance, Why = $"Goal: {desired}. Observed: {m.DisplayValue}. {m.Evidence}", Confidence = m.Confidence });
         }
+        PedalAssistantGuidance.Add(a.Diagnosis.Pedals, goal, r);
         // Do not speed up an unstable run or turn proxy evidence into automatic wheelbase writes.
         if (a.SpinEvents > 0 || a.OscillationEvents > 0)
         {

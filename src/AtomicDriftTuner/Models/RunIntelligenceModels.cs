@@ -66,7 +66,8 @@ public sealed class RunMetric
 
 public sealed class DriftDiagnosis
 {
-    public string AnalyzerVersion { get; set; } = "drift-diagnosis/1";
+    public string AnalyzerVersion { get; set; } = "drift-diagnosis/2";
+    public PedalDiagnosis Pedals { get; set; } = new();
     public int InvalidSamples { get; set; }
     public int Discontinuities { get; set; }
     public bool TimelineReset { get; set; }

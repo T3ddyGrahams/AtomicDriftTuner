@@ -5,7 +5,7 @@ namespace AtomicDriftTuner.Engine;
 /// <summary>Time-weighted phase observations; not tire-force or hands-off measurements.</summary>
 public sealed class DriftDiagnosisEngine
 {
-    private sealed record Frame(TelemetrySample Sample, double Dt);
+    internal sealed record Frame(TelemetrySample Sample, double Dt);
     public TelemetryAnalysis Analyze(TelemetrySession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -154,6 +154,8 @@ public sealed class DriftDiagnosisEngine
         if (!session.Samples.Any(s => s?.HasExtendedSignals == true)) d.QualityNotes.Add("Legacy recording: pit limiter, AI, off-track and damage signals were not captured.");
         if (session.Context?.Interrupted == true) d.QualityNotes.Add("Recording was interrupted; improvement attribution is disabled.");
         if (d.TimelineReset) d.QualityNotes.Add("Recording time or packet sequence restarted. Later frames were ignored; record a fresh uninterrupted run.");
+        d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events);
+        r.Findings.Add(d.Pedals.Summary);
         r.Findings.AddRange(d.QualityNotes);
         r.Findings.AddRange(d.Metrics.Select(m => $"{m.Name}: {m.DisplayValue}. {m.Evidence}"));
         r.Assessment = r.DriftTimeSeconds < 10 ? "Insufficient clean drift evidence. Record several entries and both transition directions." :

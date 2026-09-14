@@ -119,6 +119,17 @@ internal static partial class Program
                                 var header = ((TabItem)tab.Items[i]).Header?.ToString();
                                 if (header == "Recommendations") AssertReachableByScrolling(root, "AssistantBodyScroll", "TestRecommendationButton", size);
                                 if (header == "Before / After") AssertReachableByScrolling(root, "AssistantBodyScroll", "BaselineSessionBox", size);
+                                if (header == "Pedal Evidence")
+                                {
+                                    var pedalGrid = (DataGrid)root.FindName("PedalGrid");
+                                    if (pedalGrid.Columns.Any(c => c.ActualWidth < 79)) throw new Exception("Pedal table collapsed its input columns.");
+                                    _checks++;
+                                    AssertReachableByScrolling(root, "AssistantBodyScroll", "PedalContextHeading", size);
+                                    AssertReachableByScrolling(root, "AssistantBodyScroll", "PedalDetailHeading", size);
+                                    if (size.Width == 430) Render(root, size, Path.Combine(output, $"PedalDetail-{size.Width}-{size.Height}.png"));
+                                    AssertReachableByScrolling(root, "AssistantBodyScroll", "PedalSectionHeading", size);
+                                    if (size.Width is 430 or 1800) Render(root, size, Path.Combine(output, $"PedalEvidence-{size.Width}-{size.Height}.png"));
+                                }
                                 if (header == "Tune & Run History")
                                 {
                                     foreach (var field in new[] { "DriverRatingBox", "NextActionBox", "DriverNotesBox", "SaveReviewButton", "ReviewHistoryBox" })
@@ -253,6 +264,7 @@ internal static partial class Program
 
     private static void Seed(FrameworkElement root)
     {
+        SeedPedalEvidence(root);
         if (root.FindName("GuidedHelpCheck") is CheckBox help)
         {
             if (root.FindName("GuidedFocusBox") is not null) throw new Exception("The removed tuning-mode selector is still present.");

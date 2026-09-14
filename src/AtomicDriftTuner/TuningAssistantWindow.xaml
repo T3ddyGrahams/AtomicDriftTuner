@@ -228,6 +228,46 @@
                     </DataGrid>
                 </StackPanel>
             </TabItem>
+            <TabItem Header="Pedal Evidence">
+                <StackPanel Margin="12">
+                    <TextBlock x:Name="PedalSectionHeading" Foreground="{DynamicResource SectionHeadingBrush}" Text="How your inputs relate to the car's response" FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="1. Record and save a run. 2. Inspect the events below. 3. Repeat similar pedal inputs when testing one setup change, then open Before / After." TextWrapping="Wrap" Margin="0,6,0,8"/>
+                    <TextBlock x:Name="PedalSummaryText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <DataGrid x:Name="PedalGrid" AutomationProperties.Name="Pedal input and response evidence" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              SelectionMode="Single" SelectionUnit="FullRow" MinColumnWidth="80"
+                              MinHeight="180" MaxHeight="360" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Event" Binding="{Binding Kind}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="160" Width="180"/>
+                            <DataGridTextColumn Header="Start (s)" Binding="{Binding StartSeconds, StringFormat=F2}" Width="90"/>
+                            <DataGridTextColumn Header="Duration (s)" Binding="{Binding DurationSeconds, StringFormat=F2}" Width="105"/>
+                            <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" MinWidth="120" Width="130"/>
+                            <DataGridTextColumn Header="Input" Binding="{Binding Input}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="220" Width="240"/>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="100"/>
+                            <DataGridTextColumn Header="Response preview — select for full details" Binding="{Binding Evidence}" MinWidth="340" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource AssistantTableText}">
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="PedalDetailHeading" Foreground="{DynamicResource SectionHeadingBrush}" Text="Selected event — full explanation" FontWeight="Bold" TextWrapping="Wrap" Margin="0,12,0,6"/>
+                    <TextBlock x:Name="PedalSelectedInputText" Foreground="{DynamicResource FieldLabelBrush}" Text="{Binding SelectedItem.Input, ElementName=PedalGrid}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="PedalSelectedEvidenceText" Foreground="{DynamicResource FieldLabelBrush}" Text="{Binding SelectedItem.Evidence, ElementName=PedalGrid, TargetNullValue='Select an event above to read its complete explanation here.'}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="PedalContextHeading" Foreground="{DynamicResource SectionHeadingBrush}" Text="Pedal use during clean drift" FontWeight="Bold" Margin="0,12,0,6"/>
+                    <DataGrid x:Name="PedalContextGrid" AutomationProperties.Name="Pedal exposure context" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              MinColumnWidth="100" MinHeight="140" MaxHeight="300" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Input measure" Binding="{Binding Name}" MinWidth="200" Width="210"/>
+                            <DataGridTextColumn Header="Observed" Binding="{Binding DisplayValue}" Width="120"/>
+                            <DataGridTextColumn Header="Meaning" Binding="{Binding Evidence}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="300" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="PedalLimitationsText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                </StackPanel>
+            </TabItem>
             <TabItem Header="Before / After">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>

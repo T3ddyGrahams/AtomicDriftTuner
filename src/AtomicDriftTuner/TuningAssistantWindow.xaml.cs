@@ -440,6 +440,12 @@ public partial class TuningAssistantWindow : Window
             report.Comparison;
 
         PhaseGrid.ItemsSource = selected.Analysis.Diagnosis.Events;
+        var pedals = selected.Analysis.Diagnosis.Pedals;
+        PedalGrid.ItemsSource = pedals.Events;
+        PedalGrid.SelectedIndex = pedals.Events.Count > 0 ? 0 : -1;
+        PedalContextGrid.ItemsSource = pedals.ContextMetrics;
+        PedalSummaryText.Text = pedals.Summary;
+        PedalLimitationsText.Text = pedals.Limitations;
         QualityText.Text = string.Join("\n", selected.Analysis.Diagnosis.QualityNotes) +
             $"\nDrift exposure: left {selected.Analysis.Diagnosis.LeftDriftSeconds:0.0}s / right {selected.Analysis.Diagnosis.RightDriftSeconds:0.0}s; " +
             $"below 50 km/h {selected.Analysis.Diagnosis.LowSpeedSeconds:0.0}s / 50–90 {selected.Analysis.Diagnosis.MediumSpeedSeconds:0.0}s / above 90 {selected.Analysis.Diagnosis.HighSpeedSeconds:0.0}s.";
@@ -545,6 +551,10 @@ public partial class TuningAssistantWindow : Window
             null;
 
         PhaseGrid.ItemsSource = null;
+        PedalGrid.ItemsSource = null;
+        PedalContextGrid.ItemsSource = null;
+        PedalSummaryText.Text = "Select a saved run to inspect pedal inputs and the surrounding response.";
+        PedalLimitationsText.Text = "";
         TuneChangesGrid.ItemsSource = null;
         TuneHistoryBox.ItemsSource = null;
         ReviewHistoryBox.ItemsSource = null;

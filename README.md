@@ -10,6 +10,8 @@
 > **Signing status:** Preparation only; SignPath signing is not enabled.<br>
 > **Privacy policy:** [PRIVACY.md](PRIVACY.md)
 
+Local development preview **0.9.0-preview.10** adds pedal input/response evidence and stronger comparison checks, building on recording recovery and the adaptive touchscreen. See [the pedal walkthrough](docs/TELEMETRY_INTELLIGENCE.md#pedal-evidence--local-preview10). This local preview has not been published as a public release.
+
 ADT is designed to answer a practical drifting question:
 
 > **Given this wheelbase, this steering wheel, this car, this drift pack, and the way I want the car to behave — what should I change?**

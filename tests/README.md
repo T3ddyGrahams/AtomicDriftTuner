@@ -83,3 +83,9 @@ The regression runner includes 16 gearing scenarios (68 total). `GearingChecks` 
 The WPF runner has 14 additional gearing workflow/theme assertions and 307 total geometry assertions. It exercises production calculation/invalidation/unit/persistence handlers against isolated fixtures and renders gearing screenshots. It does not drive Assetto Corsa or interact with user setup/settings folders.
 
 Optional installed-car verification: set `ADT_GEARING_TEST_CAR` to an installed car folder and `ADT_GEARING_TEST_SETUP` to an existing saved setup before running the regression project. This adds one scenario that reads the real data and writes any test export only under the runner's temporary fixture directory. Leave those variables unset for a fully synthetic run. See [Gearing](../docs/GEARING.md) for supported formats and driving-test steps.
+
+## Pedal evidence (local preview.10)
+
+The regression runner has 101 scenarios, including 14 in `PedalChecks`. Coverage includes sustained pedal events, response windows, initiation/transition association, sample-rate equivalence from 15–100 Hz, spikes, gaps/exclusions, incomplete clutch cycles, shifts, raw polarity, missing signals, matching means with different input distributions or cycle rates, saved Desired Behavior guidance, and reanalysis without raw-file changes. Pedal context never becomes an improvement score or writes tuning settings.
+
+The WPF suite checks production report binding and clearing, selected-event detail binding, theme inheritance, minimum column widths, and scroll access to the event/detail/context sections. It passes 381 geometry assertions plus 167 theme, 16 companion-recorder, 50 recovery, 14 gearing and 25 guided-workflow assertions. Pedal screenshots are explicitly synthetic fixtures. Actual driving is still required to evaluate the usefulness of the provisional event/comparison thresholds.

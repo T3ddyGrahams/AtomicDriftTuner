@@ -37,6 +37,7 @@ public sealed class RunComparisonEngine
         Require(new[] { (x.Diagnosis.LowSpeedSeconds, y.Diagnosis.LowSpeedSeconds), (x.Diagnosis.MediumSpeedSeconds, y.Diagnosis.MediumSpeedSeconds),
             (x.Diagnosis.HighSpeedSeconds, y.Diagnosis.HighSpeedSeconds) }.All(p => Math.Abs(Share(p.Item1, x.DriftTimeSeconds) - Share(p.Item2, y.DriftTimeSeconds)) <= .25), "The runs spend substantially different time in speed bands.");
         Require(x.Diagnosis.Metric("throttle")?.Value is double tx && y.Diagnosis.Metric("throttle")?.Value is double ty && Math.Abs(tx - ty) <= .15, "Throttle exposure differs or cannot be compared.");
+        PedalComparison.Add(x.Diagnosis.Pedals, y.Diagnosis.Pedals, result);
         result.Comparable = result.Limitations.Count == 0;
         var desired = a?.Tune?.DesiredBehavior ?? new CarBehaviorTarget();
         int improved = 0, worsened = 0, scored = 0;

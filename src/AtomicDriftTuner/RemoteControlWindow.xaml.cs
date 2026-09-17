@@ -482,6 +482,7 @@ public partial class RemoteControlWindow : Window
 
     private void RefreshUi()
     {
+        UpdateCompanionUi();
         UpdateTouchscreenUi();
         var running =
             _remote.IsRunning;

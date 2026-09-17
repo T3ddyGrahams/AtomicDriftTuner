@@ -10,7 +10,8 @@ public partial class MainWindow
         {
             return _telemetryWindow is not null && EmbeddedContextMatches(_telemetryWindow, BuildInput()) &&
                 _telemetryWindow.RecordingFocus == _workflow.Preferences().Focus &&
-                string.Equals(_telemetryWindow.DriverBox.Text.Trim(), _workflow.Preferences().DriverName.Trim(), StringComparison.OrdinalIgnoreCase);
+                string.Equals(_telemetryWindow.DriverBox.Text.Trim(), _workflow.Preferences().DriverName.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                CompanionPlanMatches();
         }
         catch { return false; }
     }
@@ -30,7 +31,8 @@ public partial class MainWindow
                 Details = GuidedDetailsText.Text,
                 Completion = GuidedDoneText.Text,
                 Progress = GuidedProgressText.Text,
-                Recorder = _telemetryWindow?.GetCompanionState(CompanionContextMatches()) ?? new()
+                Recorder = _telemetryWindow?.GetCompanionState(CompanionContextMatches()) ?? new(),
+                Workflow = BuildCompanionWorkflowState()
             };
         }).Task;
     }
@@ -42,6 +44,15 @@ public partial class MainWindow
             cancellationToken.ThrowIfCancellationRequested();
             return _telemetryWindow?.ExecuteCompanionCommand(command, CompanionContextMatches())
                 ?? new RemoteActionResponse { Ok = false, Message = "Prepare Telemetry Recorder in desktop ADT first." };
+        }).Task;
+    }
+
+    private async Task<RemoteActionResponse> ExecuteCompanionWorkflowCommandAsync(CompanionWorkflowCommand command, CancellationToken cancellationToken)
+    {
+        return await Dispatcher.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ExecuteCompanionWorkflowCommand(command);
         }).Task;
     }
 }

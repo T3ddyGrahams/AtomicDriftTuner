@@ -62,8 +62,14 @@ internal static partial class Program
                 CheckRecordingRecovery(output);
                 return 0;
             }
+            if (args.Contains("--companion-workflow"))
+            {
+                CheckCompanionWorkflow(output);
+                return 0;
+            }
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);
+            CheckCompanionWorkflow(output);
             CheckRecordingRecovery(output);
             CheckGearingWorkflow(output);
             CheckGuidedModes(output);
@@ -116,7 +122,7 @@ internal static partial class Program
                         foreach (var field in new[] { "InterviewHelpCheck", "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })
                             AssertReachableByScrolling(root, "SetupBodyScroll", field, size);
                     if (name == "RemoteControlWindow")
-                        foreach (var field in new[] { "StartButton", "PairingCodeText", "TouchscreenAddressBox", "TouchscreenLanAddressBox", "CopyTouchscreenAddressButton", "CopyTouchscreenLanAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
+                        foreach (var field in new[] { "InstallCompanionButton", "OpenCompanionPackageButton", "StartButton", "PairingCodeText", "TouchscreenAddressBox", "TouchscreenLanAddressBox", "CopyTouchscreenAddressButton", "CopyTouchscreenLanAddressButton", "InstallTouchscreenButton", "AllowWritesBox" })
                             AssertReachableByScrolling(root, "RemoteBodyScroll", field, size);
                     if (name == "TuningAssistantWindow")
                     {

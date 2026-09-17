@@ -12,6 +12,7 @@ public sealed class CompanionStatus
     public string Completion { get; set; } = "";
     public string Progress { get; set; } = "";
     public CompanionRecorderState Recorder { get; set; } = new();
+    public CompanionWorkflowState Workflow { get; set; } = new();
 }
 
 public sealed class CompanionRecorderState

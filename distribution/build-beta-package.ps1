@@ -145,7 +145,18 @@ if (-not (Test-Path $bridgeDll)) {
 
 Write-Host "`n[3/5] Staging tester payload..." -ForegroundColor Cyan
 
-Copy-Item (Join-Path $publish "*") $staging -Recurse -Force
+$desktopPayload = @(
+    "AtomicDriftTuner.exe", "aspnetcorev2_inprocess.dll", "D3DCompiler_47_cor3.dll",
+    "PenImc_cor3.dll", "PresentationNative_cor3.dll", "vcruntime140_cor3.dll", "wpfgfx_cor3.dll"
+)
+foreach ($file in Get-ChildItem -LiteralPath $publish -Recurse -File) {
+    if ($file.DirectoryName -ne $publish -or $file.Name -notin $desktopPayload) {
+        throw "Unexpected published file is outside the explicit beta payload: $($file.FullName)"
+    }
+}
+foreach ($name in $desktopPayload) {
+    Copy-Item -LiteralPath (Join-Path $publish $name) -Destination (Join-Path $staging $name)
+}
 
 $bridgePayload = Join-Path $staging "BridgePayload"
 New-Item $bridgePayload -ItemType Directory -Force | Out-Null
@@ -173,6 +184,21 @@ New-Item -ItemType Directory -Path $guidePayload -Force | Out-Null
 foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md")) {
     Copy-Item -LiteralPath (Join-Path $repo "docs/$guide") -Destination (Join-Path $guidePayload $guide)
 }
+
+# Only these shipped app files enter the package; no saved pairing, telemetry or user state.
+$companionPayload = Join-Path $staging "CompanionPayload"
+$companionApp = Join-Path $companionPayload "apps\lua\ADTCompanion"
+New-Item -ItemType Directory -Path $companionApp -Force | Out-Null
+foreach ($name in @("ADTCompanion.lua", "companion_client.lua", "manifest.ini", "icon.png")) {
+    $source = Join-Path $repo "companion\apps\lua\ADTCompanion\$name"
+    if ((Get-Item -LiteralPath $source).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw "Refusing to package a linked companion file: $source"
+    }
+    Copy-Item -LiteralPath $source -Destination (Join-Path $companionApp $name)
+}
+Copy-Item -LiteralPath (Join-Path $repo "companion\README.md") -Destination (Join-Path $companionPayload "README.md")
+Compress-Archive -LiteralPath (Join-Path $companionPayload "apps"), (Join-Path $companionPayload "README.md") `
+    -DestinationPath (Join-Path $staging "ADTCompanion-ContentManager.zip") -CompressionLevel Optimal
 
 $portable = Join-Path $output "AtomicDriftTuner-$Version-portable.zip"
 

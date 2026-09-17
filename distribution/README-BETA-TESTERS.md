@@ -1,6 +1,8 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
-**Local preview.12:** New users choose their own hardware, car and drift target; ADT no longer starts with the developer's default rig and car. Setup asks **Car tuning only** or **Car + FFB**, then **Your Next Step** explains what to do now, when it is complete and what comes next. Short instructions are the default; enable **Show more explanation and examples** for extra help. ADT remembers selections for the current Windows user. This local build does not change the public preview.3 release.
+**Private preview.13:** The installer and portable build include ADT Companion **0.2.0-preview.1** for Content Manager / Custom Shaders Patch. Open **Remote → Install / Update Companion** to add it to the Assetto Corsa folder saved in Setup & Paths. Exit your driving session first; ADT backs up changed companion files and preserves other mods. Start Remote, launch a new AC session, open ADT Companion and pair with the code. See `CompanionPayload/README.md` for the complete in-game workflow and current testing limits. This build does not change the public preview.3 release.
+
+New users choose their own hardware, car and drift target. Setup asks **Car tuning only** or **Car + FFB**, then **Your Next Step** explains what to do now, when it is complete and what comes next. Short instructions are the default; enable **Show more explanation and examples** for extra help. ADT remembers selections for the current Windows user.
 
 Existing tuning calculations, angle goals, pedal/phase diagnosis, histories, five-second recording recovery and adaptive fullscreen touchscreen remain. For the touchscreen, open **Remote → START REMOTE → INSTALL SIMHUB DASHBOARD**, then launch **ADT Control Center** in SimHub Dash Studio. Tap **Open ADT**, pair, and use **Full screen** if needed. Prepare the desktop recorder once, then use **Start run → Stop run → Save run**. The `/dash` page also works directly on a phone/tablet using the PC's LAN address. See `docs/TOUCHSCREEN.md`, `docs/GUIDED_WORKFLOW.md` and `docs/TELEMETRY_INTELLIGENCE.md`.
 
@@ -22,6 +24,8 @@ ADT may be distributed as:
 - **Portable ZIP** — extract it to a folder and run `AtomicDriftTuner.exe`.
 
 Do not run the portable version directly from inside the ZIP.
+
+Both formats include `ADTCompanion-ContentManager.zip` and the unpacked `CompanionPayload` folder. Installing desktop ADT does not automatically modify Assetto Corsa. Use the explicit install button in **Remote**, or choose **Open Companion Package** and drag the ZIP into Content Manager. If Windows denies access to the AC folder, Content Manager may offer its usual installation permission prompt; ADT does not change folder permissions or launch the game. For manual copying and safe updates, follow `CompanionPayload/README.md`.
 
 ---
 

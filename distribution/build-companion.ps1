@@ -11,6 +11,23 @@ if ($manifest -notmatch '(?m)^VERSION\s*=\s*([0-9A-Za-z.-]+)\s*$') { throw 'Miss
 $version = $Matches[1]
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $zip = Join-Path $OutputDirectory "ADTCompanion-$version.zip"
-Compress-Archive -Path (Join-Path $source 'apps'), (Join-Path $source 'README.md') -DestinationPath $zip -CompressionLevel Optimal -Force
+$files = @('README.md', 'apps/lua/ADTCompanion/ADTCompanion.lua', 'apps/lua/ADTCompanion/companion_client.lua',
+    'apps/lua/ADTCompanion/manifest.ini', 'apps/lua/ADTCompanion/icon.png')
+foreach ($relative in $files) {
+    $item = Get-Item -LiteralPath (Join-Path $source $relative)
+    if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Companion payload must be an ordinary file: $relative"
+    }
+}
+$stream = [IO.File]::Open($zip, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+try {
+    $archive = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create, $true)
+    try {
+        foreach ($relative in $files) {
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path $source $relative), $relative,
+                [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        }
+    } finally { $archive.Dispose() }
+} finally { $stream.Dispose() }
 Write-Output "Companion package: $zip"
 Get-FileHash -LiteralPath $zip -Algorithm SHA256

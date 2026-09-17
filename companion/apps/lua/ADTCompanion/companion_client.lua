@@ -22,12 +22,12 @@ return function(request, encode, decode)
     local generation = self.generation
     local headers = { ['Content-Type'] = 'application/json' }
     if self.token then headers['X-ADT-Token'] = self.token end
-    local ok = pcall(request, body and 'POST' or 'GET', 'http://127.0.0.1:' .. self.port .. path,
+    local ok = pcall(function() request(body and 'POST' or 'GET', 'http://127.0.0.1:' .. self.port .. path,
       headers, body and encode(body) or nil, function(err, response)
         if generation ~= self.generation then return end -- timed out, disconnected or replaced
         self.busy = false
         self.nextPoll = self.now + 1
-        if err or not response then
+        if err or type(response) ~= 'table' or type(response.status) ~= 'number' then
           self.online, self.status = false, nil
           self.message = 'ADT connection unavailable. Keep desktop ADT and its Remote server running.'
           if body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
@@ -42,16 +42,19 @@ return function(request, encode, decode)
         if not parsed or type(data) ~= 'table' then data = {} end
         if response.status < 200 or response.status >= 300 then
           self.online, self.status = false, nil
-          self.message = response.status == 404 and 'Update desktop ADT to 0.9.0-preview.4 or newer.'
+          self.message = response.status == 404 and (path == '/api/companion/workflow'
+            and 'Update desktop ADT to 0.9.0-preview.13 or newer for in-game findings and comparisons.'
+            or 'Update desktop ADT to 0.9.0-preview.4 or newer.')
             or data.error or data.message or 'ADT could not complete this request.'
           if body and path ~= '/api/pair' then self.commandMessage = self.message end
           return
         end
         callback(data)
-      end)
+      end) end)
     if not ok then
       self.busy, self.online, self.status = false, false, nil
       self.message = 'Could not contact ADT. Check CSP networking and the desktop Remote server.'
+      if body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
       self.nextPoll = self.now + 3
     end
     return ok
@@ -92,14 +95,75 @@ return function(request, encode, decode)
   function c:command(action)
     if self.busy or not self:fresh() then return false end
     local r = self.status.recorder
-    local allowed = (action == 'start' and r.canStart) or (action == 'stop' and r.canStop) or (action == 'save' and r.canSave)
+    local allowed = (action == 'start' and r.canStart == true) or (action == 'stop' and r.canStop == true) or (action == 'save' and r.canSave == true)
     if not allowed then return false end
     self.commandMessage = 'Waiting for ADT...'
     -- Invalidate cached buttons until authoritative status is read again. Never retry a mutation.
-    self.online = false
+    self.online, self.status = false, nil
     return self:send('/api/companion/recording', {action = action, windowId = r.windowId,
       sessionId = r.sessionId, controlVersion = r.controlVersion}, function(data)
       self.commandMessage = data.message or 'Command completed; refreshing status.'
+      self.status = nil
+      self.nextPoll = 0
+    end)
+  end
+
+  function c:workflowState()
+    if not self:fresh() then return nil end
+    local w = self.status.workflow
+    if type(w) ~= 'table' or w.protocolVersion ~= 1 then return nil end
+    return w
+  end
+
+  function c:textLength(text)
+    -- Match the desktop's UTF-16 string limit without cutting a UTF-8 character in half.
+    local length = 0
+    for i = 1, #text do
+      local b = text:byte(i)
+      if b < 128 or b >= 192 then length = length + (b >= 240 and 2 or 1) end
+    end
+    return length
+  end
+
+  function c:canWorkflow(action, fields)
+    local w = self:workflowState()
+    if self.busy or not w or w.available ~= true or type(w.controlVersion) ~= 'string' or #w.controlVersion ~= 64 then return false end
+    fields = fields or {}
+    if action == 'prepare' then return w.canPrepare == true end
+    if action == 'confirm' then return w.canConfirm == true and fields.tuneConfirmed == true end
+    if action == 'findings' then return w.canReadFindings == true end
+    local report = w.report
+    if type(report) ~= 'table' or type(report.sessionId) ~= 'string' or fields.sessionId ~= report.sessionId then return false end
+    if action == 'plan' then
+      for _, recommendation in ipairs(type(report.recommendations) == 'table' and report.recommendations or {}) do
+        if recommendation.id == fields.recommendationId and recommendation.canSelect == true then return true end
+      end
+    end
+    if action == 'review' then
+      local ratings = {Better = true, Worse = true, ['No noticeable difference'] = true, Tradeoff = true}
+      local decisions = {Undecided = true, ['Keep and verify'] = true, ['Revert manually'] = true, ['Test again'] = true}
+      return w.canSaveReview == true and ratings[fields.driverRating] == true and decisions[fields.nextAction] == true
+        and type(fields.notes) == 'string' and self:textLength(fields.notes) <= 2000
+    end
+    return false
+  end
+
+  function c:workflow(action, fields)
+    fields = fields or {}
+    if not self:canWorkflow(action, fields) then return false end
+    local w = self:workflowState()
+    local body = {action = action, controlVersion = w.controlVersion}
+    if action == 'confirm' then body.tuneConfirmed = fields.tuneConfirmed end
+    if action == 'findings' then body.sessionId = w.savedSessionId end
+    if action == 'plan' then body.sessionId, body.recommendationId = fields.sessionId, fields.recommendationId end
+    if action == 'review' then
+      body.sessionId, body.driverRating, body.nextAction, body.notes = fields.sessionId, fields.driverRating, fields.nextAction, fields.notes
+    end
+    self.commandMessage = action == 'findings' and 'Reading the saved run in ADT...' or 'Waiting for ADT...'
+    -- A plan/review can change the recorder as well. Invalidate EVERY cached button immediately.
+    self.online, self.status = false, nil
+    return self:send('/api/companion/workflow', body, function(data)
+      self.commandMessage = type(data.message) == 'string' and data.message or 'Request completed; refreshing status.'
       self.status = nil
       self.nextPoll = 0
     end)
@@ -110,8 +174,8 @@ return function(request, encode, decode)
     if self.busy and self.now - self.started > 8 then
       self.generation = self.generation + 1
       self.busy, self.online, self.status = false, false, nil
-      self.message = 'ADT did not respond. Reconnecting; recording commands are never retried automatically.'
-      self.commandMessage = 'If you pressed a recording button, its outcome is unknown until status refreshes.'
+      self.message = 'ADT did not respond. Reconnecting; commands are never retried automatically.'
+      self.commandMessage = 'If you pressed a run or workflow button, its outcome is unknown until status refreshes.'
       self.nextPoll = self.now + 2
     end
     if not self.busy and self.token and self.now >= self.nextPoll then self:poll() end

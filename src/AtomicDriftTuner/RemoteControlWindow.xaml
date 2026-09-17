@@ -52,6 +52,17 @@
             <StackPanel>
                 <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
+                        <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="IN-GAME / CONTENT MANAGER COMPANION" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
+                        <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="1. Save your Assetto Corsa install folder in Setup &amp; Paths, then exit the current driving session.&#10;2. Choose Install / Update Companion below. Content Manager can stay open.&#10;3. Start ADT Remote below and keep desktop ADT running.&#10;4. Enter a new driving session with Custom Shaders Patch enabled, open ADT Companion from the apps sidebar, and pair with the code shown here.&#10;&#10;Use the in-game panel to record, review findings, plan a test and compare runs. SimHub and AZOM are optional for car tuning. The touchscreen and in-game app can stay connected together." TextWrapping="Wrap" Margin="0,8,0,10"/>
+                        <WrapPanel>
+                            <Button x:Name="InstallCompanionButton" Content="INSTALL / UPDATE COMPANION" Click="InstallCompanion_Click" AutomationProperties.Name="Install or update the ADT in-game companion"/>
+                            <Button x:Name="OpenCompanionPackageButton" Content="OPEN COMPANION PACKAGE" Click="OpenCompanionPackage_Click" AutomationProperties.Name="Open the ADT companion package for Content Manager"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="CompanionInstallText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0" Text="Installs the four packaged ADT app files into apps/lua/ADTCompanion. Changed ADT files are backed up; other apps, car files and personal settings are preserved. Open Companion Package offers the ZIP for Content Manager installation."/>
+                    </StackPanel>
+                </Border>
+                <Border Background="{DynamicResource PanelBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
+                    <StackPanel>
                         <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="TOUCHSCREEN / SIMHUB CONTROL CENTER" FontSize="18" FontWeight="Bold" TextWrapping="Wrap"/>
                         <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="1. Start ADT Remote below.&#10;2. On a Pi/tablet, open the other-device address below in its browser. Or install ADT Control Center in SimHub and tap Open ADT on the device.&#10;3. Tap Full screen and enter the pairing code. The page fits landscape, portrait and different screen sizes automatically.&#10;4. Prepare Telemetry Recorder in desktop ADT, then start, stop and save runs from the screen.&#10;&#10;Keep ADT running and both devices on the same home network. AZOM is optional for recording. No resolution changes in the SimHub editor are needed." TextWrapping="Wrap" Margin="0,8,0,10"/>
                         <TextBlock Text="Screen connected to this PC" Foreground="{DynamicResource FieldLabelBrush}" Margin="0,4,0,4"/>

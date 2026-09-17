@@ -123,6 +123,7 @@ public partial class MainWindow : Window
         _remoteServer.GenerateTuneHandler = GenerateTuneFromRemoteAsync;
         _remoteServer.CompanionStatusHandler = GetCompanionStatusAsync;
         _remoteServer.CompanionCommandHandler = ExecuteCompanionCommandAsync;
+        _remoteServer.CompanionWorkflowCommandHandler = ExecuteCompanionWorkflowCommandAsync;
 
         Closed += async (_, _) =>
         {

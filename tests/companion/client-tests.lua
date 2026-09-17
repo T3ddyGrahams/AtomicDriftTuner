@@ -50,4 +50,69 @@ c:update(1.1)
 local beforeForget = requests[#requests].callback
 c:forget(); beforeForget(nil,{status=200,body=state()})
 check(c.token == nil and not c:fresh(), 'disconnect undone by late poll')
+-- Additive workflow contract: older recorder-only desktops continue to work.
+requests = {}
+c = create(request, identity, identity)
+local function pairAgain()
+  c:pair('123456', '5190'); answer({ok=true, token=string.rep('x',32)}); c:update(0.1)
+end
+local function workflowState(version)
+  local s = state()
+  s.workflow = {protocolVersion=1, available=true, controlVersion=version or string.rep('a',64),
+    canPrepare=true, canConfirm=true, canReadFindings=true, canSaveReview=true, savedSessionId='run-b',
+    report={sessionId='run-b', baselineSessionId='run-a', recommendations={
+      {id='safe-test',canSelect=true}, {id='low-confidence',canSelect=false}}}}
+  return s
+end
+local function refreshed(data)
+  answer({ok=true,message='Done'})
+  c:update(0.1); answer(data or workflowState())
+end
+pairAgain(); answer(state())
+check(c:fresh() and c:workflowState()==nil and not c:workflow('prepare'), 'old desktop workflow must be unavailable')
+check(c:command('start'), 'additive workflow broke old recording')
+refreshed(workflowState())
+check(c:canWorkflow('prepare') and c:canWorkflow('findings'), 'advertised actions unavailable')
+check(not c:workflow('apply') and not c:workflow('confirm',{tuneConfirmed=false}), 'unsupported or implicit confirmation sent')
+check(c:workflow('confirm',{tuneConfirmed=true,controlVersion='forged'}), 'explicit confirmation failed')
+check(requests[#requests].url=='http://127.0.0.1:5190/api/companion/workflow' and requests[#requests].body.controlVersion==string.rep('a',64), 'workflow bypasses loopback or uses caller token')
+check(not c:fresh() and c.status==nil and not c:command('start') and not c:workflow('prepare'), 'workflow mutation leaves stale recorder/actions active')
+refreshed()
+check(c:workflow('findings'), 'explicit findings failed')
+check(requests[#requests].body.sessionId=='run-b', 'findings omitted exact saved run')
+refreshed()
+check(not c:workflow('plan',{sessionId='run-a',recommendationId='safe-test'}) and not c:workflow('plan',{sessionId='run-b',recommendationId='low-confidence'}), 'stale/disabled recommendation sent')
+check(c:workflow('plan',{sessionId='run-b',recommendationId='safe-test'}), 'valid plan failed')
+local oldWorkflow = requests[#requests].callback
+local beforeTimeout = #requests
+c:update(9)
+check(#requests==beforeTimeout and c.status==nil, 'workflow timeout repeats mutation or retains report')
+c:update(2.1)
+check(#requests==beforeTimeout+1 and requests[#requests].method=='GET', 'workflow recovery does not use status only')
+answer(workflowState(string.rep('b',64)))
+oldWorkflow(nil,{status=200,body={ok=true,message='late plan'}})
+check(c:workflowState().controlVersion==string.rep('b',64), 'late workflow response changes current state')
+check(not c:workflow('review',{sessionId='run-b',driverRating='',nextAction='Keep and verify',notes=''}), 'missing feedback allowed')
+check(not c:workflow('review',{sessionId='run-b',driverRating='Better',nextAction='apply',notes=''}), 'unrecognized review decision allowed')
+check(not c:workflow('review',{sessionId='run-b',driverRating='Better',nextAction='Undecided',notes=string.rep('n',2001)}), 'oversized notes sent')
+check(c:textLength('é')==1 and c:textLength('🙂')==2, 'note length splits UTF-8 or does not match desktop UTF-16')
+check(c:workflow('review',{sessionId='run-b',driverRating='Tradeoff',nextAction='Test again',notes='More angle; less speed.'}), 'valid feedback blocked')
+check(requests[#requests].body.driverRating=='Tradeoff' and requests[#requests].body.notes=='More angle; less speed.', 'review changes driver feedback')
+refreshed()
+local w = workflowState(); w.workflow.protocolVersion=2
+c:update(1.1); answer(w)
+check(c:fresh() and c:workflowState()==nil and not c:workflow('prepare'), 'incompatible workflow breaks recorder or enables actions')
+c:update(1.1); answer(workflowState())
+c:update(4)
+check(not c:fresh() and not c:workflow('prepare') and not c:command('start'), 'expired status enables actions')
+answer(workflowState())
+c:workflow('prepare'); answer({},404)
+check(c.message:find('preview.13') and c.status==nil, 'missing workflow route needs an actionable update message')
+c:update(1.1); answer(workflowState())
+c:workflow('findings'); answer({},401)
+check(c.token==nil and c.status==nil and not c:workflow('review'), 'expired pairing retains workflow control')
+-- Encoding errors are contained just like transport errors and never retain old controls.
+local broken = create(request, function() error('encode failure') end, identity)
+local encoded = pcall(function() broken:pair('123456','5190') end)
+check(encoded and not broken.busy and broken.status==nil, 'encoding failure escapes client or leaves it busy')
 print('PASS '..count..' companion client assertions (Lua 5.1).')

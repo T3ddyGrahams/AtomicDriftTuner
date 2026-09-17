@@ -10,15 +10,16 @@ public partial class TelemetryWindow
     private RecordingPlan? _recordingPlan;
     private SavedTelemetrySession? _lastSavedForGuide;
     public TuningFocus RecordingFocus => _recordingPlan?.Focus ?? TuningFocus.Both;
-    public void UseRecordingPlan(RecordingPlan plan)
+    public void UseRecordingPlan(RecordingPlan plan, bool force = false)
     {
-        if (_recordingPlan == plan) return;
+        if (!force && _recordingPlan == plan && CompanionPlanMatches(plan)) return;
         if (_recording || !_sessionSaved && _session.Samples.Count > 0)
         {
             StatusText.Text = "Finish and save the current recording first. Return to the dashboard and open the next step again to load the new test plan.";
             return;
         }
-        var recent = _sessionStore.ListRecent(_input, 100).Where(s => (s.Session.Context?.Focus ?? TuningFocus.Both) == plan.Focus).ToList();
+        var recent = force ? CompanionPlanSessions(plan) :
+            _sessionStore.ListRecent(_input, 100).Where(s => (s.Session.Context?.Focus ?? TuningFocus.Both) == plan.Focus).ToList();
         var baseline = recent.FirstOrDefault(s => s.Session.Id == plan.BaselineId && s.Session.Context?.DriverId == plan.DriverId);
         if (plan.BaselineId.Length > 0 && baseline is null)
             throw new InvalidOperationException("The planned baseline is not in this car/driver's recent history. Select it in Tuning Assistant or start a new baseline; ADT has not substituted another run.");

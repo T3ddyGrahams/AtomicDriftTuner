@@ -23,7 +23,7 @@ public partial class MainWindow
         }
         catch (Exception ex) { GuidedInstructionsText.Text = "Workflow could not load: " + ex.Message; }
     }
-    private DriverIdentity CurrentGuidedDriver() => new RunHistoryStore().GetOrCreateDriver(_workflow.Preferences().DriverName);
+    private DriverIdentity CurrentGuidedDriver() => _companionWorkflowHistory.GetOrCreateDriver(_workflow.Preferences().DriverName);
     private GuidedJourney JourneyForGuide(TuneInput input, string driver)
     {
         var j = _workflow.Journey(input, driver);

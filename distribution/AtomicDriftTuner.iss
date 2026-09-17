@@ -51,7 +51,26 @@ CloseApplications=yes
 RestartApplications=no
 
 [Files]
-Source: "{#StagingDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#StagingDir}\AtomicDriftTuner.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\aspnetcorev2_inprocess.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\D3DCompiler_47_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\PenImc_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\PresentationNative_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\vcruntime140_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\wpfgfx_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\README-BETA-TESTERS.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\BridgePayload\AtomicDriftTuner.SimHubBridge.dll"; DestDir: "{app}\BridgePayload"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\GUIDED_WORKFLOW.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\TOUCHSCREEN.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\GEARING.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\TELEMETRY_INTELLIGENCE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\ADTCompanion-ContentManager.zip"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\README.md"; DestDir: "{app}\CompanionPayload"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\ADTCompanion.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\companion_client.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\manifest.ini"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\icon.png"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

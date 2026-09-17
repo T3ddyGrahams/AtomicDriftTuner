@@ -25,7 +25,7 @@ public partial class TelemetryWindow
                 ? (_session.StopReason.Length > 0 ? _session.StopReason + " " : "Recording interrupted. ") + "Save the partial run or review it in ADT."
                 : "Recording stopped. Save this run before recording again."
             : _sessionInterrupted && _session.Samples.Count == 0 ? _session.StopReason + " No frames were captured. Start again when live AC telemetry returns."
-            : !contextMatches ? "The selected car/rig or driver changed. Prepare the matching recorder in desktop ADT."
+            : !contextMatches ? "The car, rig, driver or test plan changed. Check Your Next Step and prepare the matching recording before starting."
             : !ready ? "Enter a driver and conditions/driving task in the desktop recorder."
             : !connected ? "Waiting for live AC telemetry. Enter an on-track session."
             : _session.Samples.Count > 0 ? "Run saved. Ready for another recording; confirm any changed setup in ADT."

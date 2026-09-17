@@ -10,6 +10,7 @@ public sealed partial class RemoteServerService
 {
     public Func<CancellationToken, Task<CompanionStatus>>? CompanionStatusHandler { get; set; }
     public Func<CompanionCommand, CancellationToken, Task<RemoteActionResponse>>? CompanionCommandHandler { get; set; }
+    public Func<CompanionWorkflowCommand, CancellationToken, Task<RemoteActionResponse>>? CompanionWorkflowCommandHandler { get; set; }
     private readonly SemaphoreSlim _companionCommandGate = new(1, 1);
 
     private void MapCompanionEndpoints(WebApplication app)
@@ -54,5 +55,34 @@ public sealed partial class RemoteServerService
             }
             finally { _companionCommandGate.Release(); }
         });
+        app.MapPost(prefix + "/workflow", async (HttpContext context) =>
+        {
+            if (localOnly && !Local(context)) return Results.StatusCode(403);
+            if (!context.Request.HasJsonContentType()) return Results.Json(new { error = "Workflow commands require JSON." }, statusCode: 415);
+            CompanionWorkflowCommand? request;
+            try { request = await context.Request.ReadFromJsonAsync<CompanionWorkflowCommand>(context.RequestAborted); }
+            catch (Exception ex) when (ex is JsonException or BadHttpRequestException or IOException)
+            { return Results.BadRequest(new { error = "Invalid workflow command." }); }
+            if (!ValidWorkflowCommand(request)) return Results.BadRequest(new { error = "Invalid workflow command." });
+            if (CompanionWorkflowCommandHandler is null) return Results.Json(new { error = "Update desktop ADT to use the in-game workflow." }, statusCode: 503);
+            // Recorder and workflow actions share admission: a phone must not start a
+            // run while the in-game panel is changing its prepared comparison plan.
+            if (!await _companionCommandGate.WaitAsync(0, context.RequestAborted))
+                return Results.Json(new { error = "An ADT recording or workflow command is already running. Refresh status before trying again." }, statusCode: 409);
+            try
+            {
+                if (!TokenMatches(GetSuppliedToken(context))) return Results.StatusCode(401);
+                var response = await CompanionWorkflowCommandHandler(request!, context.RequestAborted);
+                if (response.Ok) SetActivity(source + ": " + request!.Action + " workflow.");
+                return Results.Json(response, statusCode: response.Ok ? 200 : 409);
+            }
+            finally { _companionCommandGate.Release(); }
+        });
     }
+
+    private static bool ValidWorkflowCommand(CompanionWorkflowCommand? request) =>
+        request is not null && request.Action is "prepare" or "confirm" or "findings" or "plan" or "review" &&
+        request.ControlVersion is { Length: 64 } && request.ControlVersion.All(Uri.IsHexDigit) &&
+        request.SessionId is { Length: <= 128 } && request.RecommendationId is { Length: <= 128 } &&
+        request.DriverRating is { Length: <= 32 } && request.NextAction is { Length: <= 64 } && request.Notes is { Length: <= 2000 };
 }

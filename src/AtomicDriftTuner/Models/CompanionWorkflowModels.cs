@@ -56,6 +56,7 @@ public sealed class CompanionWorkflowComparison
     public string Summary { get; set; } = "Record and save a comparison run after planning one change.";
     public bool Comparable { get; set; }
     public List<string> Limitations { get; set; } = [];
+    public List<string> SetupChanges { get; set; } = [];
 }
 
 public sealed class CompanionWorkflowCommand

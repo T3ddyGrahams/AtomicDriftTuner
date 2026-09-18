@@ -67,6 +67,8 @@ dialog h2{margin-top:0}dialog p{line-height:1.5}dialog .recorder-actions{grid-te
             <button id="recordSave" onclick="recordCommand('save')" disabled>Save run</button>
           </div>
           <div id="controlMessage" class="notice control-message">Connecting to the desktop recorder…</div>
+          <p id="controlEvidence" class="control-message"></p>
+          <details class="control-help"><summary>Recording evidence and setup</summary><p id="controlEvidenceDetails"></p><p id="controlSetup"></p></details>
           <div id="controlReply" class="notice" role="status" aria-live="polite"></div>
           <details class="control-help"><summary>First time using the touchscreen?</summary><p>In desktop ADT, select your car and driver. Open Telemetry Recorder, enter your conditions/driving task and confirm the setup you will use. Keep ADT running. Once AC telemetry is connected, use Start run here. Tap Stop run after driving, then Save run. Saving keeps the complete recording and analysis in ADT; it does not apply a tune.</p></details>
         </div>
@@ -151,6 +153,7 @@ function renderControl(){
   $('recordStop').disabled=!fresh||controlCommandBusy||!r?.canStop;
   $('recordSave').disabled=!fresh||controlCommandBusy||!r?.canSave;
   if(!fresh){
+    $('controlEvidence').textContent='';$('controlEvidenceDetails').textContent='';$('controlSetup').textContent='';
     $('controlState').textContent=token?'OFFLINE':'NOT PAIRED';$('controlState').className='pill bad';
     $('controlMessage').textContent=controlCache?.protocolVersion&&controlCache.protocolVersion!==1?'Update desktop ADT to use these recording controls.':'Waiting for current recorder status. Controls return when ADT reconnects. A running recording stays in desktop ADT.';
     return;
@@ -163,6 +166,9 @@ function renderControl(){
   $('controlTime').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
   $('controlSamples').textContent=String(r?.samples||0);
   $('controlMessage').textContent=r?.message||'Open Telemetry Recorder in desktop ADT to prepare a run.';
+  $('controlEvidence').textContent=r?.evidence?.message||'';
+  $('controlEvidenceDetails').textContent=r?.evidence?.details||'';
+  $('controlSetup').textContent=r?.setupMessage||'';
   $('controlNext').textContent=controlCache.nextStep||'Follow the workflow in ADT.';
   $('controlInstructions').textContent=controlCache.instructions||'';
   $('controlCompletion').textContent=controlCache.completion||'';

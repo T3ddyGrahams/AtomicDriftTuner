@@ -124,6 +124,7 @@ public partial class MainWindow : Window
         _remoteServer.CompanionStatusHandler = GetCompanionStatusAsync;
         _remoteServer.CompanionCommandHandler = ExecuteCompanionCommandAsync;
         _remoteServer.CompanionWorkflowCommandHandler = ExecuteCompanionWorkflowCommandAsync;
+        _remoteServer.CompanionSetupHandler = ReceiveCompanionSetupAsync;
 
         Closed += async (_, _) =>
         {

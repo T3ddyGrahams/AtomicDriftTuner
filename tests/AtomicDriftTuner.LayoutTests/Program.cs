@@ -67,9 +67,15 @@ internal static partial class Program
                 CheckCompanionWorkflow(output);
                 return 0;
             }
+            if (args.Contains("--live-setup"))
+            {
+                CheckLiveSetup(output);
+                return 0;
+            }
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);
             CheckCompanionWorkflow(output);
+            CheckLiveSetup(output);
             CheckRecordingRecovery(output);
             CheckGearingWorkflow(output);
             CheckGuidedModes(output);
@@ -116,7 +122,7 @@ internal static partial class Program
                         ((Expander)root.FindName("AngleRangeExpander")).IsExpanded = false;
                     }
                     if (name == "TelemetryWindow")
-                        foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "TestedChangeBox", "CompareSavedRunButton" })
+                        foreach (var field in new[] { "DriverBox", "ConditionsBox", "TuneInUseCheck", "UseAutomaticSetupCheck", "AttachSetupButton", "EvidenceMessageText", "TestedChangeBox", "CompareSavedRunButton" })
                             AssertReachableByScrolling(root, "TelemetryBodyScroll", field, size);
                     if (name == "SetupWizardWindow")
                         foreach (var field in new[] { "InterviewHelpCheck", "InterviewDriverBox", "SimHubChoiceBox", "AzomChoiceBox", "UseLiveGuidanceBox", "CheckGuidedConnectionButton" })

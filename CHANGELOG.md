@@ -1,10 +1,18 @@
 # Atomic Drift Tuner — Changelog
 
-This changelog tracks public Atomic Drift Tuner (ADT) releases.
+This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Local preview notes do not indicate a public release; public downloads remain preview.3 until a new release is published.
 
-Development experiments, temporary validation builds, and internal test revisions
-are intentionally omitted. Detailed notes for current releases are also available
-through GitHub Releases.
+---
+
+## Local v0.9.0-preview.14 — Current Setup Capture
+
+- Bundle ADT Companion `0.3.0-preview.1` with read-only CSP current-setup capture, alongside in-game recording, findings, test planning and comparison feedback.
+- Capture numeric setup values from the current CSP state, including unsaved pit edits according to the installed SDK. Retain manual setup-file attachment when capture is unavailable.
+- Bind capture responses to the recorder's challenge and live car/track; limit input to 64 KiB and 512 numeric VALUE sections. Save numeric evidence and its fingerprint without raw INI metadata or paths.
+- Check setup evidence periodically at roughly 1 Hz, with a five-second freshness limit. If evidence is lost or the observed setup/session changes during a run, retain the samples but mark the setup evidence unsuitable for an improvement claim. This is periodic observation, not continuous verification.
+- Show provisional recording progress while preserving existing tuning calculations and driver confirmation of FFB settings. Real CSP rendering, unsaved-edit capture and full baseline/change/comparison acceptance remain pending.
+
+See [companion setup and test guidance](docs/COMPANION.md). This preview has not been published as a public release.
 
 ---
 

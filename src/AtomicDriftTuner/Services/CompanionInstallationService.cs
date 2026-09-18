@@ -9,7 +9,7 @@ public sealed class CompanionInstallationService
     public const string PackageDirectory = "CompanionPayload";
     public const string ImportArchiveName = "ADTCompanion-ContentManager.zip";
     public static IReadOnlyList<string> FileNames { get; } = Array.AsReadOnly(new[]
-        { "ADTCompanion.lua", "companion_client.lua", "manifest.ini", "icon.png" });
+        { "ADTCompanion.lua", "companion_client.lua", "setup_capture.lua", "manifest.ini", "icon.png" });
 
     private readonly Func<bool> _isGameRunning;
     public CompanionInstallationService() : this(IsGameRunning) { }

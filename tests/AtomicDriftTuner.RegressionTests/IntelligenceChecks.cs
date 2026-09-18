@@ -10,6 +10,69 @@ internal static class IntelligenceChecks
 {
     public static void Run(Action<string, Action> test, string root)
     {
+        test("automatic setup comparison preserves scoring and rejects lost or mismatched capture coverage", () =>
+        {
+            var (before, after) = Pair();
+            Set(before, "transition", 1.6); Set(after, "transition", .55);
+            foreach (var run in new[] { before, after })
+            {
+                run.Session.Context!.Tune!.SetupSource = "csp-current-setup";
+                run.Session.Context.Tune.SetupTrackLayout = "drift";
+            }
+            var original = System.Text.Json.JsonSerializer.Serialize(before);
+            var good = new RunComparisonEngine().Compare(before, after);
+            Check(good.Comparable && good.Verdict == "Closer to goals", "Matching automatic snapshots changed valid scoring");
+            foreach (var failure in new[] { "lost", "layout", "coverage", "method" })
+            {
+                var changed = RunHistoryStore.Clone(after);
+                switch (failure)
+                {
+                    case "lost": changed.Session.Context!.SetupCaptureIssue = "CSP monitoring lost"; break;
+                    case "layout": changed.Session.Context!.Tune!.SetupTrackLayout = "other"; break;
+                    case "coverage": changed.Session.Context!.Tune!.Settings["ACSetup.NEW_FIELD"] = 1; break;
+                    case "method": changed.Session.Context!.Tune!.SetupSource = "manual-file"; break;
+                }
+                var outcome = new RunComparisonEngine().Compare(before, changed);
+                Check(!outcome.Comparable && !outcome.RecommendationTestTracked && outcome.Verdict == "Inconclusive" && outcome.Metrics.Count == good.Metrics.Count,
+                    failure + " claimed improvement or lost descriptive analysis");
+            }
+            Check(System.Text.Json.JsonSerializer.Serialize(before) == original, "Comparison mutated its immutable baseline");
+        });
+        test("automatic setup history saves numeric evidence without retaining transient INI or transport data", () =>
+        {
+            var store = new RunHistoryStore(Path.Combine(root, "automatic-setup-history")); var input = Input();
+            input.Car.SourceFolderName = "automatic_capture_fixture";
+            var driver = store.GetOrCreateDriver("Capture fixture");
+            var request = new LiveSetupCaptureRequest { Available = true, ProtocolVersion = 1, Source = "csp-current-setup",
+                CarId = input.Car.SourceFolderName!, TrackId = "track", TrackLayout = "layout", SessionIndex = 0, SessionType = 1,
+                SessionGeneration = 1, SetupRevision = 0, CaptureSequence = 1, SimTimeMs = 1, Frame = 1,
+                SetupIni = "[CAMBER_LF]\nVALUE=-30\n[PRIVATE_METADATA]\nPATH=C:\\private\\personal.ini\n" };
+            Check(LiveSetupCaptureService.TryParse(request, out var capture, out var error), "Capture fixture rejected: " + error);
+            var tune = store.CaptureTune(input, driver, "Current setup", new(), null, capturedSetup: capture);
+            var persisted = store.ListTunes(input, driver.Id).Single();
+            Check(persisted.Settings["ACSetup.CAMBER_LF"] == -30 && persisted.SetupSha256 == capture!.Sha256 &&
+                persisted.SetupSource == "csp-current-setup" && persisted.SetupCapturedUtc is not null && persisted.SetupTrackLayout == "layout",
+                "Capture provenance or numeric values were lost");
+            request.SetupIni = "[CAMBER_LF]\nVALUE=-20";
+            Check(store.ListTunes(input, driver.Id).Single().Settings["ACSetup.CAMBER_LF"] == -30 && !System.Text.Json.JsonSerializer.Serialize(persisted).Contains("personal.ini"),
+                "History changed with request or retained private INI metadata");
+        });
+        test("lost setup monitoring keeps phase measurements but requires a fresh run for tuning", () =>
+        {
+            var session = Session(); foreach (var sample in session.Samples) sample.FinalFfb = 1;
+            var analyzer = new TelemetryAnalyzer(); var original = analyzer.Analyze(session);
+            session.Context!.SetupCaptureIssue = "Setup monitoring lost during recording.";
+            session.Context.TuneConfirmedInUse = false;
+            var analysis = analyzer.Analyze(session);
+            Check(analysis.DriftEntries == original.DriftEntries && analysis.TransitionCount == original.TransitionCount &&
+                analysis.DriftTimeSeconds == original.DriftTimeSeconds && analysis.Diagnosis.Metrics.Count == original.Diagnosis.Metrics.Count,
+                "Setup monitoring loss discarded measured driving intelligence");
+            Check(analysis.CalibrationSuggestion.IsNeutral && !GuidedWorkflowEngine.CanAdvanceFromRun(session, analysis),
+                "Mixed or unverified setup authorized a calibration or advanced the baseline");
+            var report = new TelemetryTuningAssistantEngine().Build(Input(), session.Context.Tune!.DesiredBehavior, new() { Session = session, Analysis = analysis });
+            Check(report.OverallConfidence == AssistantConfidence.Low && report.NextStep.Action != "Plan" && report.NextStep.Instruction.Contains("fresh run"),
+                "Setup limitation was hidden behind a confident tuning recommendation");
+        });
         test("intelligence detects complete entries and both transition directions", () =>
         {
             var session = Session();

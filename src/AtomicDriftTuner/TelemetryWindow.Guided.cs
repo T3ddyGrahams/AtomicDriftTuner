@@ -42,11 +42,12 @@ public partial class TelemetryWindow
             _setupSnapshotPath = plan.SetupPath;
             SetupSnapshotText.Text = "Prepared setup: " + Path.GetFileName(plan.SetupPath) + ". Confirm this is the file loaded in AC, or attach the correct one.";
         }
-        else { _setupSnapshotPath = null; SetupSnapshotText.Text = "Attach the AC setup file actually used. ADT cannot detect which saved setup you loaded in the game."; }
+        else { _setupSnapshotPath = null; SetupSnapshotText.Text = "Pair the updated companion for current setup capture, or attach the saved setup actually used."; }
         TuneInUseCheck.IsChecked = false;
         RecorderStepsText.Text = baseline is null
-            ? "BASELINE: Connect → attach the setup used → describe conditions → confirm tune use → Record → Stop → Save Session → Review Findings. SimHub is not required for AC telemetry."
-            : "COMPARISON: your driver, baseline, conditions and selected recommendation are filled in. Make the change, attach the revised setup, confirm tune use, then Connect → Record → Stop → Save Session → Compare With Baseline.";
+            ? "BASELINE: Connect → capture or attach the setup used → describe conditions → confirm tune use → Record → Stop → Save Session → Review Findings. SimHub is not required for AC telemetry."
+            : "COMPARISON: your driver, baseline, conditions and selected recommendation are filled in. Make the change, capture or attach the revised setup, confirm tune use, then Connect → Record → Stop → Save Session → Compare With Baseline.";
+        RefreshSetupCapture();
     }
     private void CompareSavedRun_Click(object sender, RoutedEventArgs e)
     {
@@ -56,11 +57,14 @@ public partial class TelemetryWindow
     }
     private void NotifySavedRun(string path)
     {
+        RenderEvidence();
         _lastSavedForGuide = new SavedTelemetrySession { Session = RunHistoryStore.Clone(_session), Analysis = _analysis!, JsonPath = path };
         CompareSavedRunButton.Content = _session.Context?.RecommendationSessionId.Length > 0 ? "Compare With Baseline" : "Review Baseline Findings";
         CompareSavedRunButton.IsEnabled = true;
         if (!Engine.GuidedWorkflowEngine.CanAdvanceFromRun(_session, _analysis!))
-            RecorderStepsText.Text = "Run saved for inspection. Guided progress needs at least 20 seconds of clean drift with reliable sampling. Record another clean run; use Review / Compare to inspect this recording's limitations.";
+            RecorderStepsText.Text = _session.Context?.SetupCaptureIssue.Length > 0
+                ? "Run saved for inspection. Setup evidence changed or was lost. Keep the setup fixed, restore capture or attach the setup manually, then record a fresh run."
+                : "Run saved for inspection. Guided progress needs at least 20 seconds of clean drift with reliable sampling. Record another clean run; use Review / Compare to inspect this recording's limitations.";
         try { SessionSaved?.Invoke(_lastSavedForGuide); }
         catch (Exception ex) { StatusText.Text += " Run saved; workflow progress could not be updated: " + ex.Message; }
     }

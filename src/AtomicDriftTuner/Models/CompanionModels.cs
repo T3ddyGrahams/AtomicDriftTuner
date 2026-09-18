@@ -13,6 +13,7 @@ public sealed class CompanionStatus
     public string Progress { get; set; } = "";
     public CompanionRecorderState Recorder { get; set; } = new();
     public CompanionWorkflowState Workflow { get; set; } = new();
+    public SetupCaptureOffer? SetupCapture { get; set; }
 }
 
 public sealed class CompanionRecorderState
@@ -29,6 +30,15 @@ public sealed class CompanionRecorderState
     public bool CanStart { get; set; }
     public bool CanStop { get; set; }
     public bool CanSave { get; set; }
+    public RecordingEvidenceProgress? Evidence { get; set; }
+    public string SetupMessage { get; set; } = "";
+}
+
+public sealed class SetupCaptureOffer
+{
+    public int ProtocolVersion { get; set; } = 1;
+    public string Nonce { get; set; } = "";
+    public string WindowId { get; set; } = "";
 }
 
 public sealed class CompanionCommand

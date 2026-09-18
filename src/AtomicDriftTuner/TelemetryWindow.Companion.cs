@@ -14,6 +14,7 @@ public partial class TelemetryWindow
     public CompanionRecorderState GetCompanionState(bool contextMatches)
     {
         Dispatcher.VerifyAccess();
+        RefreshSetupCapture();
         var unsaved = !_sessionSaved && _session.Samples.Count > 0;
         var connected = _telemetry.GetSnapshot().Connected;
         var ready = DriverBox.Text.Trim().Length > 0 && ConditionsBox.Text.Trim().Length > 0;
@@ -35,7 +36,7 @@ public partial class TelemetryWindow
         {
             _companionRevision, RecordingFocus, DriverBox.Text, Conditions = ConditionsBox.Text, Label = TuneLabelBox.Text,
             Change = TestedChangeBox.Text, Baseline = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id,
-            Setup = _setupSnapshotPath, Confirmed = TuneInUseCheck.IsChecked, contextMatches
+            Setup = AutomaticSetup ? _liveSetup?.Sha256 : _setupSnapshotPath, AutomaticSetup, Confirmed = TuneInUseCheck.IsChecked, contextMatches
         }))));
         return new CompanionRecorderState
         {
@@ -43,7 +44,9 @@ public partial class TelemetryWindow
             Car = _input.Car.DisplayName, Driver = _recording || unsaved ? _session.Context?.DriverName ?? DriverBox.Text : DriverBox.Text,
             State = state, Message = message, Samples = _session.Samples.Count, ElapsedSeconds = _clock.Elapsed.TotalSeconds,
             CanStart = !_recording && !unsaved && ready && connected && contextMatches,
-            CanStop = _recording, CanSave = !_recording && unsaved && _analysis is not null
+            CanStop = _recording, CanSave = !_recording && unsaved && _analysis is not null,
+            Evidence = _recording || _session.Samples.Count > 0 ? CurrentEvidence() : null,
+            SetupMessage = _session.Context?.SetupCaptureIssue.Length > 0 ? _session.Context.SetupCaptureIssue : SetupSnapshotText.Text
         };
     }
 

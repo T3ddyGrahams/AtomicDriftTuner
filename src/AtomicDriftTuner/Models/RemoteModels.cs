@@ -338,6 +338,7 @@ public sealed class RemoteIntentRequest
 
 public sealed class RemoteActionResponse
 {
+    public bool RefreshStatus { get; set; }
     private string _message =
         string.Empty;
 

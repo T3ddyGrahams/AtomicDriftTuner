@@ -32,7 +32,8 @@ public partial class MainWindow
                 Completion = GuidedDoneText.Text,
                 Progress = GuidedProgressText.Text,
                 Recorder = _telemetryWindow?.GetCompanionState(CompanionContextMatches()) ?? new(),
-                Workflow = BuildCompanionWorkflowState()
+                Workflow = BuildCompanionWorkflowState(),
+                SetupCapture = _telemetryWindow?.OfferSetupCapture()
             };
         }).Task;
     }
@@ -46,6 +47,14 @@ public partial class MainWindow
                 ?? new RemoteActionResponse { Ok = false, Message = "Prepare Telemetry Recorder in desktop ADT first." };
         }).Task;
     }
+
+    private async Task<RemoteActionResponse> ReceiveCompanionSetupAsync(LiveSetupCaptureRequest request, CancellationToken cancellationToken) =>
+        await Dispatcher.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return _telemetryWindow?.ReceiveSetupCapture(request)
+                ?? new RemoteActionResponse { Ok = false, Message = "Open the desktop recorder first." };
+        }).Task;
 
     private async Task<RemoteActionResponse> ExecuteCompanionWorkflowCommandAsync(CompanionWorkflowCommand command, CancellationToken cancellationToken)
     {

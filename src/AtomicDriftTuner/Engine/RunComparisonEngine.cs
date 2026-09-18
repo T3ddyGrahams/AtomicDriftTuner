@@ -26,6 +26,18 @@ public sealed class RunComparisonEngine
         Require(KnownSame(before.Session.DriftTarget, after.Session.DriftTarget), "Session intent changed or is missing.");
         Require(a?.CarIdentityVerified == true && b?.CarIdentityVerified == true, "The recorded car was not verified against the active AC session.");
         Require(a?.Interrupted == false && b?.Interrupted == false, "A recording was interrupted.");
+        Require(string.IsNullOrEmpty(a?.SetupCaptureIssue) && string.IsNullOrEmpty(b?.SetupCaptureIssue),
+            "Automatic setup evidence changed or was lost during a run. Record a fresh run with the setup held fixed and capture connected.");
+        if (a?.Tune?.SetupSource == "csp-current-setup" || b?.Tune?.SetupSource == "csp-current-setup")
+        {
+            Require(a?.Tune?.SetupSource == "csp-current-setup" && b?.Tune?.SetupSource == "csp-current-setup",
+                "Setup capture methods differ. Record both runs with automatic capture, or both with manual attachments.");
+            Require(a?.Tune is not null && b?.Tune is not null &&
+                string.Equals(a.Tune.SetupTrackLayout, b.Tune.SetupTrackLayout, StringComparison.OrdinalIgnoreCase), "The captured track layout changed.");
+            Require(a?.Tune is not null && b?.Tune is not null && a.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))
+                .SequenceEqual(b.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))),
+                "The set of captured setup fields changed; use matching setup coverage for before/after tests.");
+        }
         Require(a?.Tune is not null && b?.Tune is not null && KnownSame(a.Tune.ContextKey, b.Tune.ContextKey), "A tune snapshot is missing or belongs to a different rig/car.");
         Require(a?.Tune is not null && b?.Tune is not null && RunHistoryStore.SameBehavior(a.Tune.DesiredBehavior, b.Tune.DesiredBehavior), "Desired Behavior changed or was not captured; the goalposts must stay fixed for an improvement verdict.");
         Require(x.DriftTimeSeconds >= 20 && y.DriftTimeSeconds >= 20, "Both runs need at least 20 seconds of clean drift evidence.");
@@ -88,9 +100,14 @@ public sealed class RunComparisonEngine
                 if (hasOld && hasNew && Math.Abs(old - current) < .000001) continue;
                 result.TuneChanges.Add(new AssistantComparisonRow { Metric = key, Previous = hasOld ? $"{old:0.###}" : "Not captured",
                     Current = hasNew ? $"{current:0.###}" : "Not captured", Change = hasOld && hasNew ? $"{current - old:+0.###;-0.###;0}" : "Added / removed",
-                    Interpretation = key.StartsWith("ACSetup.", StringComparison.Ordinal) ? "Captured setup-file value; use is driver-confirmed." : "Generated ADT target; not live hardware readback." });
+                    Interpretation = key.StartsWith("ACSetup.", StringComparison.Ordinal)
+                        ? a.Tune.SetupSource == "csp-current-setup" && b.Tune.SetupSource == "csp-current-setup"
+                            ? "Current CSP setup VALUE, sampled periodically. Stored setup units may differ from the game's display units."
+                            : "Captured setup-file value; use is driver-confirmed."
+                        : "Generated ADT target; not live hardware readback." });
             }
-            if (!string.Equals(a.Tune.SetupSha256, b.Tune.SetupSha256, StringComparison.Ordinal) && result.TuneChanges.All(c => !c.Metric.StartsWith("ACSetup.")))
+            if (a.Tune.SetupSource != "csp-current-setup" && b.Tune.SetupSource != "csp-current-setup" &&
+                !string.Equals(a.Tune.SetupSha256, b.Tune.SetupSha256, StringComparison.Ordinal) && result.TuneChanges.All(c => !c.Metric.StartsWith("ACSetup.")))
                 result.TuneChanges.Add(new AssistantComparisonRow { Metric = "AC setup file fingerprint", Previous = a.Tune.SetupFileName, Current = b.Tune.SetupFileName,
                     Change = "File changed", Interpretation = "The file changed outside the captured numeric VALUE fields, or attachment coverage differs." });
         }

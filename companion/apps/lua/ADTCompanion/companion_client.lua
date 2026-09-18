@@ -1,13 +1,14 @@
 -- Transport/state is separate from CSP drawing so timeout and replay behavior can be tested.
-return function(request, encode, decode)
+return function(request, encode, decode, captureProvider)
   local c = { port = '5190', token = nil, status = nil, online = false, busy = false,
     message = 'Start ADT Remote on your PC, then enter its pairing code here.',
-    commandMessage = '', now = 0, nextPoll = 0, lastStatus = -100, generation = 0 }
+    commandMessage = '', setupMessage = '', nextCapture = 0, now = 0, nextPoll = 0, lastStatus = -100, generation = 0 }
 
   function c:forget()
     self.generation = self.generation + 1
     self.token, self.status, self.online, self.busy = nil, nil, false, false
     self.commandMessage = ''
+    self.setupMessage, self.nextCapture = '', 0
     self.message = 'Pair with the code shown in desktop ADT Remote.'
   end
 
@@ -22,6 +23,8 @@ return function(request, encode, decode)
     local generation = self.generation
     local headers = { ['Content-Type'] = 'application/json' }
     if self.token then headers['X-ADT-Token'] = self.token end
+    local setupRead = path == '/api/companion/setup'
+    self.activeSetupRead = setupRead
     local ok = pcall(function() request(body and 'POST' or 'GET', 'http://127.0.0.1:' .. self.port .. path,
       headers, body and encode(body) or nil, function(err, response)
         if generation ~= self.generation then return end -- timed out, disconnected or replaced
@@ -30,7 +33,8 @@ return function(request, encode, decode)
         if err or type(response) ~= 'table' or type(response.status) ~= 'number' then
           self.online, self.status = false, nil
           self.message = 'ADT connection unavailable. Keep desktop ADT and its Remote server running.'
-          if body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
+          if setupRead then self.setupMessage = 'Current setup could not be refreshed.'
+          elseif body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
           return
         end
         if response.status == 401 then
@@ -46,7 +50,8 @@ return function(request, encode, decode)
             and 'Update desktop ADT to 0.9.0-preview.13 or newer for in-game findings and comparisons.'
             or 'Update desktop ADT to 0.9.0-preview.4 or newer.')
             or data.error or data.message or 'ADT could not complete this request.'
-          if body and path ~= '/api/pair' then self.commandMessage = self.message end
+          if setupRead then self.setupMessage = 'Setup refresh needs current desktop status.'
+          elseif body and path ~= '/api/pair' then self.commandMessage = self.message end
           return
         end
         callback(data)
@@ -54,7 +59,8 @@ return function(request, encode, decode)
     if not ok then
       self.busy, self.online, self.status = false, false, nil
       self.message = 'Could not contact ADT. Check CSP networking and the desktop Remote server.'
-      if body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
+      if setupRead then self.setupMessage = 'Current setup could not be refreshed.'
+      elseif body and path ~= '/api/pair' then self.commandMessage = 'Command outcome unknown. Check refreshed status before trying again.' end
       self.nextPoll = self.now + 3
     end
     return ok
@@ -89,6 +95,27 @@ return function(request, encode, decode)
       end
       self.status, self.online, self.lastStatus = data, true, self.now
       self.message = 'Connected to desktop ADT ' .. tostring(data.appVersion or '')
+      self:captureSetup(data.setupCapture)
+    end)
+  end
+
+  function c:captureSetup(offer)
+    if not self.token or self.busy or self.now < self.nextCapture or type(captureProvider) ~= 'function'
+      or type(offer) ~= 'table' or offer.protocolVersion ~= 1 or type(offer.nonce) ~= 'string'
+      or #offer.nonce ~= 64 or not offer.nonce:match('^%x+$') or type(offer.windowId) ~= 'string'
+      or #offer.windowId ~= 32 or not offer.windowId:match('^%x+$') then return end
+    self.nextCapture = self.now + 1
+    local ok, payload = pcall(captureProvider)
+    if not ok or type(payload) ~= 'table' then
+      payload = {available=false, protocolVersion=1, source='csp-current-setup', code='capture_failed'}
+    end
+    payload.nonce, payload.windowId = offer.nonce, offer.windowId
+    self:send('/api/companion/setup', payload, function(data)
+      self.setupMessage = type(data.message) == 'string' and data.message or 'Setup evidence refreshed.'
+      if data.refreshStatus == true then
+        self.online, self.status = false, nil
+        self.nextPoll = 0 -- Read changed confirmation/version before enabling any actions.
+      end
     end)
   end
 
@@ -175,7 +202,8 @@ return function(request, encode, decode)
       self.generation = self.generation + 1
       self.busy, self.online, self.status = false, false, nil
       self.message = 'ADT did not respond. Reconnecting; commands are never retried automatically.'
-      self.commandMessage = 'If you pressed a run or workflow button, its outcome is unknown until status refreshes.'
+      if self.activeSetupRead then self.setupMessage = 'Setup refresh timed out. Waiting for fresh evidence.'
+      else self.commandMessage = 'If you pressed a run or workflow button, its outcome is unknown until status refreshes.' end
       self.nextPoll = self.now + 2
     end
     if not self.busy and self.token and self.now >= self.nextPoll then self:poll() end

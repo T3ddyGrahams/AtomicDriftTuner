@@ -4,6 +4,14 @@ Introduced in development preview 1 and included in public beta **0.9.0-preview.
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.
 
+## Current setup capture and live evidence — local preview.14
+
+With the updated CSP companion paired, Recorder can snapshot the current setup's numeric VALUE fields, including supported unsaved pit edits, without a manual file attachment. Capture is read-only and requires a compatible CSP version and verified live car/track. The saved tune stores the values, a canonical numeric fingerprint, source, layout and receipt time; raw INI metadata and pairing credentials are not saved. Manual attachment remains available. Use the same capture method and field coverage for both runs.
+
+The short recording guide uses the existing diagnosis and the goals saved with the run: collect useful drift, add goal-relevant entries/transitions/complete angle attempts, then stop and save when ready. More details are expandable in desktop ADT, the companion and the touchscreen. Background analysis is throttled; long recordings retain all samples even when live progress updates pause. Evidence readiness is not an improvement verdict.
+
+Existing phase, pedal, gearing and Desired Behavior calculations remain in place. The added quality guards apply when an automatically captured setup changes or monitoring is lost during a run: measurements and the immutable starting snapshot are preserved, while confident tuning, guided advancement and improvement attribution require a fresh run. Before/after scoring and driver feedback remain separate. Capture observes periodically, so changes reversed between observations may go unseen. Real CSP/mod-car acceptance, especially unsaved pit edits, still needs driving validation.
+
 ## First-run choices and guidance — local preview.12
 
 Setup now asks **Car tuning only** or **Car + FFB**. Car-only keeps FFB fixed and skips FFB preparation and optional connection questions. Combined also explains manual FFB entry or supported SimHub/AZOM live control. Both use the same underlying telemetry diagnosis, Desired Behavior, confidence rules, comparison checks and immutable history. The selected workflow focuses the suggested test; it does not remove raw evidence or rewrite earlier runs.

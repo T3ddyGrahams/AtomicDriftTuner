@@ -105,9 +105,9 @@ public partial class MainWindow
                 : !context.RecorderMatches ? "In desktop ADT, open Telemetry Recorder for this car and driver once. Saved findings remain available here."
                 : !planReady ? "Finish choosing the car, saving goals and preparing the starting tune in desktop ADT."
                 : !CompanionContextMatches() ? "The selected test or driver changed. Prepare the next run here before starting it."
-                : preparation?.SetupAvailable != true ? "Attach the setup actually loaded in AC using the desktop recorder, then return here. ADT cannot detect the loaded .ini automatically."
+                : preparation?.SetupAvailable != true ? "Wait for current setup capture from the updated companion, or attach the loaded setup manually in the desktop recorder."
                 : preparation.Conditions.Length == 0 ? "Enter the conditions and driving task in the desktop recorder, then return here."
-                : !state.TuneConfirmed ? "Load the attached setup in AC, check the displayed confirmation, then confirm here. Nothing is applied automatically."
+                : !state.TuneConfirmed ? "Check the current setup and the displayed confirmation, then confirm here. Nothing is applied automatically."
                 : state.Report?.ReviewSaved == true ? "Your rating is saved separately from the measured result. Keep/revert decisions do not apply settings."
                 : "Prepared. Record, stop and save; then read findings here before choosing your next test.";
             state.ControlVersion = CompanionWorkflowPresentation.Version(new
@@ -142,7 +142,7 @@ public partial class MainWindow
                     if (!_telemetryWindow!.CompanionPlanMatches(preparedPlan)) _telemetryWindow.UseRecordingPlan(preparedPlan, force: true);
                     // A repeat of the same plan still requires fresh confirmation of what is loaded.
                     _telemetryWindow.TuneInUseCheck.IsChecked = false;
-                    message = "Recording plan prepared. Attach any changed setup in desktop ADT, load it in AC, then confirm here.";
+                    message = "Recording plan prepared. Make the change in AC, wait for current setup capture (or attach the file manually), then confirm here.";
                     break;
                 case "confirm":
                     _telemetryWindow!.ConfirmCompanionPreparation();
@@ -157,7 +157,7 @@ public partial class MainWindow
                         CompanionWorkflowPresentation.RecommendationId(_companionWorkflowRun!.Session.Id, r) == command.RecommendationId);
                     HandleRecommendation(context.Input, _companionWorkflowRun!, recommendation.Domain + ": " + recommendation.Change);
                     _telemetryWindow!.UseRecordingPlan(CompanionRecordingPlan(_workflow.Journey(context.Input, context.Driver.Id), context.Driver, context.Preferences), force: true);
-                    message = "Test planned against this exact baseline. Make the chosen change, attach the actual setup in desktop ADT, then confirm before recording.";
+                    message = "Test planned against this exact baseline. Make the chosen change, wait for current setup capture (or attach it manually), then confirm before recording.";
                     break;
                 case "review":
                     var runContext = _companionWorkflowRun!.Session.Context!;

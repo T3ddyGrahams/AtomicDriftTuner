@@ -14,8 +14,8 @@ internal static class CompanionInstallationChecks
             var other = Path.Combine(game, "apps", "lua", "AnotherApp", "app.lua");
             Directory.CreateDirectory(Path.GetDirectoryName(other)!); File.WriteAllText(other, "keep other mod");
             var result = new CompanionInstallationService(() => false).Install(game, source);
-            Check(result.ChangedFiles == 4 && result.BackupFolder is null, "First install did not report four new files");
-            Check(Directory.GetFiles(result.Folder).Length == 4, "Installer copied an unlisted file");
+            Check(result.ChangedFiles == 5 && result.BackupFolder is null, "First install did not report five new files");
+            Check(Directory.GetFiles(result.Folder).Length == 5, "Installer copied an unlisted file");
             Check(File.ReadAllText(other) == "keep other mod", "Installer changed another app");
             foreach (var name in CompanionInstallationService.FileNames)
                 Check(File.ReadAllBytes(Path.Combine(result.Folder, name)).SequenceEqual(File.ReadAllBytes(Path.Combine(source, name))), "Installed bytes differ: " + name);
@@ -45,9 +45,15 @@ internal static class CompanionInstallationChecks
             var service = new CompanionInstallationService(() => false);
             foreach (var invalid in new string?[] { null, "", "relative-game", source })
                 Reject(() => service.Install(invalid, source), "Invalid AC root accepted");
-            File.Delete(Path.Combine(source, "manifest.ini"));
-            Reject(() => service.Install(game, source), "Incomplete package accepted");
-            Check(!Directory.Exists(Path.Combine(game, "apps")), "Failed validation wrote into the game");
+            foreach (var missing in new[] { "manifest.ini", "setup_capture.lua" })
+            {
+                var path = Path.Combine(source, missing);
+                var bytes = File.ReadAllBytes(path);
+                File.Delete(path);
+                Reject(() => service.Install(game, source), "Incomplete package accepted: " + missing);
+                Check(!Directory.Exists(Path.Combine(game, "apps")), "Failed validation wrote into the game");
+                File.WriteAllBytes(path, bytes);
+            }
         });
 
         run("companion installation leaves a running driving session untouched", () =>

@@ -1,5 +1,6 @@
 local createClient = require('companion_client')
-local client = createClient(web.request, JSON.stringify, JSON.parse)
+local setupCapture = require('setup_capture')(ac)
+local client = createClient(web.request, JSON.stringify, JSON.parse, function() return setupCapture:capture() end)
 local preferences = ac.storage({ port = '5190' })
 local port, code = preferences.port, ''
 local accent, good, warning = rgbm(0.1, 0.85, 0.95, 1), rgbm(0.4, 0.9, 0.55, 1), rgbm(1, 0.75, 0.3, 1)
@@ -58,6 +59,11 @@ local function recordTab(status, w)
   ui.textColored(string.upper(value(r.state, 'unprepared')), r.state == 'recording' and accent or warning)
   ui.text(string.format('%.1f s  |  %d samples', tonumber(r.elapsedSeconds) or 0, tonumber(r.samples) or 0))
   paragraph('', r.message)
+  if type(r.evidence) == 'table' then
+    paragraph('', r.evidence.message)
+    ui.treeNode('Recording evidence details', function() paragraph('', r.evidence.details) end)
+  end
+  paragraph('', r.setupMessage)
   button('Start recording', client:fresh() and r.canStart == true, function() client:command('start') end)
   button('Stop recording', client:fresh() and r.canStop == true, function() client:command('stop') end)
   button('Save session', client:fresh() and r.canSave == true, function() client:command('save') end)
@@ -101,7 +107,7 @@ local function findingsTab(w)
   workflowButton('Read saved run', 'findings')
   local report = w.report
   if type(report) ~= 'table' then
-    ui.textWrapped('Stop and save a run, then choose Read saved run. Initial setup, file attachments and driving conditions are prepared in desktop ADT.')
+    ui.textWrapped('Stop and save a run, then choose Read saved run. Initial setup, manual attachments and driving conditions are prepared in desktop ADT.')
     return
   end
   paragraph('Run: ', report.sessionId)
@@ -123,7 +129,7 @@ local function findingsTab(w)
     workflowButton('Plan this test##plan' .. i, 'plan', {sessionId = report.sessionId, recommendationId = recommendation.id})
     ui.separator()
   end
-  ui.textWrapped('Planning saves the test and prepares its recording details. Apply the change yourself, update the setup attachment in desktop ADT, then confirm the settings before driving again.')
+  ui.textWrapped('Planning saves the test and prepares its recording details. Apply the change yourself, wait for current setup capture or update the manual attachment in desktop ADT, then confirm the settings before driving again.')
 end
 
 local function compareTab(w)
@@ -148,6 +154,12 @@ local function compareTab(w)
     for _, limitation in ipairs(type(comparison.limitations) == 'table' and comparison.limitations or {}) do
       paragraph('• ', limitation)
     end
+    ui.treeNode('Captured setup changes', function()
+      local changes = type(comparison.setupChanges) == 'table' and comparison.setupChanges or {}
+      for _, change in ipairs(changes) do paragraph('', change) end
+      ui.textWrapped(#changes == 0 and 'No numeric setup differences are listed for this comparison.'
+        or 'Stored setup VALUE units can differ from game display units. Desktop ADT shows the complete tune comparison; this list shows up to 64 changes.')
+    end)
   end
   if report.reviewSaved == true then ui.textColored('Review saved in ADT.', good) end
   if w.canSaveReview ~= true then
@@ -168,10 +180,10 @@ local function compareTab(w)
 end
 
 local function helpTab(status, w)
-  ui.textWrapped('1. Set up your workflow, rig, car and goals in desktop ADT. Prepare driver, conditions and the setup file you actually loaded in AC.')
+  ui.textWrapped('1. Set up your workflow, rig, car and goals in desktop ADT. Prepare driver and conditions. Pair the updated companion for current setup capture, or attach the loaded setup manually.')
   ui.textWrapped('2. Record: check the context, start, drive, stop, then save. Stop alone does not save.')
   ui.textWrapped('3. Findings: read the saved run and plan one supported test. If evidence is weak, repeat the drive first.')
-  ui.textWrapped('4. Make the chosen change, load it in AC, and update the setup attachment in desktop ADT. Confirm the recording plan, then record a comparable second run.')
+  ui.textWrapped('4. Make the chosen change, load it in AC, and wait for current setup capture or update the manual attachment in desktop ADT. Confirm the recording plan, then record a comparable second run.')
   ui.textWrapped('5. Compare: read the measured result and limitations, add your own rating and save the review.')
   ui.separator()
   paragraph('', status.completion)
@@ -180,7 +192,7 @@ local function helpTab(status, w)
   if w then paragraph('', w.comingNext) end
   ui.textWrapped('Keep desktop ADT and its Remote server open; minimizing is fine. SimHub is not required for AC recording. Hiding this panel does not stop a run.')
   ui.textWrapped('After a connection timeout, check the refreshed recorder and review status before trying again. Commands are never repeated automatically.')
-  ui.textWrapped('Companion 0.2.0-preview.1. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
+  ui.textWrapped('Companion 0.3.0-preview.1. Automatic setup capture: desktop ADT 0.9.0-preview.14 or newer. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
   button('Disconnect / pair again', true, function() client:forget(); confirm = false end)
 end
 

@@ -108,7 +108,7 @@ public partial class TuningAssistantWindow : Window
     private void TuneHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_bindingHistory || TuneHistoryBox.SelectedItem is not TuneVersion tune) return;
-        TuneHistoryText.Text = $"{tune.DisplayName}\n{tune.Source}\nAttached AC setup: {(tune.SetupFileName.Length == 0 ? "none" : tune.SetupFileName)}. Values below are this immutable snapshot.";
+        TuneHistoryText.Text = $"{tune.DisplayName}\n{tune.Source}\nAC setup snapshot: {(tune.SetupFileName.Length == 0 ? "none" : tune.SetupFileName)}. Values below are this immutable snapshot; setup VALUE units can differ from game display units.";
         TuneChangesGrid.ItemsSource = tune.Settings.Select(p => new AssistantComparisonRow { Metric = p.Key, Previous = $"{p.Value:0.###}", Current = "—",
             Interpretation = p.Key.StartsWith("ACSetup.", StringComparison.Ordinal) ? "Captured AC setup-file value" : "Generated ADT target, not a live measurement" }).ToList();
     }

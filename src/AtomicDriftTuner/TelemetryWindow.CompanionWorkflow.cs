@@ -12,6 +12,15 @@ public partial class TelemetryWindow
     internal CompanionPreparation GetCompanionPreparation()
     {
         Dispatcher.VerifyAccess();
+        RefreshSetupCapture();
+        if (AutomaticSetup)
+        {
+            var current = FreshSetup();
+            return new(ConditionsBox.Text.Trim(), current is null ? "Automatic capture waiting" : "Current CSP setup",
+                current?.Sha256 ?? "", RecorderConfirmationText.Text, TuneInUseCheck.IsChecked == true && current is not null,
+                current is not null, _recording || !_sessionSaved && _session.Samples.Count > 0,
+                (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id ?? "");
+        }
         var fingerprint = "";
         if (!string.IsNullOrWhiteSpace(_setupSnapshotPath) && File.Exists(_setupSnapshotPath))
         {
@@ -57,7 +66,7 @@ public partial class TelemetryWindow
         var preparation = GetCompanionPreparation();
         if (preparation.Busy) throw new InvalidOperationException("Stop and save the captured run before changing its preparation.");
         if (!preparation.SetupAvailable || preparation.Conditions.Length == 0)
-            throw new InvalidOperationException("In desktop ADT, attach the setup actually loaded in AC and enter your conditions first.");
+            throw new InvalidOperationException("Wait for current setup capture or attach the setup manually, and enter your conditions in desktop ADT first.");
         TuneInUseCheck.IsChecked = true;
         _companionRevision++;
     }

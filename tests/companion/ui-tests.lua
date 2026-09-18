@@ -4,7 +4,10 @@ local activeTab, childDepth, requests, children, count = 'Record', 0, {}, {}, 0
 local enabled, notesInput = {}, nil
 local preferences
 local function check(value, message) assert(value, message); count=count+1 end
-require = function(name) assert(name=='companion_client'); return create end
+require = function(name)
+  if name=='setup_capture' then return assert(loadfile(arg[3]))() end
+  assert(name=='companion_client'); return create
+end
 ac = {storage=function(defaults) preferences=defaults; return preferences end}
 JSON = {stringify=function(x) return x end, parse=function(x) return x end}
 rgbm = function(...) return {...} end
@@ -54,7 +57,9 @@ local function state(withWorkflow)
     nextStep='Record baseline',instructions='Drive the same section',details='Extra explanation',
     completion='Ready when: Save Session completed',progress='Car > Goals > Prepare > Baseline',
     recorder={car='Test Car',driver='Driver',state='ready',canStart=true,canStop=false,canSave=false,
-      windowId='w',sessionId='s',controlVersion='v',elapsedSeconds=10.5,samples=125}}
+      windowId='w',sessionId='s',controlVersion='v',elapsedSeconds=10.5,samples=125,
+      setupMessage='Current setup captured from CSP: 8 numeric values.',
+      evidence={message='Collecting useful drift: 10 / 20 s.',details='Missing time is excluded.'}}}
   if withWorkflow then s.workflow={protocolVersion=1,controlVersion=string.rep('a',64),available=true,
     focus='Car tuning only',car='Test Car',driver='Driver',conditions='Dry, solo transitions',setupName='Baseline.ini',
     confirmationText='I loaded this setup and kept FFB fixed.',comingNext='Next: read findings',
@@ -62,7 +67,7 @@ local function state(withWorkflow)
     report={sessionId='run-b',baselineSessionId='run-a',goal='Sustain more angle',noticed='Longer hold',
       confidence='Worth testing',instruction='Test one change',why='Repeated evidence',
       recommendations={{id='test-1',domain='Rear grip',change='One small supported change',why='Repeated rear slip',confidence='MEDIUM',canSelect=true}},
-      comparison={verdict='Tradeoff',summary='More angle; less speed.',comparable=true,limitations={'Different pedal use can affect the comparison.'}}}}
+      comparison={verdict='Tradeoff',summary='More angle; less speed.',comparable=true,setupChanges={'CAMBER_LF: -30 → -25 (+5)'},limitations={'Different pedal use can affect the comparison.'}}}}
   end
   return s
 end
@@ -77,6 +82,7 @@ check(pending.body.code=='123456','pairing UI not wired')
 reply({ok=true,token=string.rep('t',32)}); script.update(0.1); reply(state(true))
 local joined=draw()
 check(joined:find('Test Car') and joined:find('Record baseline') and joined:find('AC TELEMETRY: LIVE'),'status/guidance missing')
+check(joined:find('Collecting useful drift') and joined:find('Missing time is excluded') and joined:find('captured from CSP'),'live setup/evidence guidance missing')
 check(joined:find('Ready when:') and joined:find('Next: read findings') and joined:find('Car tuning only') and joined:find('Baseline.ini'),'workflow/readiness/context missing')
 check(children.adtRecord and not enabled['Confirm these settings'],'record pane not scrollable or confirmation preselected')
 draw('Confirm these settings')
@@ -102,6 +108,7 @@ check(pending.body.controlVersion==string.rep('a',64),'plan lacks authoritative 
 refresh()
 joined=draw(nil,'Compare')
 check(children.adtCompare and joined:find('Tradeoff') and joined:find('Different pedal use') and joined:find('More angle; less speed.'),'comparison/limitations missing')
+check(joined:find('CAMBER_LF') and joined:find('display units'),'captured setup changes or units explanation missing')
 check(not enabled['Save run review'],'review enabled without rating')
 draw('Better'); draw('Keep and verify'); notesInput=string.rep('n',2001)
 joined=draw('Save run review')

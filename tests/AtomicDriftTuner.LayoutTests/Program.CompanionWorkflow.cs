@@ -47,6 +47,7 @@ internal static partial class Program
             Check(unpreparedState.Available && !unpreparedState.CanPrepare, "workflow without a recorder did not require desktop preparation: " + unpreparedState.Message);
             Check(State().ControlVersion == State().ControlVersion, "unchanged status polls invalidated the command version");
             recorder = new TelemetryWindow(input, hub);
+            ((CheckBox)recorder.FindName("UseAutomaticSetupCheck")).IsChecked = false; // Exercise the manual attachment fallback.
             Set(recorder, "_history", history);
             Set(Get(recorder, "_sessionStore"), "<RootDirectory>k__BackingField", sessions.RootDirectory);
             Set(main, "_telemetryWindow", recorder); Call(main, "TrackEmbeddedContext", recorder, input);

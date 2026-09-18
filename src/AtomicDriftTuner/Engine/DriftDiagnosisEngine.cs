@@ -161,6 +161,8 @@ public sealed class DriftDiagnosisEngine
         d.QualityNotes.Add($"{d.InvalidSamples} invalid frames; {d.Discontinuities} continuity breaks; {d.ExcludedSeconds:0.0}s excluded (pit limiter, AI/reverse, off-track or impact evidence).");
         if (!session.Samples.Any(s => s?.HasExtendedSignals == true)) d.QualityNotes.Add("Legacy recording: pit limiter, AI, off-track and damage signals were not captured.");
         if (session.Context?.Interrupted == true) d.QualityNotes.Add("Recording was interrupted; improvement attribution is disabled.");
+        if (!string.IsNullOrEmpty(session.Context?.SetupCaptureIssue))
+            d.QualityNotes.Add(session.Context.SetupCaptureIssue + " Record a fresh run with a fixed setup before testing a recommendation.");
         if (d.TimelineReset) d.QualityNotes.Add("Recording time or packet sequence restarted. Later frames were ignored; record a fresh uninterrupted run.");
         d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events, driftLimit);
         if (d.AngleGoal.Enabled) d.QualityNotes.Add(d.AngleGoal.Summary);
@@ -179,7 +181,7 @@ public sealed class DriftDiagnosisEngine
     }
 
     public static bool Reliable(TelemetrySession session, TelemetryAnalysis analysis) =>
-        !analysis.Diagnosis.TimelineReset && session.Context?.Interrupted != true && analysis.EffectiveSampleRateHz >= 15 &&
+        !analysis.Diagnosis.TimelineReset && session.Context?.Interrupted != true && string.IsNullOrEmpty(session.Context?.SetupCaptureIssue) && analysis.EffectiveSampleRateHz >= 15 &&
         analysis.Diagnosis.InvalidSamples <= session.Samples.Count * .1 &&
         analysis.Diagnosis.Discontinuities <= Math.Max(1, analysis.DurationSeconds / 10);
 

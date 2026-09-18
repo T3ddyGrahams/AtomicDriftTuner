@@ -25,7 +25,9 @@ public static class CompanionWorkflowPresentation
         Comparison = new()
         {
             Comparable = report.Outcome.Comparable, Verdict = report.Outcome.Verdict,
-            Summary = report.Outcome.Summary, Limitations = report.Outcome.Limitations.ToList()
+            Summary = report.Outcome.Summary, Limitations = report.Outcome.Limitations.ToList(),
+            SetupChanges = report.Outcome.TuneChanges.Where(c => c.Metric.StartsWith("ACSetup.", StringComparison.Ordinal))
+                .Take(64).Select(c => $"{c.Metric[8..]}: {c.Previous} → {c.Current} ({c.Change})").ToList()
         }
     };
 

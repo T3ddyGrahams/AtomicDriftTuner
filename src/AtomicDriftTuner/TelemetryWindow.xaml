@@ -75,11 +75,14 @@
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Track layout, conditions and driving task (reuse the same description for comparable runs)" TextWrapping="Wrap" Margin="0,8,0,2"/>
                     <TextBox x:Name="ConditionsBox" MaxLength="240" AutomationProperties.Name="Conditions and driving task"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="RunTrackText" Text="Track is captured from the active AC session when recording starts." TextWrapping="Wrap" Margin="0,5"/>
+                    <CheckBox x:Name="UseAutomaticSetupCheck" IsChecked="True" Click="AutomaticSetup_Click" Margin="0,6" AutomationProperties.Name="Capture current setup through companion">
+                        <TextBlock Text="Capture the current car setup through the in-game companion" TextWrapping="Wrap" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}"/>
+                    </CheckBox>
                     <WrapPanel>
                         <Button x:Name="AttachSetupButton" Content="Attach AC Setup Snapshot..." Click="AttachSetup_Click"/>
                         <Button Content="Clear Attachment" Click="ClearSetupAttachment_Click"/>
                     </WrapPanel>
-                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SetupSnapshotText" Text="No AC setup attached. Generated ADT targets are captured; live hardware settings are not read." TextWrapping="Wrap"/>
+                    <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="SetupSnapshotText" Text="Pair the updated in-game companion for automatic capture, or attach a setup file manually. Hardware settings are not read automatically." TextWrapping="Wrap"/>
                     <CheckBox x:Name="TuneInUseCheck" Margin="0,8">
                         <TextBlock x:Name="RecorderConfirmationText" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="I confirm I am using these generated ADT targets and the attached setup, if any, for this run." TextWrapping="Wrap"/>
                     </CheckBox>
@@ -121,6 +124,10 @@
                                        FontSize="14"
                                        Margin="0,8,0,0"
                                        Text="No recording in progress."/>
+                            <TextBlock x:Name="EvidenceMessageText" Foreground="{DynamicResource PrimaryTextBrush}" Text="Start a run to see recording guidance." TextWrapping="Wrap" Margin="0,10,0,4"/>
+                            <Expander Header="Recording evidence details" Foreground="{DynamicResource SecondaryTextBrush}">
+                                <TextBlock x:Name="EvidenceDetailsText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                            </Expander>
                         </StackPanel>
                     </Border>
 

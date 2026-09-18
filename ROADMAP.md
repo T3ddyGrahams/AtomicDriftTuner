@@ -14,9 +14,9 @@ to:
 
 ADT is currently in public beta, so priorities may change as real-world testing exposes new problems and opportunities.
 
-Local preview.7 restores the combined workflow and adds the working `/dash` touchscreen route, an installable SimHub WebPageItem dashboard, paired recording controls, next-step guidance, large touch controls and persistent wheelbase edit fields. See [touchscreen setup](docs/TOUCHSCREEN.md). Desktop diagnosis and tuning calculations are unchanged. The broader Control Center ideas below remain future work where not explicitly listed as implemented; this local build has not been published.
+Local builds include the `/dash` touchscreen route, installable SimHub dashboard, paired recording controls and next-step guidance. Setup now offers **Car tuning only** or **Car + FFB** and remembers each Windows user's chosen rig/car. See [touchscreen setup](docs/TOUCHSCREEN.md) and [guided workflow](docs/GUIDED_WORKFLOW.md). These features do not change the public preview.3 release.
 
-Local companion preview: desktop **0.9.0-preview.4** and **ADT Companion 0.1.0-preview.1** add CSP in-game recording controls, connection status and Your Next Step. See [installation and test guidance](docs/COMPANION.md). This is a local test build; public preview 3 remains the released beta. Content Manager installation and in-game/live-driving acceptance remain pending.
+Local companion preview: desktop **0.9.0-preview.14** and **ADT Companion 0.3.0-preview.1** include Record/Findings/Compare/Help, one-test planning, saved feedback and read-only current-setup capture. CSP's current-setup serializer includes unsaved pit edits according to the installed SDK; actual game acceptance is still pending. Setup checks are periodic at roughly 1 Hz with five-second freshness, not continuous verification. Lost/changed evidence keeps the recording but prevents a setup improvement claim. Manual attachments remain available; car/FFB values are never applied by capture or review. Next work is the [installation and live-driving checklist](docs/COMPANION.md), especially unsaved edits, session changes, reconnects and supported CSP versions.
 
 September 11 release update: **0.9.0-preview.3** brings phase-aware telemetry diagnosis, Desired Behavior-linked run/tune history, adaptive SimHub/AZOM setup, Your Next Step guidance and 72 appearance color roles into the public beta. The maintainer chose to release before full hands-on/live-driving acceptance. Automated validation passed 167 theme assertions, 252 layout assertions and 50 regression scenarios; final portable startup/close and package checks also passed. Next priority is field feedback using the [release checklist](docs/testing/v0.9.0-preview.3-checklist.md) and [compatibility tracker](docs/testing/v0.9.0-preview.3-compatibility.md). See [release notes](docs/releases/v0.9.0-preview.3.md), [guided workflow](docs/GUIDED_WORKFLOW.md), [telemetry intelligence](docs/TELEMETRY_INTELLIGENCE.md) and [Appearance](docs/APPEARANCE.md). This release does not train a model or prove tuning causation.
 
@@ -54,7 +54,7 @@ The current priority is proving ADT with real drivers, hardware, cars, and drift
 
 Tester Program
 
-Current round: [v0.8.3-beta.1 testing checklist](docs/testing/v0.8.3-beta.1-checklist.md) and [compatibility tracker](docs/testing/v0.8.3-beta.1-compatibility.md). The tracker separates untested configurations from reviewed, feature-specific results.
+Current public round: [v0.9.0-preview.3 testing checklist](docs/testing/v0.9.0-preview.3-checklist.md) and [compatibility tracker](docs/testing/v0.9.0-preview.3-compatibility.md). The tracker separates untested configurations from reviewed, feature-specific results. Local preview.14 companion acceptance is tracked by the checklist in [COMPANION.md](docs/COMPANION.md).
 
 Build a more organized testing process including:
 
@@ -337,19 +337,7 @@ Existing ADT functionality should remain intact throughout the redesign.
 
 First-Run Experience
 
-Create a guided setup process for new users.
-
-Potential flow:
-
-1. Locate Assetto Corsa
-2. Configure SimHub
-3. Select wheelbase
-4. Select rim
-5. Verify bridge
-6. Test telemetry
-7. Select car
-8. Run calibration
-9. Start first session
+Implemented in local builds: a choice of car-only or car + FFB, optional SimHub/AZOM questions, explicit rig/car selection, saved goals and a start-to-finish walkthrough with optional extra explanations. New users no longer inherit hard-coded rig/car defaults. Remaining work is to validate that newcomers can complete the flow on their own and improve the steps where they get stuck.
 
 The objective is for a new user to successfully configure ADT without developer assistance.
 
@@ -386,11 +374,11 @@ ADT should teach the driver rather than simply output numbers.
 
 ⸻
 
-🔵 Planned — ADT Control Center
+🔵 Partly Implemented — ADT Control Center
 
 SimHub Dash Studio / Touchscreen Interface
 
-Create an ADT Control Center designed for use through SimHub Dash Studio on a touchscreen.
+The local touchscreen already supports connection/context, live telemetry, start/stop/save and next-step guidance. The local CSP companion additionally supports findings, planning one test, comparison feedback and read-only current-setup capture. The remaining ideas below are future work unless explicitly implemented; accepting a plan or saving a review currently applies no settings.
 
 Potential information:
 

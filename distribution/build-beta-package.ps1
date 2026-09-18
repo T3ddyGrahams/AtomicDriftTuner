@@ -189,7 +189,7 @@ foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELE
 $companionPayload = Join-Path $staging "CompanionPayload"
 $companionApp = Join-Path $companionPayload "apps\lua\ADTCompanion"
 New-Item -ItemType Directory -Path $companionApp -Force | Out-Null
-foreach ($name in @("ADTCompanion.lua", "companion_client.lua", "manifest.ini", "icon.png")) {
+foreach ($name in @("ADTCompanion.lua", "companion_client.lua", "setup_capture.lua", "manifest.ini", "icon.png")) {
     $source = Join-Path $repo "companion\apps\lua\ADTCompanion\$name"
     if ((Get-Item -LiteralPath $source).Attributes -band [IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to package a linked companion file: $source"

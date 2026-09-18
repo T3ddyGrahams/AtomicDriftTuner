@@ -13,6 +13,14 @@ internal static class AssistantNextStepBuilder
             Noticed = "No clear, repeated issue stands out from this run.",
             Instruction = "Keep this setup. If you test a change, change one thing and record the same section again.",
             Confidence = "No change justified yet", ActionLabel = "Back to dashboard" };
+        if (!string.IsNullOrEmpty(selected.Session.Context?.SetupCaptureIssue))
+        {
+            next.Noticed = "The current setup changed or could no longer be monitored during this recording.";
+            next.Instruction = "Keep the setup fixed, restore automatic capture or attach the setup manually, then record a fresh run.";
+            next.Confidence = "Fresh setup evidence needed";
+            next.Why = selected.Session.Context.SetupCaptureIssue;
+            return next;
+        }
         if (report.OverallConfidence == AssistantConfidence.Low)
         {
             next.Noticed = "This run does not yet give us enough reliable evidence for a setup recommendation.";

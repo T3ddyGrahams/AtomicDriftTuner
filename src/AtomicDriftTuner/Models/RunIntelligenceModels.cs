@@ -20,6 +20,9 @@ public sealed class TuneVersion
     public SortedDictionary<string, double> Settings { get; set; } = new(StringComparer.Ordinal);
     public string SetupFileName { get; set; } = "";
     public string SetupSha256 { get; set; } = "";
+    public string SetupSource { get; set; } = "";
+    public string SetupTrackLayout { get; set; } = "";
+    public DateTime? SetupCapturedUtc { get; set; }
     public string Source { get; set; } = "Generated ADT recommendation; live hardware values are not read";
     public string DisplayName => $"{CreatedUtc.ToLocalTime():g} • {Label} • {Id[..Math.Min(8, Id.Length)]}";
     public override string ToString() => DisplayName;
@@ -36,6 +39,7 @@ public sealed class RunContext
     public bool CarIdentityVerified { get; set; }
     public bool TuneConfirmedInUse { get; set; }
     public bool Interrupted { get; set; }
+    public string SetupCaptureIssue { get; set; } = "";
     public TuneVersion? Tune { get; set; }
     public string RecommendationSessionId { get; set; } = "";
     public List<string> TestedRecommendations { get; set; } = [];

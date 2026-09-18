@@ -11,6 +11,7 @@ public sealed partial class RemoteServerService
     public Func<CancellationToken, Task<CompanionStatus>>? CompanionStatusHandler { get; set; }
     public Func<CompanionCommand, CancellationToken, Task<RemoteActionResponse>>? CompanionCommandHandler { get; set; }
     public Func<CompanionWorkflowCommand, CancellationToken, Task<RemoteActionResponse>>? CompanionWorkflowCommandHandler { get; set; }
+    public Func<LiveSetupCaptureRequest, CancellationToken, Task<RemoteActionResponse>>? CompanionSetupHandler { get; set; }
     private readonly SemaphoreSlim _companionCommandGate = new(1, 1);
 
     private void MapCompanionEndpoints(WebApplication app)
@@ -19,6 +20,7 @@ public sealed partial class RemoteServerService
         // Browser access is still restricted to paired private-network clients by middleware.
         MapRecorderEndpoints(app, "/api/companion", localOnly: true, "In-game companion");
         MapRecorderEndpoints(app, "/api/control", localOnly: false, "Touchscreen");
+        MapSetupCaptureEndpoint(app);
     }
 
     private void MapRecorderEndpoints(WebApplication app, string prefix, bool localOnly, string source)

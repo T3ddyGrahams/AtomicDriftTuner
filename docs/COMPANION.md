@@ -1,8 +1,8 @@
 # In-game companion workflow preview
 
-The optional CSP Lua app provides **Record**, **Findings**, **Compare** and **Help** tabs. Companion `0.2.0-preview.1` with desktop `0.9.0-preview.13` can prepare the current recording plan, explicitly confirm settings in use, record/stop/save, request saved-run findings, plan one supported recommendation and save comparison feedback. Desktop ADT stays authoritative for recording, analysis, storage and driver/car context. No tuning/diagnosis algorithms or wheelbase-write paths are changed by this extension.
+The optional CSP Lua app provides **Record**, **Findings**, **Compare** and **Help** tabs. Companion `0.3.0-preview.1` with desktop `0.9.0-preview.14` adds read-only capture of the current CSP setup to recording-plan preparation, explicit confirmation, record/stop/save, saved-run findings, one-test planning and comparison feedback. Desktop ADT stays authoritative for recording, analysis, storage and driver/car context. Tuning calculations and recommendation ranking are unchanged.
 
-See [installation and testing instructions](../companion/README.md). Build the CM-installable ZIP with `distribution/build-companion.ps1`; build desktop preview.13 with the normal package script. Content Manager installs the Lua app; ADT remains a Windows application. Restart the driving session after updating the companion so CSP reloads its manifest and code.
+See [installation and testing instructions](../companion/README.md). Build the CM-installable ZIP with `distribution/build-companion.ps1`; build desktop preview.14 with the normal package script. Both the desktop portable and installer include the five-file app payload and CM ZIP. Install explicitly from **Remote → Install / Update Companion**, or use the CM ZIP. Restart the driving session after updating so CSP reloads its manifest and code.
 
 ## Connection and recorder contract
 
@@ -10,6 +10,7 @@ See [installation and testing instructions](../companion/README.md). Build the C
 - `GET /api/companion/status` retains protocol version 1, app version, telemetry freshness, next-step instructions/completion/progress and recorder capabilities. The additive `workflow` object has its own `protocolVersion: 1`, opaque `controlVersion`, context, readiness flags and cached report. Older desktops continue to support recording; the new tabs explain which update is needed.
 - `POST /api/companion/recording` accepts only `start`, `stop`, `save` plus the window ID, session ID and control version from the most recent status.
 - `POST /api/companion/workflow` accepts `prepare`, `confirm`, `findings`, `plan` or `review` with the latest workflow control version. `findings` names the exact saved session; `plan` also names its displayed recommendation; `review` names the report session and carries the explicit driver rating, next action and optional notes (maximum 2,000 characters). `confirm` requires an affirmative confirmation for the current plan.
+- `status.setupCapture`, when offered, carries protocol version 1, a fresh nonce and recorder window ID. The paired loopback companion reads CSP and posts the matching response to `POST /api/companion/setup`. The one-use challenge and live car/track checks prevent an old response from becoming current evidence for another recording.
 - Companion routes require a loopback caller and the existing pairing middleware. No browser CORS access is enabled. Commands are serialized, and stale recorder/plan versions are rejected before execution on the WPF dispatcher.
 - Start refuses unsaved recordings, stale telemetry and mismatched desktop car/rig/driver context. Driver, conditions, baseline, setup and tune-use confirmation come from the prepared desktop recorder. Stop/save can still finish the original recorder after a dashboard-context change.
 - Start/stop/save share the desktop recorder's implementation. Existing interruption handling, analysis, JSON/CSV save and guided progress callbacks are retained. Saving does not claim the run is sufficient to prove improvement.
@@ -17,20 +18,32 @@ See [installation and testing instructions](../companion/README.md). Build the C
 - The Lua client uses only `127.0.0.1`, polls at most once per second, keeps credentials in memory, disables all cached action buttons after a command, ignores late responses and never retries mutations automatically. A changed context or report cannot authorize a command from an old screen.
 - The four tab bodies and pairing/reconnection screens use CSP `ui.childWindow` with available space. Long instructions, evidence, limitations and controls scroll at the minimum 300 × 280 window size.
 
-Initial workflow/hardware/car/goals, setup file selection and conditions remain desktop tasks. Preparing/planning/confirming a recording never applies car or wheelbase settings. Keep/Revert in a review records the decision only. Full telemetry tables and older run history remain available in desktop ADT.
+Initial workflow/hardware/car/goals, manual setup-file selection and conditions remain desktop tasks. Automatic setup capture removes the file-attachment step only when supported fresh evidence is available. Preparing/planning/confirming a recording never applies car or wheelbase settings. Keep/Revert in a review records the decision only. Full telemetry tables and older run history remain available in desktop ADT.
+
+## Read-only current-setup evidence
+
+The companion calls CSP `ac.stringifyCurrentSetup(false, false)` for all current values without metadata. According to the installed SDK, this includes unsaved pit edits; `INIConfig.currentSetup()` is not used as a substitute because it represents the last loaded file. Real-game acceptance is pending, including supported CSP versions and mod cars. There is no setup-load, setup-save, spinner-write or wheelbase-write call in capture.
+
+The desktop parser accepts at most **64 KiB of UTF-8 INI** and **512 numeric VALUE sections**. It rejects malformed/duplicate sections or VALUE entries, nonfinite/out-of-range values and unknown/mismatched identity. The saved tune keeps sorted `ACSetup.SECTION` numbers, their canonical SHA-256, capture source, track layout and server receipt time; the run supplies car/track context. Session/capture counters remain transient monitoring data. Raw INI metadata, file paths, author names and transport tokens are not stored. The canonical numeric hash is distinct from the raw-file hash used by manual attachments; mixed automatic/manual captures require a fresh baseline using the same method.
+
+Captures are periodic at roughly **1 Hz**, with a **five-second freshness limit**, rather than continuously verified. Supported unsaved changes should appear in the next fresh capture. Changes reversed between observations can go unseen. A detected setup/session change or loss of fresh capture during recording keeps all samples and the immutable starting snapshot, but invalidates confirmation of that setup for the whole run. The saved limitation prevents an improvement claim; renewed capture does not erase the gap. Setup-capture loss alone does not stop telemetry sampling.
+
+Manual fallback remains **Telemetry Recorder → turn off Capture the current car setup through the in-game companion → Attach AC Setup Snapshot...**. A manual file cannot represent later unsaved pit changes. Neither route verifies live FFB/wheelbase values: the driver must still confirm unchanged FFB for car-only, or the intended targets for car + FFB. Provisional recording-progress guidance is separate from the saved analysis and improvement verdict. A detected mid-run setup change or monitoring loss also keeps calibration and guided tuning pending until a fresh run; the underlying measured telemetry remains inspectable.
 
 ## Test focus
 
-1. Install the ZIP through CM; launch a new session, find all four tabs and pair with desktop preview.13. Resize to the minimum size and scroll to the final action in each tab.
+1. Install/update all five app files through ADT or CM; launch a new session, find all four tabs and pair with desktop preview.14. Resize to the minimum size and scroll to the final action in each tab.
 2. With ADT minimized, start/stop/save a prepared run. Reopen it in desktop ADT and confirm car, driver, conditions, samples and saved JSON/CSV.
 3. Try start without a prepared recorder, without conditions, with AC offline, or while a previous run is unsaved. Confirm useful instructions and no discarded data.
 4. Double-click commands and regenerate pairing credentials. Confirm no duplicate runs/saves and a prompt to re-pair.
 5. Interrupt AC during a recording; confirm ADT retains partial evidence. Hide/reopen the panel while recording; the desktop recording should continue.
 6. Change desktop car/driver between runs and confirm the old recorder cannot start a new run under the wrong selection. Confirm Stop/Save still finish its existing recording.
 7. After a sufficiently clean baseline save, request Findings and compare the goal, confidence, reasons and recommendations to desktop ADT. Planning one test must not apply any settings.
-8. Update the setup actually loaded in AC, check the prepared context and explicitly confirm it. Save a second run, request Compare and verify the baseline, result and limitations against the desktop report.
+8. Change one supported pit value without saving an INI. Return to the live session and verify the captured value/fingerprint changes, while the actual setting remains untouched by ADT. Check the prepared context and explicitly confirm it. Save a second run, request Compare and verify the baseline, result and limitations against the desktop report.
 9. Save Better/Worse/No noticeable difference/Tradeoff feedback and a next action. Verify the saved desktop history preserves both the driver's rating and measured outcome, including disagreements. Confirm Keep/Revert does not write game/wheelbase settings.
 10. Repeat after a stale connection, double click and a lost response. No command should repeat automatically. Old desktops should retain recording controls without broken workflow buttons; missing or incompatible workflow data should show an update message.
+11. While recording, interrupt companion setup capture for longer than five seconds while retaining AC telemetry. Verify sampling continues, the setup limitation is saved and comparison cannot claim an improvement. Restore capture and verify the old run remains limited; start a fresh run for a clean test.
+12. Change setup, car, layout or session while observing capture, and test replay/pause/unsupported-CSP fallback. Stale/wrong-context replies must not confirm a new recording. Finally disable automatic capture and complete the manual saved-file path.
 
 ## API references
 

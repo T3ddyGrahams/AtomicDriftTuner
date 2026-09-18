@@ -149,15 +149,19 @@ public partial class TelemetryWindow : Window
             throw new InvalidOperationException("Choose a recommendation baseline recorded by this driver, or clear the baseline selection.");
         if (baseline is not null && baseline.Session.Context?.Focus != RecordingFocus)
             throw new InvalidOperationException("Choose a baseline recorded in this tuning mode, or clear the baseline selection.");
+        RefreshSetupCapture();
+        var capturedSetup = FreshSetup();
         var version = _history.CaptureTune(_input, driver, TuneLabelBox.Text, new CarBehaviorProfileStore().Load(_input),
-            _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), _setupSnapshotPath, new AppSettingsStore().Load().AzomPreferences, RecordingFocus);
+            _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), AutomaticSetup ? null : _setupSnapshotPath,
+            new AppSettingsStore().Load().AzomPreferences, RecordingFocus, capturedSetup);
+        _runSetup = capturedSetup;
         RunTrackText.Text = identity is null ? "Car/track identity unknown; this run cannot establish improvement." : $"Recorded track: {identity.Track} • Tune: {version.Label}";
         return new RunContext
         {
             Focus = RecordingFocus,
             DriverId = driver.Id, DriverName = driver.Name, TrackId = identity?.Track ?? "", Conditions = conditions,
             CarIdentityVerified = identity is not null && string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase),
-            Tune = version, TuneConfirmedInUse = TuneInUseCheck.IsChecked == true,
+            Tune = version, TuneConfirmedInUse = TuneInUseCheck.IsChecked == true && (!AutomaticSetup || capturedSetup is not null),
             RecommendationSessionId = baseline?.Session.Id ?? "",
             TestedRecommendations = TestedChangeBox.Text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList()
         };
@@ -168,6 +172,8 @@ public partial class TelemetryWindow : Window
         var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Select the AC setup used for this run", Filter = "AC setup (*.ini)|*.ini", CheckFileExists = true };
         if (dialog.ShowDialog() != true) return;
         _setupSnapshotPath = dialog.FileName;
+        UseAutomaticSetupCheck.IsChecked = false;
+        AutomaticSetup_Click(this, new RoutedEventArgs());
         SetupSnapshotText.Text = "Attached: " + Path.GetFileName(dialog.FileName) + ". Numeric values are snapshotted when recording starts.";
         TuneInUseCheck.IsChecked = false;
     }
@@ -175,6 +181,7 @@ public partial class TelemetryWindow : Window
     {
         _setupSnapshotPath = null; TuneInUseCheck.IsChecked = false;
         SetupSnapshotText.Text = "No AC setup attached. Generated ADT targets are captured; live hardware settings are not read.";
+        RefreshSetupCapture();
     }
     private void ClearRecommendationBaseline_Click(object sender, RoutedEventArgs e) => RecommendationRunBox.SelectedIndex = -1;
 
@@ -279,6 +286,8 @@ public partial class TelemetryWindow : Window
         CompareSavedRunButton.IsEnabled = false;
         _session = NewSession();
         _session.Context = context;
+        _setupNonce = "";
+        ResetLiveEvidence();
         RunCapturePanel.IsEnabled = false;
         _lastIdentityCheck = 0;
         _recordingSourceStart = null;
@@ -376,6 +385,7 @@ public partial class TelemetryWindow : Window
     {
         try
         {
+            MonitorSetupCapture();
             if (_recording && _clock.Elapsed.TotalSeconds - _lastIdentityCheck >= 1)
             {
                 _lastIdentityCheck = _clock.Elapsed.TotalSeconds;
@@ -421,6 +431,7 @@ public partial class TelemetryWindow : Window
                 "Return to driving; capture will resume automatically if telemetry recovers. Missing time is excluded from driving analysis.";
             RecordingText.Text = $"Elapsed             {elapsedSeconds,7:0.0} s\n" +
                 $"Samples             {_session.Samples.Count,7}\nCapture status       WAITING FOR TELEMETRY";
+            RenderEvidence();
             return;
         }
 
@@ -453,6 +464,7 @@ public partial class TelemetryWindow : Window
         captured.TimeSeconds -= _recordingSourceStart.Value;
         _session.Samples.Add(captured);
         _lastPacketId = sample.PacketId;
+        UpdateLiveEvidence(elapsedSeconds);
         RecordingText.Text = $"Elapsed             {elapsedSeconds,7:0.0} s\n" +
             $"Samples             {_session.Samples.Count,7}\n" +
             $"Current packet      {sample.PacketId,7}\n" +
@@ -520,6 +532,7 @@ public partial class TelemetryWindow : Window
         bool interrupted,
         string statusPrefix)
     {
+        RefreshSetupCapture();
         _recording =
             false;
         _companionRevision++;
@@ -530,6 +543,9 @@ public partial class TelemetryWindow : Window
         RunCapturePanel.IsEnabled = true;
         TuneInUseCheck.IsChecked = false;
         if (_session.Context is not null) _session.Context.Interrupted = interrupted;
+        if (interrupted) _evidence = _evidence with { State = "interrupted", ReadyToReview = false,
+            Message = "Recording interrupted. Save it, then start a fresh run." };
+        RenderEvidence();
 
         _clock.Stop();
 
@@ -587,6 +603,9 @@ public partial class TelemetryWindow : Window
             _analysis =
                 _analyzer.Analyze(
                     _session);
+
+            _evidence = RecordingEvidenceService.FromAnalysis(_session, _analysis);
+            RenderEvidence();
 
             RenderAnalysis(
                 _analysis);

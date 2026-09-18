@@ -15,7 +15,7 @@ let calls=[],offline=false,token='fixture-token',version=0,current=40,writeAllow
 let state='ready',canStart=true,canStop=false,canSave=false;
 let commandDelay=0;
 let dropCommandReply=false,carName='Example drift car';
-const recorder=()=>({windowId:'a'.repeat(32),sessionId:'fixture-run',controlVersion:version.toString(16).padStart(64,'0'),car:'Example drift car',driver:'Test driver',state,canStart,canStop,canSave,samples:state==='ready'?0:3000,elapsedSeconds:state==='ready'?0:75,message:state==='ready'?'Ready to record.':state==='recording'?'Recording in ADT.':state==='unsaved'?'Stop complete. Save your run.':'Session saved.'});
+const recorder=()=>({evidence:{message:'Enough evidence to review. Stop and save when ready.',details:'Useful drift: 25 seconds; final analysis remains authoritative.'},setupMessage:'Current setup captured from CSP: 8 numeric values.',windowId:'a'.repeat(32),sessionId:'fixture-run',controlVersion:version.toString(16).padStart(64,'0'),car:'Example drift car',driver:'Test driver',state,canStart,canStop,canSave,samples:state==='ready'?0:3000,elapsedSeconds:state==='ready'?0:75,message:state==='ready'?'Ready to record.':state==='recording'?'Recording in ADT.':state==='unsaved'?'Stop complete. Save your run.':'Session saved.'});
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
   const send=(status,value,type='application/json',headers={})=>{res.writeHead(status,{'Content-Type':type,...headers});res.end(type==='application/json'?JSON.stringify(value):value);};
@@ -106,6 +106,9 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   await page.waitForFunction(()=>document.getElementById('speed').textContent.includes('45'));
   check((await page.locator('#telemetryStatus').innerText()).includes('LIVE'),'Live telemetry status missing');
   await page.screenshot({path:path.join(output,'Touchscreen-1280.png'),fullPage:true});
+  check((await page.locator('#controlEvidence').textContent()).includes('Enough evidence to review'),'Evidence guidance missing');
+  check((await page.locator('#controlEvidenceDetails').textContent()).includes('final analysis'),'Expandable evidence missing');
+  check((await page.locator('#controlSetup').textContent()).includes('CSP'),'Setup status missing');
   commandDelay=700;
   await page.locator('#recordStart').tap();
   check(await page.locator('#recordStart').isDisabled(),'Double tap not blocked');
@@ -129,6 +132,7 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   offline=true;
   await page.waitForFunction(()=>document.getElementById('recordStart').disabled&&document.getElementById('connection').textContent.includes('Disconnected'));
   check(await page.locator('#recordStop').isDisabled()&&await page.locator('#recordSave').isDisabled(),'Offline recording actions remained active');
+  check((await page.locator('#controlEvidence').textContent())===''&&(await page.locator('#controlSetup').textContent())==='','Offline UI retained stale ready/setup evidence');
   offline=false;
   await page.waitForFunction(()=>!document.getElementById('recordStart').disabled);
   check(calls.length===3,'Reconnect repeated a command');

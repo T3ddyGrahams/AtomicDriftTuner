@@ -1,6 +1,8 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
-**Private preview.13:** The installer and portable build include ADT Companion **0.2.0-preview.1** for Content Manager / Custom Shaders Patch. Open **Remote → Install / Update Companion** to add it to the Assetto Corsa folder saved in Setup & Paths. Exit your driving session first; ADT backs up changed companion files and preserves other mods. Start Remote, launch a new AC session, open ADT Companion and pair with the code. See `CompanionPayload/README.md` for the complete in-game workflow and current testing limits. This build does not change the public preview.3 release.
+**Private preview.14:** The installer and portable build include ADT Companion **0.3.0-preview.1** for Content Manager / Custom Shaders Patch. Open **Remote → Install / Update Companion** to add it to the Assetto Corsa folder saved in Setup & Paths. Exit your driving session first; ADT backs up changed companion files and preserves other mods. Start Remote, launch a new AC session, open ADT Companion and pair with the code. This build adds read-only current-setup capture; supported CSP serialization includes unsaved pit edits according to the installed SDK. Actual in-game acceptance is still pending. See `CompanionPayload/README.md` for the workflow and checks. This build does not change the public preview.3 release.
+
+In **Telemetry Recorder**, leave **Capture the current car setup through the in-game companion** enabled to use fresh CSP evidence. Wait for the captured-setup status, check the selected car/driver and explicitly confirm the settings you intend to test. Capture does not read wheelbase settings or apply a tune. If it is unavailable, turn it off and use **Attach AC Setup Snapshot...** with the file actually loaded in AC. Setup monitoring is periodic at roughly 1 Hz with a five-second freshness limit. Lost or changed evidence does not discard the recording, but ADT cannot use it to claim a setup improvement.
 
 New users choose their own hardware, car and drift target. Setup asks **Car tuning only** or **Car + FFB**, then **Your Next Step** explains what to do now, when it is complete and what comes next. Short instructions are the default; enable **Show more explanation and examples** for extra help. ADT remembers selections for the current Windows user.
 
@@ -108,11 +110,11 @@ For telemetry-assisted recommendations:
 
 1. Follow **Your Next Step** to confirm the car/driver, save Desired Behavior and prepare a named baseline setup. Car-only keeps FFB fixed; Car + FFB also guides FFB preparation.
 2. Start Assetto Corsa and load that car, track and setup.
-3. Open **Telemetry Recorder**. Attach the exact setup file loaded in AC, enter the conditions/task and check the driver. Confirm the settings in use, then Connect.
+3. Open **Telemetry Recorder**, enter the conditions/task and check the driver. With automatic capture enabled, wait for fresh current-setup evidence from the companion; otherwise attach the exact setup file loaded in AC. Confirm the settings in use, then Connect.
 4. Record roughly 60–120 seconds with sustained drifts, transitions and normal corrections. Click **Stop → Save Session**. Stop alone does not save.
 5. Open **Tuning Assistant** and read **Your next step**. **Why this next step?** explains the evidence; the optional advanced view contains the full diagnosis.
 6. If ADT offers a supported recommendation, choose **Plan this test**, prepare that one change and load the new setup or verify the FFB settings. Keep Desired Behavior unchanged.
-7. Choose **Record Comparison Run**. Check the baseline, attach the setup now loaded in AC and describe the change. Repeat the same section under comparable conditions, then stop and save.
+7. Choose **Record Comparison Run**. Check the baseline, verify fresh capture of the changed setup (or update the manual attachment) and describe the change. Repeat the same section under comparable conditions, then stop and save.
 8. Open **Before / After**, then rate how it felt in **Tune & Run History**, add notes and choose **Save Run Review**. Keep, revert manually or test again based on the measured result and your feedback.
 
 SimHub and AZOM are not required for recording. ADT needs enough clean drifting for guided progress; short/interrupted runs remain available for inspection. An inconclusive comparison explains what prevented a fair result.

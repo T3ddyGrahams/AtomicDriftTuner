@@ -60,7 +60,8 @@ public sealed class RunHistoryStore
     }
 
     public TuneVersion CaptureTune(TuneInput input, DriverIdentity driver, string label, CarBehaviorTarget behavior,
-        CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null, TuningFocus focus = TuningFocus.Both)
+        CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null, TuningFocus focus = TuningFocus.Both,
+        CapturedCarSetup? capturedSetup = null)
     {
         Id(driver.Id);
         var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior), Focus = focus };
@@ -79,7 +80,19 @@ public sealed class RunHistoryStore
             Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
         }
         else version.Source = "Car setup snapshot; FFB settings held fixed by driver, no generated FFB targets claimed in use";
-        if (!string.IsNullOrWhiteSpace(setupPath))
+        if (capturedSetup is not null)
+        {
+            if (!string.Equals(capturedSetup.CarId, input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("The live setup belongs to another car.");
+            foreach (var value in capturedSetup.Values) version.Settings[value.Key] = value.Value;
+            version.SetupFileName = "Current CSP setup";
+            version.SetupSha256 = capturedSetup.Sha256;
+            version.SetupSource = capturedSetup.Source;
+            version.SetupTrackLayout = capturedSetup.TrackLayout;
+            version.SetupCapturedUtc = capturedSetup.ReceivedUtc;
+            version.Source += "; current CSP setup numeric VALUE fields (includes supported unsaved edits); periodic monitoring, not continuous physics verification";
+        }
+        else if (!string.IsNullOrWhiteSpace(setupPath))
         {
             var info = new FileInfo(setupPath);
             if (info.Length is <= 0 or > 2_000_000) throw new InvalidDataException("Choose an AC setup INI smaller than 2 MB.");
@@ -90,6 +103,7 @@ public sealed class RunHistoryStore
             foreach (var p in baseline.Parameters.Where(p => p.CurrentValue is double v && double.IsFinite(v)))
                 version.Settings["ACSetup." + p.Section] = p.CurrentValue!.Value;
             version.SetupFileName = Path.GetFileName(setupPath);
+            version.SetupSource = "manual-file";
             version.SetupSha256 = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
         }
         SaveTune(version);
@@ -122,7 +136,7 @@ public sealed class RunHistoryStore
     public static bool ValidContext(RunContext? c) => c is not null && c.Schema == "adt/run-context/1" &&
         Enum.IsDefined(c.Focus) &&
         Guid.TryParseExact(c.DriverId, "N", out _) && c.DriverName is not null && c.TrackId is not null && c.Conditions is not null &&
-        c.RecommendationSessionId is not null && c.TestedRecommendations is not null && c.TestedRecommendations.All(x => !string.IsNullOrWhiteSpace(x)) &&
+        c.SetupCaptureIssue is not null && c.RecommendationSessionId is not null && c.TestedRecommendations is not null && c.TestedRecommendations.All(x => !string.IsNullOrWhiteSpace(x)) &&
         c.Tune is not null && ValidTune(c.Tune) && c.Tune.DriverId == c.DriverId && c.Tune.Focus == c.Focus;
 
     private static bool ValidReview(RunReview r) => r.Schema == "adt/run-review/1" && Guid.TryParseExact(r.Id, "N", out _) &&
@@ -135,7 +149,7 @@ public sealed class RunHistoryStore
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
         Enum.IsDefined(v.Focus) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
-        v.SetupSha256 is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
+        v.SetupSha256 is not null && v.SetupSource is not null && v.SetupTrackLayout is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
         new[] { v.DesiredBehavior.FrontEndBite, v.DesiredBehavior.RearGrip, v.DesiredBehavior.SelfSteerSpeed, v.DesiredBehavior.TransitionSpeed,
             v.DesiredBehavior.AngleStability, v.DesiredBehavior.ThrottleSteering, v.DesiredBehavior.InitiationSharpness }.All(x => x is >= -2 and <= 2);
 

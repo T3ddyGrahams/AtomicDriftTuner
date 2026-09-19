@@ -277,6 +277,7 @@ public partial class TelemetryWindow : Window
     // Shared by desktop and companion. Remote calls never discard unsaved samples.
     private void StartRecording(bool allowDiscard = false)
     {
+        if (RecordingBlockReason?.Invoke() is { } blocked) throw new InvalidOperationException(blocked);
         if (_recording) throw new InvalidOperationException("A recording is already running.");
         if (!allowDiscard && !_sessionSaved && _session.Samples.Count > 0)
             throw new InvalidOperationException("Save the previous recording before starting another.");

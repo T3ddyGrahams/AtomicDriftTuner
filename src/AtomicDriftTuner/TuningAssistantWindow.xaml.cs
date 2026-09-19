@@ -8,6 +8,8 @@ namespace AtomicDriftTuner;
 
 public partial class TuningAssistantWindow : Window
 {
+    public Func<CarSetupAnalysis, string, string>? StagePitSetupHandler { get; set; }
+    public Func<string>? ClearPendingPitSetupHandler { get; set; }
     private const double MinimumDriftSecondsForCalibration =
         5.0;
 
@@ -764,6 +766,8 @@ public partial class TuningAssistantWindow : Window
             var owner =
                 ResolveVisibleOwner();
             window.SetupFileSaved += path => GuidedSetupSaved?.Invoke(selected, path);
+            window.StagePitSetupHandler = StagePitSetupHandler;
+            window.ClearPendingPitSetupHandler = ClearPendingPitSetupHandler;
 
             if (owner is not null)
             {

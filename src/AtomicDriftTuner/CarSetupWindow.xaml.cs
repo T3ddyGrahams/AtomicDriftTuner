@@ -62,6 +62,7 @@ public partial class CarSetupWindow : Window
             Title = "ADT • Desired Behavior";
             ReturnToGuideButton.Visibility = Visibility.Visible;
             SetupGenerationCard.Visibility = SetupGrid.Visibility = SaveGeneratedButton.Visibility = Visibility.Collapsed;
+            StagePitSetupButton.Visibility = ClearPendingPitSetupButton.Visibility = Visibility.Collapsed;
             CarSummaryText.Text += "\nDescribe your driving goals. Saving these goals does not apply settings to the car or wheelbase.";
             SetupStatusText.Text = "Choose your goals, save Desired Behavior, then close this window to return to the walkthrough.";
             WindowBoundsService.Attach(this);

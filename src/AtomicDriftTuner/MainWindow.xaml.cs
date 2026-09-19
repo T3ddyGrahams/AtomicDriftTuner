@@ -125,6 +125,7 @@ public partial class MainWindow : Window
         _remoteServer.CompanionCommandHandler = ExecuteCompanionCommandAsync;
         _remoteServer.CompanionWorkflowCommandHandler = ExecuteCompanionWorkflowCommandAsync;
         _remoteServer.CompanionSetupHandler = ReceiveCompanionSetupAsync;
+        _remoteServer.PitSetupHandler = ExecutePitSetupAsync;
 
         Closed += async (_, _) =>
         {
@@ -1210,6 +1211,8 @@ public partial class MainWindow : Window
                 };
 
             _carSetupWindow = window;
+            window.StagePitSetupHandler = (analysis, label) => StagePitSetup(input, analysis, label);
+            window.ClearPendingPitSetupHandler = ClearPendingPitSetup;
             window.SetupFileSaved += path =>
             {
                 try { _workflow.Update(input, CurrentGuidedDriver().Id, j => j.SetupPath = path); RefreshGuidedWorkflow(); }
@@ -1279,6 +1282,7 @@ public partial class MainWindow : Window
                 };
 
             _telemetryWindow = window;
+            window.RecordingBlockReason = () => _pitSetup.RecordingBlockReason;
             window.UseRecordingPlan(GuidedRecordingPlan(input));
             window.SessionSaved += saved => TrackSavedRun(input, saved);
             window.CompareRequested += saved =>
@@ -1334,6 +1338,8 @@ public partial class MainWindow : Window
                 };
 
             _tuningAssistantWindow = window;
+            window.StagePitSetupHandler = (analysis, label) => StagePitSetup(input, analysis, label);
+            window.ClearPendingPitSetupHandler = ClearPendingPitSetup;
             window.UseTuningFocus(_workflow.Preferences().Focus);
             window.RecommendationTestRequested += (run, recommendation) => HandleRecommendation(input, run, recommendation);
             window.GuidedSetupSaved += (run, path) =>

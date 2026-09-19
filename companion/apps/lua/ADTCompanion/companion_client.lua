@@ -1,8 +1,8 @@
 -- Transport/state is separate from CSP drawing so timeout and replay behavior can be tested.
-return function(request, encode, decode, captureProvider)
+return function(request, encode, decode, captureProvider, pitSetup)
   local c = { port = '5190', token = nil, status = nil, online = false, busy = false,
     message = 'Start ADT Remote on your PC, then enter its pairing code here.',
-    commandMessage = '', setupMessage = '', nextCapture = 0, now = 0, nextPoll = 0, lastStatus = -100, generation = 0 }
+    commandMessage = '', setupMessage = '', pitMessage = '', nextCapture = 0, now = 0, nextPoll = 0, lastStatus = -100, generation = 0 }
 
   function c:forget()
     self.generation = self.generation + 1
@@ -25,6 +25,7 @@ return function(request, encode, decode, captureProvider)
     if self.token then headers['X-ADT-Token'] = self.token end
     local setupRead = path == '/api/companion/setup'
     self.activeSetupRead = setupRead
+    self.activePitCommand = path == '/api/companion/pit-setup'
     local ok = pcall(function() request(body and 'POST' or 'GET', 'http://127.0.0.1:' .. self.port .. path,
       headers, body and encode(body) or nil, function(err, response)
         if generation ~= self.generation then return end -- timed out, disconnected or replaced
@@ -196,6 +197,78 @@ return function(request, encode, decode, captureProvider)
     end)
   end
 
+  function c:pitState()
+    if not self:fresh() then return nil end
+    local state = self.status.pitSetup
+    if type(state) ~= 'table' or state.protocolVersion ~= 1 then return nil end
+    return state
+  end
+
+  function c:canPit(operation)
+    local state = self:pitState()
+    if not state or type(pitSetup) ~= 'table' then return false, 'Update desktop ADT and the companion for pit setup controls.' end
+    if self.busy or self.pendingPitResult or state.busy == true or self.status.recorder.state == 'recording' then
+      return false, self.pendingPitResult and 'Sync the previous result with ADT before another setup action.'
+        or 'Finish the recording or pending request before changing the setup.'
+    end
+    if type(state.controlVersion) ~= 'string' or #state.controlVersion ~= 64 or not state.controlVersion:match('^%x+$') then
+      return false, 'Wait for fresh pit setup status.'
+    end
+    if operation == 'apply' and (state.canApply ~= true or type(state.plan) ~= 'table') then
+      return false, type(state.message) == 'string' and state.message or 'Stage a tune in desktop ADT.'
+    end
+    if operation ~= 'apply' and operation ~= 'restore' then return false, 'Unsupported setup action.' end
+    -- Only cache display availability briefly; the click and leased execution both check again.
+    local cache = self.pitChecks and self.pitChecks[operation]
+    if not cache or cache.plan ~= state.plan or self.now - cache.time >= 0.5 then
+      local ticket, reason = pitSetup:prepare(state.plan, operation)
+      cache = {plan=state.plan, time=self.now, available=ticket ~= nil, reason=reason}
+      self.pitChecks = self.pitChecks or {}; self.pitChecks[operation] = cache
+    end
+    return cache.available, cache.reason
+  end
+
+  function c:syncPitResult()
+    if self.busy or not self.token or not self.pendingPitResult then return false end
+    local completed = self.pendingPitResult
+    self.online, self.status, self.pitChecks = false, nil, nil
+    return self:send('/api/companion/pit-setup', completed, function(data)
+      if data.ok == true then
+        if self.pendingPitResult == completed then self.pendingPitResult = nil end
+        self.pitMessage = completed.message
+      else self.pitMessage = 'ADT has not acknowledged the result. Use Sync result; the setup change will not repeat.' end
+      self.commandMessage = self.pitMessage
+      self.nextPoll = 0
+    end)
+  end
+
+  function c:pitAction(operation)
+    if not self:canPit(operation) then return false end
+    local state = self:pitState()
+    local ticket, reason = pitSetup:prepare(state.plan, operation)
+    if not ticket then self.pitMessage = reason; self.pitChecks = nil; return false end
+    local commandId = pitSetup:newCommandId()
+    local body = {protocolVersion=1, action='prepare', operation=operation, planId=ticket.planId,
+      commandId=commandId, controlVersion=state.controlVersion}
+    self.online, self.status, self.pitChecks = false, nil, nil
+    self.pitMessage, self.commandMessage = 'Waiting for desktop ADT...', 'Waiting for desktop ADT to guard the recorder...'
+    return self:send('/api/companion/pit-setup', body, function(data)
+      if data.ok ~= true or data.commandId ~= commandId or type(data.leaseId) ~= 'string'
+        or #data.leaseId ~= 32 or not data.leaseId:match('^%x+$') then
+        self.pitMessage = 'No valid setup authorization arrived. No setup change was attempted. Check desktop ADT.'
+        self.commandMessage, self.nextPoll = self.pitMessage, 0
+        return
+      end
+      -- Execute once, using the immutable plan returned by the lease, never a cached plan.
+      local outcome = pitSetup:execute(data.plan, commandId, ticket)
+      self.pitMessage = outcome.message
+      self.pendingPitResult = {protocolVersion=1, action='complete', operation=operation, planId=ticket.planId,
+        commandId=commandId, controlVersion=body.controlVersion, leaseId=data.leaseId,
+        success=outcome.success, state=outcome.state, message=outcome.message}
+      self:syncPitResult()
+    end)
+  end
+
   function c:update(dt)
     self.now = self.now + math.max(0, dt or 0)
     if self.busy and self.now - self.started > 8 then
@@ -203,6 +276,11 @@ return function(request, encode, decode, captureProvider)
       self.busy, self.online, self.status = false, false, nil
       self.message = 'ADT did not respond. Reconnecting; commands are never retried automatically.'
       if self.activeSetupRead then self.setupMessage = 'Setup refresh timed out. Waiting for fresh evidence.'
+      elseif self.activePitCommand then
+        self.pitMessage = self.pendingPitResult
+          and 'Setup result is waiting for ADT. Use Sync result; the setup change will not repeat.'
+          or 'Setup authorization timed out. No change will run from a late reply. Check desktop ADT.'
+        self.commandMessage = self.pitMessage
       else self.commandMessage = 'If you pressed a run or workflow button, its outcome is unknown until status refreshes.' end
       self.nextPoll = self.now + 2
     end

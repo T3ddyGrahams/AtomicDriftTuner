@@ -181,7 +181,7 @@ Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $stag
 
 $guidePayload = Join-Path $staging "docs"
 New-Item -ItemType Directory -Path $guidePayload -Force | Out-Null
-foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md")) {
+foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md", "PIT_SETUP.md")) {
     Copy-Item -LiteralPath (Join-Path $repo "docs/$guide") -Destination (Join-Path $guidePayload $guide)
 }
 
@@ -189,7 +189,7 @@ foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELE
 $companionPayload = Join-Path $staging "CompanionPayload"
 $companionApp = Join-Path $companionPayload "apps\lua\ADTCompanion"
 New-Item -ItemType Directory -Path $companionApp -Force | Out-Null
-foreach ($name in @("ADTCompanion.lua", "companion_client.lua", "setup_capture.lua", "manifest.ini", "icon.png")) {
+foreach ($name in @("ADTCompanion.lua", "companion_client.lua", "setup_capture.lua", "pit_setup.lua", "manifest.ini", "icon.png")) {
     $source = Join-Path $repo "companion\apps\lua\ADTCompanion\$name"
     if ((Get-Item -LiteralPath $source).Attributes -band [IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to package a linked companion file: $source"

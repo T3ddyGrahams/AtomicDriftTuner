@@ -14,6 +14,7 @@ public sealed class CompanionStatus
     public CompanionRecorderState Recorder { get; set; } = new();
     public CompanionWorkflowState Workflow { get; set; } = new();
     public SetupCaptureOffer? SetupCapture { get; set; }
+    public PitSetupStatus? PitSetup { get; set; }
 }
 
 public sealed class CompanionRecorderState

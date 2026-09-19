@@ -1,5 +1,20 @@
 # ADT regression checks
 
+## Pit setup application (local preview.15)
+
+The regression runner passes 165 scenarios, including strict immutable setup plans, stale/range/step validation, at-most-once admission, matching and idempotent completion, restore authorization, unknown-result recovery, and real paired HTTP checks. Existing tuning calculations and the 8,000-combination range sweep remain covered. The Lua 5.1 suites pass 388 assertions, including 196 simulated pit-operation and 32 pit-transport assertions; no game APIs or user setup files are changed by these tests.
+
+The full WPF suite passes 455 geometry assertions and the existing theme/workflow/recorder checks. Its new pit workflow checks pass 29 assertions after the final manual-attachment test: production generation/staging, stale proposals, immutable plans, goals-only visibility, recording blocks and confirmation invalidation. Run only these with `dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/pit-layout --pit-setup`. The touchscreen suite passes 151 browser assertions.
+
+Run the two new companion tests with Lua 5.1/LuaJIT:
+
+```text
+lua tests/companion/pit-setup-tests.lua companion/apps/lua/ADTCompanion/pit_setup.lua
+lua tests/companion/pit-client-tests.lua companion/apps/lua/ADTCompanion/companion_client.lua
+```
+
+These are simulated game tests. Follow [pit setup acceptance](../docs/PIT_SETUP.md) for actual CSP/car validation, including save/load/restore, editable-menu behavior and failure recovery.
+
 ## Clean startup and two-choice guidance (local preview.12)
 
 The regression runner passes 118 scenarios. The WPF runner passes 48 startup-selection assertions using actual dashboard controls with isolated settings: fresh and legacy startup, explicit car choice, saved/custom/partial values, missing profiles, installed-car identity checks, preserved unrelated preferences and cleared stale remote context. It also passes 34 guided-mode assertions, covering the required Car tuning only / Car + FFB choice, simple help, adaptive integration questions, preserved answers and existing recording/review behavior.

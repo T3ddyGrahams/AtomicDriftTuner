@@ -128,6 +128,7 @@ public partial class MainWindow
     private RemoteActionResponse ExecuteCompanionWorkflowCommand(CompanionWorkflowCommand command)
     {
         Dispatcher.VerifyAccess();
+        if (_pitSetup.Busy) return new() { Message = _pitSetup.RecordingBlockReason! };
         var state = BuildCompanionWorkflowState();
         var rejection = CompanionWorkflowPresentation.Reject(command, state);
         if (rejection is not null) return new() { Ok = false, Message = rejection };

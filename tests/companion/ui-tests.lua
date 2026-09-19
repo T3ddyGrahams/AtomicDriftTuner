@@ -6,6 +6,7 @@ local preferences
 local function check(value, message) assert(value, message); count=count+1 end
 require = function(name)
   if name=='setup_capture' then return assert(loadfile(arg[3]))() end
+  if name=='pit_setup' then return assert(loadfile(arg[3]:gsub('setup_capture.lua$', 'pit_setup.lua')))() end
   assert(name=='companion_client'); return create
 end
 ac = {storage=function(defaults) preferences=defaults; return preferences end}
@@ -128,7 +129,18 @@ reply({message='Save first'},409); joined=draw()
 check(joined:find('Save first') and not enabled['Start recording'],'server rejection missing or old button remains active')
 script.update(1.1); reply(state(true)); script.update(4); joined=draw('Prepare next recording')
 check(joined:find('Waiting for fresh ADT status') and not enabled['Prepare next recording'],'stale status retains workflow action')
-reply(state(true)); draw('Disconnect / pair again','Help')
+reply(state(true))
+joined=draw(nil,'Pit setup')
+check(children['adtPit setup'] and joined:find('updated desktop ADT'),'pit setup fallback missing or pane does not scroll')
+local staged=state(true)
+staged.pitSetup={protocolVersion=1,controlVersion=string.rep('d',64),canApply=true,busy=false,message='Staged tune',
+  plan={protocolVersion=1,planId=string.rep('a',32),carId='test_car',label='Test tune',
+    baselineValues={CAMBER_LF=-30},changes={{section='CAMBER_LF',before=-30,after=-25}}}}
+poll(staged);local previousRequests=#requests
+joined=draw('Save & Apply Tune','Pit setup')
+check(joined:find('Test tune') and joined:find('CAMBER_LF: %-30') and joined:find('stored setup VALUE units'),'pit preview omits reviewed changes/units')
+check(not enabled['Save & Apply Tune'] and #requests==previousRequests,'pit UI initiated mutation without supported CSP/valid lease guard')
+draw('Disconnect / pair again','Help')
 check(preferences.port=='5190' and preferences.token==nil and preferences.code==nil,'pairing secret persisted')
 check(children.adtWaiting,'disconnected/waiting controls lack scroll access')
 print('PASS '..count..' companion UI assertions under mocked CSP APIs; actual entry point, all panes and actions.')

@@ -11,7 +11,7 @@ if ($manifest -notmatch '(?m)^VERSION\s*=\s*([0-9A-Za-z.-]+)\s*$') { throw 'Miss
 $version = $Matches[1]
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $zip = Join-Path $OutputDirectory "ADTCompanion-$version.zip"
-$files = @('README.md', 'apps/lua/ADTCompanion/ADTCompanion.lua', 'apps/lua/ADTCompanion/companion_client.lua', 'apps/lua/ADTCompanion/setup_capture.lua',
+$files = @('README.md', 'apps/lua/ADTCompanion/ADTCompanion.lua', 'apps/lua/ADTCompanion/companion_client.lua', 'apps/lua/ADTCompanion/setup_capture.lua', 'apps/lua/ADTCompanion/pit_setup.lua',
     'apps/lua/ADTCompanion/manifest.ini', 'apps/lua/ADTCompanion/icon.png')
 foreach ($relative in $files) {
     $item = Get-Item -LiteralPath (Join-Path $source $relative)

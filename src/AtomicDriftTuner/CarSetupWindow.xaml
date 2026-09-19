@@ -207,6 +207,8 @@
                     <Button x:Name="SaveBehaviorButton" Content="Save Desired Behavior" Click="SaveBehavior_Click" FontWeight="Bold" ToolTip="Save the desired behavior sliders for this car."/>
                     <Button x:Name="ReturnToGuideButton" Content="Return to walkthrough" Click="ReturnToGuide_Click" Visibility="Collapsed"/>
                     <Button x:Name="SaveGeneratedButton" Content="Save AC Setup File..." Click="SaveGenerated_Click" FontWeight="Bold" IsEnabled="False" ToolTip="Write the generated recommendations as a separate Assetto Corsa setup file."/>
+                    <Button x:Name="StagePitSetupButton" Content="Stage for in-game pits" Click="StagePitSetup_Click" FontWeight="Bold" IsEnabled="{Binding IsEnabled, ElementName=SaveGeneratedButton}" ToolTip="Send these reviewed changes to ADT Companion. Nothing applies until you select Save &amp; Apply Tune in its Pits tab."/>
+                    <Button x:Name="ClearPendingPitSetupButton" Content="Clear pending pit action" Click="ClearPendingPitSetup_Click" ToolTip="If Sync result cannot resolve a lost connection, close Assetto Corsa completely before clearing the pending action."/>
                 </WrapPanel>
                 <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" x:Name="SetupStatusText" Text="Load a baseline setup to begin." FontWeight="Bold" TextWrapping="Wrap"/>

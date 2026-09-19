@@ -18,6 +18,7 @@ public partial class TelemetryWindow
         var unsaved = !_sessionSaved && _session.Samples.Count > 0;
         var connected = _telemetry.GetSnapshot().Connected;
         var ready = DriverBox.Text.Trim().Length > 0 && ConditionsBox.Text.Trim().Length > 0;
+        var blocked = RecordingBlockReason?.Invoke();
         var state = _recording ? "recording" : unsaved ? "unsaved" : _session.Samples.Count > 0 ? "saved" : "ready";
         var message = _recording ? _telemetryUnavailableSince is not null
                 ? $"Waiting for fresh AC telemetry; recording will resume if it recovers within {TelemetryRecoverySeconds:0} seconds. Return to driving, or stop and save this partial run."
@@ -36,14 +37,14 @@ public partial class TelemetryWindow
         {
             _companionRevision, RecordingFocus, DriverBox.Text, Conditions = ConditionsBox.Text, Label = TuneLabelBox.Text,
             Change = TestedChangeBox.Text, Baseline = (RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id,
-            Setup = AutomaticSetup ? _liveSetup?.Sha256 : _setupSnapshotPath, AutomaticSetup, Confirmed = TuneInUseCheck.IsChecked, contextMatches
+            Setup = AutomaticSetup ? _liveSetup?.Sha256 : _setupSnapshotPath, AutomaticSetup, Confirmed = TuneInUseCheck.IsChecked, contextMatches, blocked
         }))));
         return new CompanionRecorderState
         {
             WindowId = _companionWindowId, SessionId = _session.Id, ControlVersion = version,
             Car = _input.Car.DisplayName, Driver = _recording || unsaved ? _session.Context?.DriverName ?? DriverBox.Text : DriverBox.Text,
-            State = state, Message = message, Samples = _session.Samples.Count, ElapsedSeconds = _clock.Elapsed.TotalSeconds,
-            CanStart = !_recording && !unsaved && ready && connected && contextMatches,
+            State = state, Message = blocked ?? message, Samples = _session.Samples.Count, ElapsedSeconds = _clock.Elapsed.TotalSeconds,
+            CanStart = blocked is null && !_recording && !unsaved && ready && connected && contextMatches,
             CanStop = _recording, CanSave = !_recording && unsaved && _analysis is not null,
             Evidence = _recording || _session.Samples.Count > 0 ? CurrentEvidence() : null,
             SetupMessage = _session.Context?.SetupCaptureIssue.Length > 0 ? _session.Context.SetupCaptureIssue : SetupSnapshotText.Text

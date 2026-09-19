@@ -4,6 +4,18 @@ This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly ma
 
 ---
 
+## Local v0.9.0-preview.15 — Explicit Pit Save & Apply Tune
+
+- Stage an immutable numeric plan from the existing AC Setup generation workflow, then explicitly **Save & Apply Tune** from the new companion **Pit setup** tab.
+- Require the matching car and baseline, stationary editable pit setup menu, no recording and valid editable values. Save uniquely named previous/changed setups, verify current-setup readback and offer explicit **Restore previous** in the same game session.
+- Keep recording blocked while an action outcome is unresolved. Preserve manual export/load and setup attachment for unsupported CSP/car combinations.
+- Rename feedback regeneration to **Update recommendations only** to clarify that it does not apply settings. Goals, feedback and generation do not automatically change the car or FFB.
+- Bundle Companion `0.4.0-preview.1`, including `pit_setup.lua`, with both desktop packages. Live-game Save & Apply Tune, restore and refusal-case acceptance remain pending.
+
+See the [first test and recovery instructions](docs/PIT_SETUP.md). This preview has not been published as a public release.
+
+---
+
 ## Local v0.9.0-preview.14 — Current Setup Capture
 
 - Bundle ADT Companion `0.3.0-preview.1` with read-only CSP current-setup capture, alongside in-game recording, findings, test planning and comparison feedback.

@@ -1,6 +1,7 @@
 local createClient = require('companion_client')
 local setupCapture = require('setup_capture')(ac)
-local client = createClient(web.request, JSON.stringify, JSON.parse, function() return setupCapture:capture() end)
+local pitSetup = require('pit_setup')(ac)
+local client = createClient(web.request, JSON.stringify, JSON.parse, function() return setupCapture:capture() end, pitSetup)
 local preferences = ac.storage({ port = '5190' })
 local port, code = preferences.port, ''
 local accent, good, warning = rgbm(0.1, 0.85, 0.95, 1), rgbm(0.4, 0.9, 0.55, 1), rgbm(1, 0.75, 0.3, 1)
@@ -129,7 +130,43 @@ local function findingsTab(w)
     workflowButton('Plan this test##plan' .. i, 'plan', {sessionId = report.sessionId, recommendationId = recommendation.id})
     ui.separator()
   end
-  ui.textWrapped('Planning saves the test and prepares its recording details. Apply the change yourself, wait for current setup capture or update the manual attachment in desktop ADT, then confirm the settings before driving again.')
+  ui.textWrapped('Planning saves the test and prepares its recording details. Use Pit setup for a staged supported tune, or make the change yourself. Wait for current setup capture, then confirm the settings before driving again.')
+end
+
+local function pitSetupTab()
+  local state = client:pitState()
+  paragraph('', client.pitMessage)
+  if client.pendingPitResult then
+    ui.textWrapped('The setup operation has finished locally. ADT must acknowledge its result before recording or another setup action.')
+    button('Sync result with ADT', true, function() client:syncPitResult() end)
+  end
+  if not state then
+    ui.textWrapped('Pit setup requires an updated desktop ADT and companion. Stage a supported tune on the PC first.')
+    return
+  end
+  paragraph('', state.message)
+  local plan = state.plan
+  if type(plan) == 'table' then
+    paragraph('Tune: ', plan.label)
+    paragraph('Car: ', plan.carId)
+    for _, change in ipairs(type(plan.changes) == 'table' and plan.changes or {}) do
+      if type(change) == 'table' and type(change.section) == 'string' then
+        ui.textWrapped(change.section .. ': ' .. tostring(change.before) .. ' → ' .. tostring(change.after))
+      end
+    end
+    ui.textWrapped('These are stored setup VALUE units; the game may display different units. Check every change before applying.')
+  end
+  local canApply, reason = client:canPit('apply')
+  button('Save & Apply Tune', canApply, function() client:pitAction('apply'); confirm = false end)
+  if not canApply then paragraph('', reason) end
+  ui.textWrapped('Park in your pit box with the editable setup menu open. This saves a unique previous setup, applies only the listed car settings, saves the tune and reads every numeric value back. Wheelbase and FFB settings still require your own confirmation.')
+  ui.separator()
+  if pitSetup.previous then
+    ui.textWrapped('A previous setup is available for this app session. Restore is an explicit action and replaces the current setup with that backup.')
+    local canRestore, restoreReason = client:canPit('restore')
+    button('Restore previous', canRestore, function() client:pitAction('restore'); confirm = false end)
+    if not canRestore then paragraph('', restoreReason) end
+  else ui.textWrapped('Restore previous becomes available after ADT saves a backup for an apply attempt.') end
 end
 
 local function compareTab(w)
@@ -183,7 +220,7 @@ local function helpTab(status, w)
   ui.textWrapped('1. Set up your workflow, rig, car and goals in desktop ADT. Prepare driver and conditions. Pair the updated companion for current setup capture, or attach the loaded setup manually.')
   ui.textWrapped('2. Record: check the context, start, drive, stop, then save. Stop alone does not save.')
   ui.textWrapped('3. Findings: read the saved run and plan one supported test. If evidence is weak, repeat the drive first.')
-  ui.textWrapped('4. Make the chosen change, load it in AC, and wait for current setup capture or update the manual attachment in desktop ADT. Confirm the recording plan, then record a comparable second run.')
+  ui.textWrapped('4. Stage a supported tune in desktop ADT, then use Pit setup → Save & Apply Tune while parked in the setup menu. You can also make the change yourself. Wait for current setup capture, confirm the recording plan, then record a comparable second run.')
   ui.textWrapped('5. Compare: read the measured result and limitations, add your own rating and save the review.')
   ui.separator()
   paragraph('', status.completion)
@@ -192,7 +229,7 @@ local function helpTab(status, w)
   if w then paragraph('', w.comingNext) end
   ui.textWrapped('Keep desktop ADT and its Remote server open; minimizing is fine. SimHub is not required for AC recording. Hiding this panel does not stop a run.')
   ui.textWrapped('After a connection timeout, check the refreshed recorder and review status before trying again. Commands are never repeated automatically.')
-  ui.textWrapped('Companion 0.3.0-preview.1. Automatic setup capture: desktop ADT 0.9.0-preview.14 or newer. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
+  ui.textWrapped('Companion 0.4.0-preview.1. Pit setup: desktop ADT 0.9.0-preview.15 or newer. Automatic setup capture: desktop ADT 0.9.0-preview.14 or newer. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
   button('Disconnect / pair again', true, function() client:forget(); confirm = false end)
 end
 
@@ -216,6 +253,8 @@ function script.windowMain(dt)
     ui.childWindow('adtWaiting', ui.availableSpace(), function()
       ui.textWrapped('Waiting for fresh ADT status. All run and workflow actions stay unavailable until status refreshes.')
       paragraph('', client.commandMessage)
+      paragraph('', client.pitMessage)
+      if client.pendingPitResult then button('Sync result with ADT', true, function() client:syncPitResult() end) end
       button('Disconnect / pair again', true, function() client:forget(); confirm = false end)
     end)
     return
@@ -233,6 +272,7 @@ function script.windowMain(dt)
     end
     pane('Record', function() recordTab(status, w) end)
     pane('Findings', function() findingsTab(w) end)
+    pane('Pit setup', pitSetupTab)
     pane('Compare', function() compareTab(w) end)
     pane('Help', function() helpTab(status, w) end)
   end)

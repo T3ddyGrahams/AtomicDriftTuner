@@ -33,7 +33,8 @@ public partial class MainWindow
                 Progress = GuidedProgressText.Text,
                 Recorder = _telemetryWindow?.GetCompanionState(CompanionContextMatches()) ?? new(),
                 Workflow = BuildCompanionWorkflowState(),
-                SetupCapture = _telemetryWindow?.OfferSetupCapture()
+                SetupCapture = _telemetryWindow?.OfferSetupCapture(),
+                PitSetup = BuildPitSetupStatus()
             };
         }).Task;
     }

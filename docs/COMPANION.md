@@ -1,8 +1,8 @@
 # In-game companion workflow preview
 
-The optional CSP Lua app provides **Record**, **Findings**, **Compare** and **Help** tabs. Companion `0.3.0-preview.1` with desktop `0.9.0-preview.14` adds read-only capture of the current CSP setup to recording-plan preparation, explicit confirmation, record/stop/save, saved-run findings, one-test planning and comparison feedback. Desktop ADT stays authoritative for recording, analysis, storage and driver/car context. Tuning calculations and recommendation ranking are unchanged.
+The optional CSP Lua app provides **Record**, **Findings**, **Pit setup**, **Compare** and **Help** tabs. Companion `0.4.0-preview.1` with desktop `0.9.0-preview.15` adds explicit Save & Apply Tune of a numeric plan staged in desktop AC Setup, with unique saved previous/changed setups, readback verification and same-session Restore previous. See [pit workflow and first test](PIT_SETUP.md). Read-only current-setup capture, recording, one-test planning and comparison feedback remain available. Desktop ADT stays authoritative for recording, analysis, storage and driver/car context. Tuning calculations and recommendation ranking are unchanged.
 
-See [installation and testing instructions](../companion/README.md). Build the CM-installable ZIP with `distribution/build-companion.ps1`; build desktop preview.14 with the normal package script. Both the desktop portable and installer include the five-file app payload and CM ZIP. Install explicitly from **Remote → Install / Update Companion**, or use the CM ZIP. Restart the driving session after updating so CSP reloads its manifest and code.
+See [installation and testing instructions](../companion/README.md). Build the CM-installable ZIP with `distribution/build-companion.ps1`; build desktop preview.15 with the normal package script. Both the desktop portable and installer include the six-file app payload and CM ZIP. Install explicitly from **Remote → Install / Update Companion**, or use the CM ZIP. Restart the driving session after updating so CSP reloads its manifest and code.
 
 ## Connection and recorder contract
 
@@ -16,9 +16,11 @@ See [installation and testing instructions](../companion/README.md). Build the C
 - Start/stop/save share the desktop recorder's implementation. Existing interruption handling, analysis, JSON/CSV save and guided progress callbacks are retained. Saving does not claim the run is sufficient to prove improvement.
 - Saved-run report building is explicit through **Read saved run**. Normal status polling displays the cached report rather than analyzing every second. The report preserves the saved goal, confidence, recommendation reasons, measured comparison and limitations. Driver feedback is a separate saved record.
 - The Lua client uses only `127.0.0.1`, polls at most once per second, keeps credentials in memory, disables all cached action buttons after a command, ignores late responses and never retries mutations automatically. A changed context or report cannot authorize a command from an old screen.
-- The four tab bodies and pairing/reconnection screens use CSP `ui.childWindow` with available space. Long instructions, evidence, limitations and controls scroll at the minimum 300 × 280 window size.
+- The five tab bodies and pairing/reconnection screens use CSP `ui.childWindow` with available space. Long instructions, evidence, limitations and controls scroll at the minimum 300 × 280 window size.
 
 Initial workflow/hardware/car/goals, manual setup-file selection and conditions remain desktop tasks. Automatic setup capture removes the file-attachment step only when supported fresh evidence is available. Preparing/planning/confirming a recording never applies car or wheelbase settings. Keep/Revert in a review records the decision only. Full telemetry tables and older run history remain available in desktop ADT.
+
+Pit Save & Apply Tune/Restore previous require explicit in-game actions through the paired companion and an acknowledged operation result. Both check the actual editable setup menu, stationary state, recording state, car/session, baseline and editable values. The plan contains numeric setup changes; it does not carry arbitrary file paths or hardware commands. Unknown outcomes block recording. **Sync result with ADT** sends only the result; desktop **Clear pending pit action** requires the AC driving process to be closed. After clearing, restart and inspect/load the intended setup, then generate/stage again. Completed actions invalidate prior recording confirmation. Unsupported CSP/car combinations retain manual setup export/load.
 
 ## Read-only current-setup evidence
 
@@ -32,7 +34,7 @@ Manual fallback remains **Telemetry Recorder → turn off Capture the current ca
 
 ## Test focus
 
-1. Install/update all five app files through ADT or CM; launch a new session, find all four tabs and pair with desktop preview.14. Resize to the minimum size and scroll to the final action in each tab.
+1. Install/update all six app files through ADT or CM; launch a new session, find all five tabs and pair with desktop preview.15. Resize to the minimum size and scroll to the final action in each tab. Complete the [pit Save & Apply Tune/restore and refusal checks](PIT_SETUP.md).
 2. With ADT minimized, start/stop/save a prepared run. Reopen it in desktop ADT and confirm car, driver, conditions, samples and saved JSON/CSV.
 3. Try start without a prepared recorder, without conditions, with AC offline, or while a previous run is unsaved. Confirm useful instructions and no discarded data.
 4. Double-click commands and regenerate pairing credentials. Confirm no duplicate runs/saves and a prompt to re-pair.

@@ -1,14 +1,14 @@
 # ADT Companion — workflow preview
 
-Record runs, read findings, plan one test and save comparison feedback inside Assetto Corsa.
+Record runs, read findings, explicitly apply a staged car setup in the pits and save comparison feedback inside Assetto Corsa.
 
-Companion **0.3.0-preview.1** adds read-only current-setup capture to the four scrollable tabs: **Record**, **Findings**, **Compare** and **Help**. After installing or updating, exit the current driving session and launch a new session so CSP reloads the app.
+Companion **0.4.0-preview.1** adds **Pit setup** alongside the scrollable **Record**, **Findings**, **Compare** and **Help** tabs. After installing or updating, exit the current driving session and launch a new session so CSP reloads the app.
 
-Current-setup capture requires desktop **ADT 0.9.0-preview.14 or newer** running on the same PC, and a CSP version exposing the current-setup serializer. Desktop preview.13 supports the in-game workflow with manual setup attachment; preview.4–preview.12 retain recording controls. Public preview.3 lacks the companion endpoints. SimHub/AZOM is not required for AC recording. Desktop ADT remains responsible for analysis and saved history.
+Pit setup actions require desktop **ADT 0.9.0-preview.15 or newer** running on the same PC and compatible CSP setup APIs. Current-setup capture requires preview.14 or newer and CSP's current-setup serializer. Desktop preview.13 supports the in-game workflow with manual setup attachment; preview.4–preview.12 retain recording controls. Public preview.3 lacks the companion endpoints. SimHub/AZOM is not required for AC recording or pit setup actions. Desktop ADT remains responsible for analysis and saved history. Live-game acceptance is pending.
 
 ## Install with Content Manager
 
-The desktop installer and portable ZIP include this app. The simplest installation is **Remote → Install / Update Companion**, after selecting the AC install folder in Setup & Paths and exiting the driving session. ADT copies only its five shipped app files and backs up changed versions. **Open Companion Package** locates the ZIP for installation through CM instead.
+The desktop installer and portable ZIP include this app. The simplest installation is **Remote → Install / Update Companion**, after selecting the AC install folder in Setup & Paths and exiting the driving session. ADT copies only its six shipped app files and backs up changed versions. **Open Companion Package** locates the ZIP for installation through CM instead.
 
 1. Keep the companion ZIP intact and drag it into Content Manager. Review the installation entry for **ADT Companion** and install it. This package contains `apps/lua/ADTCompanion`.
 2. If your CM version does not recognize the archive, extract its `apps` folder into your Assetto Corsa installation folder (the folder containing `acs.exe`). This adds `apps/lua/ADTCompanion`; it does not replace car files.
@@ -16,7 +16,7 @@ The desktop installer and portable ZIP include this app. The simplest installati
 
 ## Prepare once on the PC
 
-1. Start desktop ADT preview.14, choose **Car tuning only** or **Car + FFB**, and select your own car, rig and driver. Follow **Your Next Step** to save your goals and prepare the baseline.
+1. Start desktop ADT preview.15, choose **Car tuning only** or **Car + FFB**, and select your own car, rig and driver. Follow **Your Next Step** to save your goals and prepare the baseline.
 2. Open **Telemetry Recorder**. Enter the driver and conditions/driving task. Leave **Capture the current car setup through the in-game companion** enabled for supported CSP capture. If capture is unavailable, turn it off and attach the exact saved setup loaded in AC. These details are captured when recording starts; update them when the setup or test changes.
 3. Open **ADT Remote**, press **START REMOTE**, and leave ADT running. You can minimize ADT. You do not need to enable remote AZOM writes.
 
@@ -27,10 +27,21 @@ The desktop installer and portable ZIP include this app. The simplest installati
 3. Confirm **AC TELEMETRY: LIVE**, then choose **Start recording**. Drive roughly 60–120 seconds with several entries and transitions. Choose **Stop recording → Save session**. Stop alone does not save. ADT uses the same analysis and JSON/CSV storage as the desktop recorder.
 4. In **Findings**, choose **Read saved run**. The panel shows the saved goal, what ADT noticed, confidence, the next action and optional reasons. Opening a tab does not repeatedly analyze recordings.
 5. If ADT offers a supported change, choose **Plan this test** for one recommendation. Planning records the test and prepares its recording details. It does not apply car, FFB or wheelbase settings. When evidence is weak, follow the request for another clean run instead.
-6. Make the chosen change in AC. With automatic capture, return to the live session and wait for fresh evidence of the current setup. With manual attachment, save/load the changed setup and update its attachment in desktop ADT. Keep the same car, rig, driver, workflow, Desired Behavior, track and conditions. Return to **Record**, check the plan and explicitly confirm the settings again. Record, stop and save the comparison run.
+6. Make the chosen change in AC, or use the explicit staged pit workflow below. With automatic capture, return to the live session and wait for fresh evidence of the current setup. With manual attachment, save/load the changed setup and update its attachment in desktop ADT. Keep the same car, rig, driver, workflow, Desired Behavior, track and conditions. Return to **Record**, check the plan and explicitly confirm the settings again. Record, stop and save the comparison run.
 7. In **Compare**, choose **Read saved run / comparison**. Read the measured result and every limitation. Select how it felt, choose a next action, add optional notes (up to 2,000 characters), then **Save run review**. Your rating stays separate from the measured result. Keep/Revert saves your decision; it does not apply or undo settings.
 
 **Help** explains the sequence and the current completion conditions. Every pane scrolls, including at the minimum window size. First-time setup, file selection and editing driving conditions remain in desktop ADT. The full telemetry tables, older runs and advanced tuning tools also remain there.
+
+## Save & Apply Tune in the pits
+
+1. In desktop **AC Setup**, load the same baseline currently in AC, generate/review the recommendations and choose **Stage for in-game pits**. This freezes a numeric plan without applying it.
+2. Stop and save any recording, then park the live player car in its pit box and open the actual AC pit setup menu while stationary and unpaused. The session must allow setup editing, and the current car and numeric baseline must match the plan.
+3. In **Pit setup**, review the staged changes and choose **Save & Apply Tune** once. ADT saves a unique previous setup, applies valid editable values and verifies readback, then saves and verifies the changed setup. Both files use the car's AC user `setups/<car>/generic` folder. Wait for the result and inspect the values before recording.
+4. To undo it during the same game session, return to the editable pit setup menu and explicitly choose **Restore previous**. Comparison feedback's Keep/Revert choices do not perform this action.
+
+Fixed setups, unsupported CSP, invalid/noneditable values, moving cars, active recordings, wrong context and changed baselines block the action. An unknown operation result blocks recording. **Sync result with ADT**, when offered, sends only the completed result; it does not repeat the setup change. If acknowledgment cannot be recovered, fully exit the AC driving session before using desktop **Clear pending pit action**; it refuses while `acs` or `acs_x86` is running. After restarting, inspect/load the intended setup and regenerate/stage a fresh plan. Failures never restore automatically. After a companion/session restart, use the saved `ADT_Previous_<unique-id>.ini` manually if needed. If pit actions are unavailable, retain the existing **Save AC Setup File → load in AC** route and manual recorder attachment when needed. Goals, feedback, **Update recommendations only**, generation and staging do not apply settings. Pit actions do not change FFB. Every completed pit action clears prior recording confirmation; wait for fresh capture and confirm the settings again.
+
+For the first live test, verify both files, applied readback and same-session restore, then record and compare a run. Also check fixed-setup/unsupported-CSP refusal, a changed baseline, lost response and manual fallback. The desktop packages include the full checklist in `docs/PIT_SETUP.md`.
 
 ## What current-setup capture establishes
 
@@ -48,6 +59,7 @@ If your CSP/car cannot provide capture, use manual attachment. The attachment re
 - **Prepare in ADT**: initial setup, the selected car/rig/driver, conditions or setup attachment needs attention. Complete the described desktop step, then refresh the plan in **Record**.
 - **Unsaved**: save the stopped run before starting another. The companion never discards a recording.
 - **Outcome unknown / reconnecting**: an action response was lost. All action buttons stay unavailable until fresh status returns. Check whether the run, plan or review already changed before trying again; the panel never automatically repeats a command.
+- **Pit outcome unknown**: fresh connection status alone cannot verify a setup write. Use **Sync result with ADT** if offered. Otherwise exit the AC driving session fully before desktop **Clear pending pit action**, then restart and inspect/load the intended setup. Recording remains blocked until acknowledgment or this explicit recovery.
 - **Inconclusive**: the runs cannot establish a fair comparison. Read the reason; the observations remain available. A positive driver rating does not override this result.
 - **Automatic setup unavailable / waiting for fresh setup evidence**: return to the live unpaused session with the updated companion paired. If capture stays unavailable, turn off automatic capture in the desktop recorder and attach the saved setup manually. A run that already lost setup evidence still needs a clean repeat for comparison.
 
@@ -55,6 +67,6 @@ Disconnecting or hiding this panel does not stop a recording in ADT. Keep deskto
 
 ## Validation status
 
-The transport/UI tests exercise the actual Lua entry point with mocked CSP drawing and networking. Capture checks cover bounded numeric parsing, canonical fingerprints, identity, stale responses and read-only behavior. Existing tests cover findings, planning, feedback, timeouts, save failures and duplicate saves. The installed CSP SDK documents the UI and setup serialization APIs used here. These checks do not replace actual CSP rendering, unsaved pit-edit capture or a live baseline/change/comparison test. No claim of verified compatibility across CSP versions is made.
+Existing transport/UI tests exercise the actual Lua entry point with mocked CSP drawing and networking. Capture checks cover bounded numeric parsing, canonical fingerprints, identity, stale responses and read-only behavior. Existing tests cover findings, planning, feedback, timeouts, save failures and duplicate saves. The installed CSP SDK documents the UI and setup APIs used here. These checks do not replace actual CSP rendering, pit Save & Apply Tune/Restore previous, unsaved pit-edit capture or a live baseline/change/comparison test. No claim of verified compatibility across CSP versions is made.
 
 Report the desktop ADT version, companion version, CM/CSP versions, the operation attempted and the panel's error text. Do not share pairing codes/tokens.

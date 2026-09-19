@@ -21,6 +21,7 @@ public sealed partial class RemoteServerService
         MapRecorderEndpoints(app, "/api/companion", localOnly: true, "In-game companion");
         MapRecorderEndpoints(app, "/api/control", localOnly: false, "Touchscreen");
         MapSetupCaptureEndpoint(app);
+        MapPitSetupEndpoint(app);
     }
 
     private void MapRecorderEndpoints(WebApplication app, string prefix, bool localOnly, string source)

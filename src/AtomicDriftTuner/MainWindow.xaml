@@ -389,7 +389,7 @@
                   <TextBlock Text="Refine by Feel" Style="{StaticResource SectionTitle}" Margin="0,3,0,8" TextWrapping="Wrap" />
                   <TextBlock x:Name="CalibrationStatusText" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12" />
                   <TextBlock Text="Make small, deliberate changes after driving the generated tune." Foreground="{DynamicResource MutedTextBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,12" />
-                  <Button Content="Apply Feedback + Regenerate" Style="{StaticResource PrimaryButtonStyle}" Click="ApplyCalibration_Click" Margin="0,0,0,7" />
+                  <Button Content="Update recommendations only" Style="{StaticResource PrimaryButtonStyle}" Click="ApplyCalibration_Click" Margin="0,0,0,7" ToolTip="Save your feedback and regenerate ADT targets. This does not change the car setup or wheelbase settings." />
                   <Button Content="Reset Saved Calibration" Style="{StaticResource ModernButtonStyle}" Click="ResetCalibration_Click" Margin="0" />
                 </StackPanel>
                 <StackPanel>

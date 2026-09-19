@@ -72,10 +72,16 @@ internal static partial class Program
                 CheckLiveSetup(output);
                 return 0;
             }
+            if (args.Contains("--pit-setup"))
+            {
+                CheckPitSetup(repo, output);
+                return 0;
+            }
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);
             CheckCompanionWorkflow(output);
             CheckLiveSetup(output);
+            CheckPitSetup(repo, output);
             CheckRecordingRecovery(output);
             CheckGearingWorkflow(output);
             CheckGuidedModes(output);
@@ -85,7 +91,7 @@ internal static partial class Program
             CheckAdaptivePanel();
             var cases = new Dictionary<string, string[]>
             {
-                ["CarSetupWindow"] = ["SaveBehaviorButton", "SaveGeneratedButton"],
+                ["CarSetupWindow"] = ["SaveBehaviorButton", "SaveGeneratedButton", "StagePitSetupButton", "ClearPendingPitSetupButton"],
                 ["GearingWindow"] = ["SaveGearingButton", "CloseButton"],
                 ["AzomSettingsWindow"] = ["SavePreferencesButton"],
                 ["SetupWizardWindow"] = ["SaveButton", "CloseWithoutSavingButton"],

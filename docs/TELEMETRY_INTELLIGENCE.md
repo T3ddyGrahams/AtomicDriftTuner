@@ -6,6 +6,8 @@ ADT now keeps phase evidence, the goals recorded with each run, immutable tune s
 
 ## Current setup capture and live evidence — local preview.14
 
+Local preview.15 adds a separate [explicit pit Save & Apply Tune workflow](PIT_SETUP.md): generate/review in AC Setup, stage the numeric plan, then explicitly apply from the companion's Pit setup tab. Goals, findings, feedback and generation still do not apply settings. A verified pit action does not establish improved handling; a clean baseline/comparison and the existing evidence checks are still required. Real-game acceptance is pending.
+
 With the updated CSP companion paired, Recorder can snapshot the current setup's numeric VALUE fields, including supported unsaved pit edits, without a manual file attachment. Capture is read-only and requires a compatible CSP version and verified live car/track. The saved tune stores the values, a canonical numeric fingerprint, source, layout and receipt time; raw INI metadata and pairing credentials are not saved. Manual attachment remains available. Use the same capture method and field coverage for both runs.
 
 The short recording guide uses the existing diagnosis and the goals saved with the run: collect useful drift, add goal-relevant entries/transitions/complete angle attempts, then stop and save when ready. More details are expandable in desktop ADT, the companion and the touchscreen. Background analysis is throttled; long recordings retain all samples even when live progress updates pause. Evidence readiness is not an improvement verdict.

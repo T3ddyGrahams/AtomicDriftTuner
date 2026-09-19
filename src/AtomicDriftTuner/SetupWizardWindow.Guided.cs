@@ -70,7 +70,8 @@ public partial class SetupWizardWindow
     {
         if (_busy) return;
         var picker = new Microsoft.Win32.OpenFolderDialog { Title = "Select MOZA SDK_CSharp/x64 (or x86) folder" };
-        if (picker.ShowDialog(this) == true) MozaSdkFolderBox.Text = picker.FolderName;
+        SetInitialDirectoryIfValid(picker, MozaSdkFolderBox.Text);
+        if (ShowFolderDialog(picker) == true) MozaSdkFolderBox.Text = picker.FolderName;
     }
     private async void CheckGuidedConnection_Click(object sender, RoutedEventArgs e)
     {

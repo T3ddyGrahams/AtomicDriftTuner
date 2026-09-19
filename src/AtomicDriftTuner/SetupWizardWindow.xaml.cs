@@ -12,6 +12,7 @@ public partial class SetupWizardWindow : Window
         "AtomicDriftTuner.AzomBridge.v1";
 
     private readonly bool _firstRun;
+    private readonly Func<OpenFolderDialog, Window?, bool?>? _showFolderDialog;
 
     private readonly AppSettingsStore _store =
         new();
@@ -39,9 +40,11 @@ public partial class SetupWizardWindow : Window
     public bool SettingsChanged { get; private set; }
 
     public SetupWizardWindow(
-        bool firstRun, GuidedWorkflowStore? guidedStore = null, AppSettingsStore? settingsStore = null)
+        bool firstRun, GuidedWorkflowStore? guidedStore = null, AppSettingsStore? settingsStore = null,
+        Func<OpenFolderDialog, Window?, bool?>? showFolderDialog = null)
     {
         InitializeComponent();
+        _showFolderDialog = showFolderDialog;
         _guidedStore = guidedStore ?? new GuidedWorkflowStore();
         if (settingsStore is not null) _store = settingsStore;
 
@@ -1139,6 +1142,8 @@ public partial class SetupWizardWindow : Window
     {
         var owner =
             ResolveVisibleOwner();
+
+        if (_showFolderDialog is not null) return _showFolderDialog(dialog, owner);
 
         return
             owner is null

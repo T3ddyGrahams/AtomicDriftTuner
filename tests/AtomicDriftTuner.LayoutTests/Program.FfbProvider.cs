@@ -8,6 +8,22 @@ using AtomicDriftTuner.Services;
 
 internal static partial class Program
 {
+    private sealed class SdkBrowseProbe
+    {
+        public Microsoft.Win32.OpenFolderDialog? LastDialog;
+        public bool? Result;
+        public string SelectedFolder = "";
+        public int Calls;
+        public Window? Owner;
+        public bool? Show(Microsoft.Win32.OpenFolderDialog dialog, Window? owner)
+        {
+            Calls++;
+            LastDialog = dialog;
+            Owner = owner;
+            if (Result == true) dialog.FolderName = SelectedFolder;
+            return Result;
+        }
+    }
     private static void CheckFfbProvider(string output)
     {
         int checks = 0;
@@ -20,6 +36,39 @@ internal static partial class Program
         foreach (var (field, value) in new[] { ("_directory", root), ("_path", Path.Combine(root, "settings.json")), ("_backupPath", Path.Combine(root, "settings.backup.json")) })
             typeof(AppSettingsStore).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(settings, value);
         settings.Save(settings.Load());
+        var probe = new SdkBrowseProbe();
+        var browse = new SetupWizardWindow(false, store, settings, probe.Show);
+        try
+        {
+            var field = (TextBox)browse.FindName("MozaSdkFolderBox");
+            field.Text = root;
+            void ClickBrowse() => typeof(SetupWizardWindow).GetMethod("BrowseMozaSdk_Click", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(browse, [browse, new RoutedEventArgs()]);
+            Check(!browse.IsVisible, "Browse regression must use the never-shown embedded setup window");
+            probe.Result = false;
+            ClickBrowse();
+            Check(probe.Calls == 1 && field.Text == root, "Cancel changed the SDK path or bypassed embedded-owner handling");
+            Check(probe.Owner != browse && (probe.Owner is null || probe.Owner.IsVisible), "Picker received a never-shown owner");
+            Check(probe.LastDialog!.InitialDirectory == root, "Existing SDK folder was not used as the initial location");
+            probe.Result = null;
+            ClickBrowse();
+            Check(field.Text == root, "Closing picker changed the saved input");
+            probe.Result = true;
+            probe.SelectedFolder = Path.Combine(root, "selected-sdk");
+            Directory.CreateDirectory(probe.SelectedFolder);
+            ClickBrowse();
+            Check(field.Text == probe.SelectedFolder && probe.Calls == 3, "Chosen SDK folder was not applied to the input");
+            Check(store.Preferences().MozaSdkFolder == "", "Browsing saved preferences before Save & Continue");
+            var missing = Path.Combine(root, "missing-sdk");
+            field.Text = missing;
+            probe.Result = false;
+            ClickBrowse();
+            Check(string.IsNullOrEmpty(probe.LastDialog!.InitialDirectory) && field.Text == missing, "Missing initial folder prevented cancellation");
+        }
+        finally
+        {
+            typeof(SetupWizardWindow).GetField("_closingAfterSave", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(browse, true);
+            browse.Close();
+        }
         var wizard = new SetupWizardWindow(false, store, settings);
         try
         {

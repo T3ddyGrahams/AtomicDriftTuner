@@ -137,6 +137,9 @@ public partial class TelemetryWindow : Window
 
     private RunContext CaptureRunContext()
     {
+        var recordingProvider = new GuidedWorkflowStore().Preferences().FfbProvider;
+        if (TuningFocusOptions.IncludesFfb(RecordingFocus) && _recordingPlan is not null)
+            FfbProviderOptions.Require(_recordingPlan.FfbProvider, recordingProvider);
         var identity = _readSessionIdentity();
         if (identity is not null && !string.IsNullOrWhiteSpace(_input.Car.SourceFolderName) &&
             !string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
@@ -149,11 +152,13 @@ public partial class TelemetryWindow : Window
             throw new InvalidOperationException("Choose a recommendation baseline recorded by this driver, or clear the baseline selection.");
         if (baseline is not null && baseline.Session.Context?.Focus != RecordingFocus)
             throw new InvalidOperationException("Choose a baseline recorded in this tuning mode, or clear the baseline selection.");
+        if (baseline is not null && TuningFocusOptions.IncludesFfb(RecordingFocus) && baseline.Session.Context?.Tune?.FfbProvider != recordingProvider)
+            throw new InvalidOperationException("Choose a baseline recorded with this wheelbase software, or clear the selection and record a new baseline.");
         RefreshSetupCapture();
         var capturedSetup = FreshSetup();
         var version = _history.CaptureTune(_input, driver, TuneLabelBox.Text, new CarBehaviorProfileStore().Load(_input),
             _calibrationStore.Get(_calibrationEngine.BuildKey(_input)), AutomaticSetup ? null : _setupSnapshotPath,
-            new AppSettingsStore().Load().AzomPreferences, RecordingFocus, capturedSetup);
+            new AppSettingsStore().Load().AzomPreferences, RecordingFocus, capturedSetup, recordingProvider);
         _runSetup = capturedSetup;
         RunTrackText.Text = identity is null ? "Car/track identity unknown; this run cannot establish improvement." : $"Recorded track: {identity.Track} • Tune: {version.Label}";
         return new RunContext

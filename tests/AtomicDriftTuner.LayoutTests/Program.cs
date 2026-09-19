@@ -77,6 +77,13 @@ internal static partial class Program
                 CheckPitSetup(repo, output);
                 return 0;
             }
+            if (args.Contains("--ffb-provider"))
+            {
+                CheckFfbProvider(output);
+                CheckGuidedModes(output);
+                return 0;
+            }
+            CheckFfbProvider(output);
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);
             CheckCompanionWorkflow(output);
@@ -95,6 +102,7 @@ internal static partial class Program
                 ["GearingWindow"] = ["SaveGearingButton", "CloseButton"],
                 ["AzomSettingsWindow"] = ["SavePreferencesButton"],
                 ["SetupWizardWindow"] = ["SaveButton", "CloseWithoutSavingButton"],
+                ["PitHouseSettingsWindow"] = ["ApplyButton", "CloseButton"],
                 ["TelemetryWindow"] = ["RecordButton", "StopButton", "SaveButton"],
                 ["TuningAssistantWindow"] = ["NextActionButton"],
                 ["ShareCodeWindow"] = ["ShareCopyActions"],

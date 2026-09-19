@@ -66,6 +66,7 @@ Source: "{#StagingDir}\docs\TOUCHSCREEN.md"; DestDir: "{app}\docs"; Flags: ignor
 Source: "{#StagingDir}\docs\GEARING.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\TELEMETRY_INTELLIGENCE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\PIT_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\PITHOUSE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\ADTCompanion-ContentManager.zip"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\README.md"; DestDir: "{app}\CompanionPayload"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\ADTCompanion.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion

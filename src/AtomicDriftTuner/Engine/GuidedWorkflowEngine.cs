@@ -48,6 +48,9 @@ public static class GuidedWorkflowEngine
             new(stage, title, simple, action) { Details = details, Completion = done };
         if (!p.Completed || !p.FocusChoiceConfirmed) return Step(GuidedStage.Welcome, "Start here · Choose what to tune", "Open setup and choose Car tuning only or Car + FFB. Enter your driver name, then Save & Continue.", "Set Up My Workflow",
             "Car tuning changes how the car handles, including grip, suspension and supported gearing. FFB (force feedback) is the feeling through your steering wheel. Car tuning only keeps your FFB settings fixed. Car + FFB also guides you through wheel feedback; SimHub and AZOM are optional. You can change this choice later without deleting earlier runs.", "Save & Continue remembers your choice. It does not apply car or wheelbase settings.");
+        if (ffb && j.FfbProvider != p.FfbProvider) return Step(GuidedStage.GoalsChanged, "Your wheelbase software changed",
+            "Start a fresh baseline with your selected wheelbase software. Earlier recordings and reviews remain saved.", "Start a New Baseline",
+            "SimHub/AZOM and Pit House have different controls and ranges. Confirm your actual settings in the selected software, then record a new baseline before testing improvements.", "A new baseline uses your selected FFB software.");
         if (!j.CarConfirmed) return Step(GuidedStage.Car, "1 · Choose your car and driver", "Under Car & Hardware, scan AC and choose the installed car you will drive. Confirm your driver and current rig.", "Confirm This Car & Rig",
             "Start Assetto Corsa or Content Manager with that same car. If ADT's car list is empty, choose the Assetto Corsa installation folder and scan it. Hardware is recorded so comparisons stay tied to the same rig. Use the same driver name each time.", "ADT and the game show the same car, and the driver and rig selections are correct.");
         if (j.GoalSignature.Length == 0) return Step(GuidedStage.Goals, "2 · Tell ADT what you want", "Open Desired Behavior and choose what you want to improve. Click Save Desired Behavior, then return here and confirm.", "Use Saved Desired Behavior",
@@ -90,10 +93,12 @@ public static class GuidedWorkflowEngine
 
     public static string Instructions(GuidedPreferences p, IntegrationState? s)
     {
+        if (TuningFocusOptions.IncludesFfb(p.Focus) && p.FfbProvider == FfbProvider.MozaPitHouse)
+            return FfbProviderOptions.PitHouseInstructions(p.ShowDetailedHelp);
         if (!p.ShowDetailedHelp)
         {
             if (!TuningFocusOptions.IncludesFfb(p.Focus)) return "Car setup: save a baseline → create a new setup in ADT if wanted → load the chosen .ini in AC's pits. Keep FFB fixed. SimHub/AZOM are not needed. Enable more explanation for the exact steps.";
-            if (!p.WantLiveConnection || p.SimHub == "No" || p.Azom == "No") return "Manual FFB: enter AC FFB in Controls → Force Feedback and supported wheelbase values in its manufacturer's software. SimHub/AZOM are optional. Enable more explanation for menus and verification steps.";
+            if (!FfbProviderOptions.UsesAzom(p) || !p.WantLiveConnection || p.SimHub == "No" || p.Azom == "No") return "Manual FFB: enter AC FFB in Controls → Force Feedback and supported wheelbase values in its manufacturer's software. SimHub/AZOM are optional. Enable more explanation for menus and verification steps.";
             if (s is { BridgeConnected: true, AzomDetected: true, SettingsReadable: true }) return "AZOM readback is ready: review supported wheelbase changes, Apply explicitly, then verify readback. Enter AC FFB separately. Enable more explanation for the full instructions.";
             if (s is null) return "Click Check for Me to check the optional live connection. Or turn off live connection help and enter the FFB settings manually.";
             if (!s.SimHubInstalled && !s.BridgeConnected) return "SimHub's folder was not found. Choose its folder below, or turn off live connection help to continue manually. SimHub is optional.";
@@ -108,7 +113,7 @@ public static class GuidedWorkflowEngine
         const string manual = "MANUAL FFB\n1. Write down or screenshot your current FFB and wheelbase values.\n2. In Content Manager, open Settings → Assetto Corsa → Controls → Force Feedback (or AC's Options → Controls → Force Feedback).\n3. Enter the recommended AC FFB values there.\n4. Open your wheelbase manufacturer's software. Enter only matching settings supported by your model; AZOM/MOZA-specific values do not map to every wheelbase.\n5. Check that the values took effect before recording.";
         var car = TuningFocusOptions.IncludesCar(p.Focus) ? " CAR SETUP: save the AC setup file under a new name, then load it from AC's Setup menu in the pits." : " Keep your existing car setup fixed; FFB settings in AC's Controls menu are part of FFB-only tuning.";
         var common = manual + car;
-        if (!p.WantLiveConnection || p.SimHub == "No" || p.Azom == "No")
+        if (!FfbProviderOptions.UsesAzom(p) || !p.WantLiveConnection || p.SimHub == "No" || p.Azom == "No")
             return common + (p.SimHub == "Yes" && p.Azom == "No" ? " SimHub by itself does not provide AZOM wheelbase control." : "") + " SimHub/AZOM live control is optional. Choose Change My Setup if you want connection help later.";
         if (s is null) return common + " Optional live control: choose Check for Me / Check Again to find out what ADT can reach now.";
         if (s.BridgeConnected && s.AzomDetected && s.SettingsReadable)

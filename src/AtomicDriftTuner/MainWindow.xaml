@@ -152,7 +152,7 @@
             <StackPanel>
               <TextBlock Text="TUNING FLOW" Style="{StaticResource LabelText}" Margin="12,0,0,8" TextWrapping="Wrap" />
               <Button x:Name="DashboardNavButton" Content="⌂   Dashboard" Style="{StaticResource ActiveNavButtonStyle}" Click="ReturnToDashboard_Click" />
-              <Button x:Name="AzomNavButton" Content="③   Tune / AZOM" Style="{StaticResource NavButtonStyle}" Click="OpenAzomSettings_Click" />
+              <Button x:Name="AzomNavButton" Content="③   Wheelbase FFB" Style="{StaticResource NavButtonStyle}" Click="OpenAzomSettings_Click" />
               <Button x:Name="CarSetupNavButton" Content="⑥   AC Setup" Style="{StaticResource NavButtonStyle}" Click="OpenCarSetup_Click" />
               <Button x:Name="TelemetryNavButton" Content="④   Drive / Telemetry" Style="{StaticResource NavButtonStyle}" Click="OpenTelemetry_Click" />
               <Button x:Name="AssistantNavButton" Content="⑤   Refine Tune" Style="{StaticResource NavButtonStyle}" Click="OpenTuningAssistant_Click" />
@@ -353,7 +353,7 @@
                     <TextBlock x:Name="SummaryText" Text="Scan AC or choose settings, then generate a tune." Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" />
                   </StackPanel>
                   <WrapPanel VerticalAlignment="Center" Margin="0,8,0,0">
-                    <Button Content="Full AZOM" Style="{StaticResource ModernButtonStyle}" Click="OpenAzomSettings_Click" />
+                    <Button Content="Wheelbase Settings" Style="{StaticResource ModernButtonStyle}" Click="OpenAzomSettings_Click" />
                     <Button Content="Back to My Next Step" Click="BackToGuided_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,4,8,4"/>
                     <Button Content="Generate New Tune" IsEnabled="{Binding IsEnabled, ElementName=DashboardGenerateButton}" Style="{StaticResource PrimaryButtonStyle}" Click="Generate_Click" Margin="0" />
                   </WrapPanel>
@@ -361,7 +361,7 @@
                 <layout:AdaptivePanel MinItemWidth="270" MaxColumns="3" Spacing="12">
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
-                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="AZOM / MOZA" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+                      <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="WHEELBASE RECOMMENDATIONS" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
                       <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="AzomText" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
                   </Border>

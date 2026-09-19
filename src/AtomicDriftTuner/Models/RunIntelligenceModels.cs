@@ -9,6 +9,7 @@ public sealed class DriverIdentity
 
 public sealed class TuneVersion
 {
+    public FfbProvider FfbProvider { get; set; } = FfbProvider.SimHubAzom;
     public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public string Schema { get; set; } = "adt/tune-version/1";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");

@@ -61,10 +61,10 @@ public sealed class RunHistoryStore
 
     public TuneVersion CaptureTune(TuneInput input, DriverIdentity driver, string label, CarBehaviorTarget behavior,
         CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null, TuningFocus focus = TuningFocus.Both,
-        CapturedCarSetup? capturedSetup = null)
+        CapturedCarSetup? capturedSetup = null, FfbProvider ffbProvider = FfbProvider.SimHubAzom)
     {
         Id(driver.Id);
-        var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior), Focus = focus };
+        var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior), Focus = focus, FfbProvider = ffbProvider };
         version.DesiredBehavior.Normalize();
         var tune = new TuningEngine().Generate(input, calibration, preferences);
         void Flatten(JsonElement element, string key)
@@ -77,7 +77,16 @@ public sealed class RunHistoryStore
         if (TuningFocusOptions.IncludesFfb(focus))
         {
             Flatten(JsonSerializer.SerializeToElement(tune.Ac), "Generated.ACFFB");
-            Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
+            if (ffbProvider == FfbProvider.MozaPitHouse)
+            {
+                foreach (var setting in PitHouseCatalog.Settings)
+                {
+                    var target = setting.Target(tune.Azom);
+                    if (setting.Accepts(target)) version.Settings["Generated.PitHouse." + setting.Key] = target;
+                }
+                version.Source = "Generated ADT recommendation for supported Pit House core controls; unsupported controls omitted; live hardware values are not read into this run snapshot";
+            }
+            else Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
         }
         else version.Source = "Car setup snapshot; FFB settings held fixed by driver, no generated FFB targets claimed in use";
         if (capturedSetup is not null)
@@ -147,7 +156,7 @@ public sealed class RunHistoryStore
         r.Comparison is not null && r.Comparison.Limitations is not null && r.Comparison.Metrics is not null && r.Comparison.TuneChanges is not null;
 
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
-        Enum.IsDefined(v.Focus) &&
+        Enum.IsDefined(v.Focus) && Enum.IsDefined(v.FfbProvider) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
         v.SetupSha256 is not null && v.SetupSource is not null && v.SetupTrackLayout is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&
         new[] { v.DesiredBehavior.FrontEndBite, v.DesiredBehavior.RearGrip, v.DesiredBehavior.SelfSteerSpeed, v.DesiredBehavior.TransitionSpeed,

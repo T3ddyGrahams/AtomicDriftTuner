@@ -2,6 +2,7 @@ namespace AtomicDriftTuner.Models;
 
 public enum TuningFocus { Both, FfbOnly, CarSetupOnly }
 public enum RecommendationArea { General, Ffb, CarSetup }
+public enum FfbProvider { SimHubAzom, MozaPitHouse, Manual }
 
 public sealed class GuidedPreferences
 {
@@ -10,6 +11,9 @@ public sealed class GuidedPreferences
     public string SimHub { get; set; } = "Not sure";
     public string Azom { get; set; } = "Not sure";
     public bool WantLiveConnection { get; set; }
+    // Zero preserves the provider used by older preferences.
+    public FfbProvider FfbProvider { get; set; } = FfbProvider.SimHubAzom;
+    public string MozaSdkFolder { get; set; } = "";
     public string DriverName { get; set; } = "Local driver";
     public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public bool FocusChoiceConfirmed { get; set; }
@@ -18,6 +22,7 @@ public sealed class GuidedPreferences
 
 public sealed class GuidedJourney
 {
+    public FfbProvider FfbProvider { get; set; } = FfbProvider.SimHubAzom;
     public string Schema { get; set; } = "adt/guided-journey/1";
     public string ContextKey { get; set; } = "";
     public string DriverId { get; set; } = "";
@@ -43,4 +48,4 @@ public sealed record GuidedStep(GuidedStage Stage, string Title, string Instruct
 }
 public sealed record IntegrationState(bool SimHubInstalled, bool SimHubRunning, bool BridgeInstalled, bool BridgeConnected, bool AzomDetected, bool SettingsReadable);
 public sealed record RecordingPlan(string DriverId, string DriverName, string BaselineId, string Recommendation, string SetupPath, string Conditions,
-    TuningFocus Focus = TuningFocus.Both, bool ShowDetailedHelp = true);
+    TuningFocus Focus = TuningFocus.Both, bool ShowDetailedHelp = true, FfbProvider FfbProvider = FfbProvider.SimHubAzom);

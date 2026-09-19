@@ -59,9 +59,9 @@ public sealed class GuidedWorkflowStore
     {
         var key = Key(input);
         var selected = focus ?? Preferences().Focus;
-        return Read(PathFor(input, driver, selected), new GuidedJourney { ContextKey = key, DriverId = driver, Focus = selected },
+        return Read(PathFor(input, driver, selected), new GuidedJourney { ContextKey = key, DriverId = driver, Focus = selected, FfbProvider = Preferences().FfbProvider },
             j => j.Schema == "adt/guided-journey/1" && j.ContextKey == key && j.DriverId == driver &&
-                 j.Focus == selected &&
+                 j.Focus == selected && Enum.IsDefined(j.FfbProvider) &&
                  j.GoalSignature is not null && j.BaselineId is not null && j.AfterId is not null && j.Recommendation is not null && j.SetupPath is not null && j.Conditions is not null);
     }
     public void Update(TuneInput input, string driver, Action<GuidedJourney> update, TuningFocus? focus = null)
@@ -77,11 +77,13 @@ public sealed class GuidedWorkflowStore
     }
     public void Reset(TuneInput input, string driver, TuningFocus? focus = null) => Update(input, driver, j =>
     {
+        j.FfbProvider = Preferences().FfbProvider;
         j.GoalSignature = j.GeneratedSignature = ""; j.TuneGenerated = j.TuneReady = j.Reviewed = false;
         j.BaselineId = j.AfterId = j.Recommendation = "";
     }, focus);
     private static bool ValidPreferences(GuidedPreferences p) => p.Schema == "adt/guided-preferences/1" &&
-        Enum.IsDefined(p.Focus) &&
+        Enum.IsDefined(p.Focus) && Enum.IsDefined(p.FfbProvider) && p.MozaSdkFolder is not null &&
+        p.MozaSdkFolder.Length <= 1024 && !p.MozaSdkFolder.Any(char.IsControl) &&
         new[] { "Yes", "No", "Not sure" }.Contains(p.SimHub) && new[] { "Yes", "No", "Not sure" }.Contains(p.Azom) &&
         !string.IsNullOrWhiteSpace(p.DriverName) && p.DriverName.Trim().Length <= 80 && !p.DriverName.Any(char.IsControl);
     private static T Read<T>(string path, T fallback, Func<T, bool> valid)

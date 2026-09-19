@@ -40,7 +40,13 @@ A short, interrupted or unreliable recording stays available for inspection. Gui
 
 Automatic setup capture reads the current car settings without changing them. It checks about once per second; it is not continuous verification. If capture is lost or the setup changes during recording, ADT keeps the samples but cannot use that run to claim a tuning improvement. Repeat the run with stable capture. A manual attachment represents the saved file and cannot include later unsaved edits. FFB still needs your confirmation. The packaged CompanionPayload/README.md explains companion setup and capture limits; real-game acceptance of this local preview remains pending.
 
-## With or without SimHub/AZOM
+## Choose your wheelbase software
+
+For **Car + FFB**, Setup & Paths offers **SimHub / AZOM**, **MOZA Pit House**, and **Other wheelbase software / manual**. Save & Continue remembers the choice. The connection questions and Wheelbase Settings view follow it; existing users retain SimHub/AZOM. Pit House can be used manually without SimHub. Its optional SDK connection is experimental and requires SDK-compatible Pit House plus the native SDK files on the tester PC. Follow [the Pit House guide](PITHOUSE.md) for read/apply/restore and hardware acceptance steps.
+
+Changing providers starts a new guided baseline without deleting earlier history. Pit House and AZOM do not support identical controls/ranges, so ADT does not issue an improvement verdict across different FFB providers. Car-only comparisons remain independent of this optional choice.
+
+## SimHub/AZOM connection help
 
 The connection walkthrough is for **Car + FFB**. **Car tuning only** goes straight to preparing the car setup and recording. It does not require installing SimHub, AZOM or the bridge. You can change the workflow later in **Setup & Paths** without deleting earlier runs.
 

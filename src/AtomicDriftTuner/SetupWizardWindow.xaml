@@ -49,6 +49,16 @@
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Driver name (used for your run history)"/>
                     <TextBox x:Name="InterviewDriverBox" MaxLength="80" TextChanged="InterviewTextChanged" AutomationProperties.Name="Driver name" Margin="0,3,0,8"/>
                     <StackPanel x:Name="IntegrationInterviewPanel">
+                    <TextBlock Text="Which software do you use for wheelbase FFB?" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap"/>
+                    <ComboBox x:Name="FfbProviderBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="Wheelbase FFB software" Margin="0,3,0,8"/>
+                    <StackPanel x:Name="PitHouseInterviewPanel" Visibility="Collapsed">
+                        <TextBlock Text="MOZA Pit House can be used without SimHub/AZOM. Manual entry is available immediately. The optional SDK connection requires SDK-compatible Pit House and the matching native SDK files on this PC. Hardware support is experimental." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4"/>
+                        <TextBlock Text="Optional MOZA SDK_CSharp/x64 folder (x86 for 32-bit ADT)" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap"/>
+                        <TextBox x:Name="MozaSdkFolderBox" MaxLength="1024" TextChanged="InterviewTextChanged" AutomationProperties.Name="MOZA SDK folder" Margin="0,4"/>
+                        <Button Content="Browse SDK folder" Click="BrowseMozaSdk_Click" HorizontalAlignment="Left" Margin="0,4"/>
+                        <TextBlock Text="Save this choice, then open Wheelbase Settings to read Pit House. Selecting a folder does not load the SDK or change your wheelbase." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4"/>
+                    </StackPanel>
+                    <StackPanel x:Name="SimHubInterviewPanel">
                     <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="SimHub is an optional companion program. AZOM is its optional plugin for supported wheelbase settings. You can enter settings manually if you do not use these tools. Not sure? Check for Me looks without installing or applying anything." TextWrapping="Wrap" Margin="0,6"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Do you have SimHub installed?"/>
                     <ComboBox x:Name="SimHubChoiceBox" SelectionChanged="InterviewSelectionChanged" AutomationProperties.Name="SimHub installed" Margin="0,3,0,8"/>
@@ -59,6 +69,7 @@
                     </CheckBox>
                     <Button x:Name="CheckGuidedConnectionButton" Content="Not sure? Check for Me / Check Again" Click="CheckGuidedConnection_Click" HorizontalAlignment="Left" Margin="0,8"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewDetectionText" Text="Nothing has been checked yet. Installation and live connection are checked separately." TextWrapping="Wrap" Margin="0,4"/>
+                    </StackPanel>
                     </StackPanel>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="InterviewInstructionsText" TextWrapping="Wrap" Margin="0,6"/>
                     <TextBlock Text="Save &amp; Continue below remembers these choices. You can change them later in Setup &amp; Paths." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>

@@ -65,6 +65,7 @@ public sealed class SimHubActionInvoker
         psi.ArgumentList.Add(
             normalizedAction);
 
+        FfbProviderOptions.Require(AtomicDriftTuner.Models.FfbProvider.SimHubAzom);
         using var process =
             Process.Start(psi)
             ?? throw new InvalidOperationException(

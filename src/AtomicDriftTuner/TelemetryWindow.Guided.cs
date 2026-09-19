@@ -19,7 +19,8 @@ public partial class TelemetryWindow
             return;
         }
         var recent = force ? CompanionPlanSessions(plan) :
-            _sessionStore.ListRecent(_input, 100).Where(s => (s.Session.Context?.Focus ?? TuningFocus.Both) == plan.Focus).ToList();
+            _sessionStore.ListRecent(_input, 100).Where(s => (s.Session.Context?.Focus ?? TuningFocus.Both) == plan.Focus &&
+                (!TuningFocusOptions.IncludesFfb(plan.Focus) || s.Session.Context?.Tune?.FfbProvider == plan.FfbProvider)).ToList();
         var baseline = recent.FirstOrDefault(s => s.Session.Id == plan.BaselineId && s.Session.Context?.DriverId == plan.DriverId);
         if (plan.BaselineId.Length > 0 && baseline is null)
             throw new InvalidOperationException("The planned baseline is not in this car/driver's recent history. Select it in Tuning Assistant or start a new baseline; ADT has not substituted another run.");
@@ -31,7 +32,9 @@ public partial class TelemetryWindow
         RecorderHelpExpander.IsExpanded = plan.ShowDetailedHelp;
         RecorderConfirmationText.Text = plan.Focus == TuningFocus.CarSetupOnly
             ? "I confirm the attached car setup is loaded in AC and my in-game FFB and wheelbase settings are unchanged."
-            : "I confirm I am using the generated ADT FFB targets and the attached setup for this run.";
+            : plan.FfbProvider == FfbProvider.MozaPitHouse
+                ? "I confirm I am using the supported Pit House core FFB targets, AC FFB and attached setup for this run. Unsupported wheelbase controls remain fixed."
+                : "I confirm I am using the generated ADT FFB targets and the attached setup for this run.";
         DriverBox.Text = plan.DriverName;
         RecommendationRunBox.ItemsSource = recent; RecommendationRunBox.SelectedItem = baseline;
         ConditionsBox.Text = plan.Conditions;

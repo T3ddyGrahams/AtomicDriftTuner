@@ -96,7 +96,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
             ref _app) is not null;
 
     public bool RemoteWritesEnabled =>
-        _remoteWritesEnabled;
+        _remoteWritesEnabled && FfbProviderOptions.AzomSelected();
 
     public int Port { get; private set; } =
         DefaultPort;
@@ -1261,6 +1261,9 @@ public sealed partial class RemoteServerService : IAsyncDisposable
     private async Task<object> ReadAzomViewAsync(
         CancellationToken cancellationToken)
     {
+        var provider = new GuidedWorkflowStore().Preferences().FfbProvider;
+        if (provider != FfbProvider.SimHubAzom)
+            return new { ok = false, error = $"{FfbProviderOptions.Label(provider)} selected. Use Wheelbase Settings on the PC. Recording and car setup controls remain available.", remoteWritesEnabled = false, settings = Array.Empty<RemoteAzomSettingView>() };
         try
         {
             var snapshot =

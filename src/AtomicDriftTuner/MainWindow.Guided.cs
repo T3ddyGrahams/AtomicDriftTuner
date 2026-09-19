@@ -44,6 +44,7 @@ public partial class MainWindow
             try { GuidedHelpCheck.IsChecked = prefs.ShowDetailedHelp; }
             finally { _syncingGuided = false; }
             GuidedFocusText.Text = prefs.FocusChoiceConfirmed ? "Tuning: " + TuningFocusOptions.Label(prefs.Focus) + " · Change this in Setup & Paths." : "Choose what you want to tune before starting.";
+            AzomNavButton.Content = "③   Wheelbase FFB";
             GuidedOverviewText.Text = GuidedWorkflowEngine.StartToFinish(prefs.Focus);
             if (!prefs.Completed || !prefs.FocusChoiceConfirmed || !HasCompleteSessionSelection)
             {
@@ -72,13 +73,13 @@ public partial class MainWindow
             GuidedRepeatButton.Visibility = step.Stage is GuidedStage.Compare or GuidedStage.Complete ? Visibility.Visible : Visibility.Collapsed;
             GuidedPrepareChangeButton.Visibility = step.Stage == GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
             GuidedWheelbaseButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) && step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
-            GuidedCheckButton.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) && step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
+            GuidedCheckButton.Visibility = FfbProviderOptions.UsesAzom(prefs) && TuningFocusOptions.IncludesFfb(prefs.Focus) && step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
             GeneratedTuneCard.Visibility = CalibrationCard.Visibility = TuningFocusOptions.IncludesFfb(prefs.Focus) ? Visibility.Visible : Visibility.Collapsed;
             DashboardGenerateButton.Content = TuningFocusOptions.IncludesFfb(prefs.Focus) ? "Generate Tune" : "Open Car Setup";
             GuidedResetButton.Visibility = j.BaselineId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             GuidedIntegrationText.Text = GuidedWorkflowEngine.Instructions(prefs, _guidedConnection);
             GuidedIntegrationText.Visibility = step.Stage is GuidedStage.Prepare or GuidedStage.Test ? Visibility.Visible : Visibility.Collapsed;
-            if (TuningFocusOptions.IncludesFfb(prefs.Focus) && _guidedConnection is { } connection)
+            if (FfbProviderOptions.UsesAzom(prefs) && TuningFocusOptions.IncludesFfb(prefs.Focus) && _guidedConnection is { } connection)
                 GuidedIntegrationText.Text = $"Last checked {_guidedCheckedAt:t}: SimHub folder {(connection.SimHubInstalled ? "found" : "not found")}; process {(connection.SimHubRunning ? "running" : "not running")}; bridge {(connection.BridgeConnected ? "connected" : "offline")}; AZOM {(!connection.BridgeConnected ? "unverified" : connection.AzomDetected ? "detected" : "not detected")}.\n" + GuidedIntegrationText.Text;
             GuidedProgressText.Text = $"Car {(j.CarConfirmed ? "✓" : "○")} → Goals {(j.GoalSignature.Length > 0 ? "✓" : "○")} → Prepare {(j.TuneReady ? "✓" : "○")} → Baseline {(j.BaselineId.Length > 0 ? "✓" : "○")} → Test {(j.Recommendation.Length > 0 ? "✓" : "○")} → Compare {(j.AfterId.Length > 0 ? "✓" : "○")} → Review {(j.Reviewed ? "✓" : "○")}";
         }
@@ -135,6 +136,7 @@ public partial class MainWindow
     }
     private async void CheckDashboardIntegration_Click(object sender, RoutedEventArgs e)
     {
+        if (!FfbProviderOptions.UsesAzom(_workflow.Preferences())) { OpenAzomSettings_Click(sender, e); return; }
         GuidedCheckButton.IsEnabled = false;
         try
         {
@@ -192,7 +194,7 @@ public partial class MainWindow
     private RecordingPlan GuidedRecordingPlan(TuneInput input)
     {
         var driver = CurrentGuidedDriver(); var j = _workflow.Journey(input, driver.Id);
-        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions, j.Focus, _workflow.Preferences().ShowDetailedHelp);
+        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions, j.Focus, _workflow.Preferences().ShowDetailedHelp, _workflow.Preferences().FfbProvider);
     }
     private void TrackSavedRun(TuneInput input, SavedTelemetrySession saved)
     {
@@ -206,6 +208,7 @@ public partial class MainWindow
         }
         _workflow.Update(input, c!.DriverId, j =>
         {
+            j.FfbProvider = c.Tune!.FfbProvider;
             j.CarConfirmed = true; j.GoalSignature = GuidedWorkflowStore.GoalSignature(c.Tune!.DesiredBehavior);
             j.TuneGenerated = j.TuneReady = true; // A recording exists; this is navigation progress, never proof of applied settings.
             j.Conditions = c.Conditions; j.Reviewed = false;
@@ -221,6 +224,8 @@ public partial class MainWindow
         var c = run.Session.Context;
         if (!RunHistoryStore.ValidContext(c)) throw new InvalidOperationException("Record a new baseline with driver and tune context before starting a guided test.");
         if (c!.Focus != _workflow.Preferences().Focus) throw new InvalidOperationException("This run used a different tuning choice. Select the matching workflow or record a new baseline. The earlier recording and its analysis remain in history.");
+        if (TuningFocusOptions.IncludesFfb(c.Focus) && c.Tune!.FfbProvider != _workflow.Preferences().FfbProvider)
+            throw new InvalidOperationException("This run used different wheelbase software. Select its provider or record a fresh baseline.");
         if (!RunHistoryStore.SameBehavior(c!.Tune!.DesiredBehavior, _behaviorStore.Load(input)))
             throw new InvalidOperationException("This run's recorded goals differ from the current saved Desired Behavior. Use matching goals or record a new baseline.");
         var prefs = _workflow.Preferences(); prefs.DriverName = c.DriverName; _workflow.SavePreferences(prefs); GuidedDriverBox.Text = c.DriverName;

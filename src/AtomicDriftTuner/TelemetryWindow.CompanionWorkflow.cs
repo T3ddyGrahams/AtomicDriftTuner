@@ -45,7 +45,7 @@ public partial class TelemetryWindow
     }
 
     internal bool CompanionPlanMatches(RecordingPlan plan) => _recordingPlan is { } current &&
-        current.DriverId == plan.DriverId && current.Focus == plan.Focus && current.BaselineId == plan.BaselineId &&
+        current.DriverId == plan.DriverId && current.Focus == plan.Focus && current.FfbProvider == plan.FfbProvider && current.BaselineId == plan.BaselineId &&
         current.Recommendation == plan.Recommendation && current.SetupPath == plan.SetupPath &&
         string.Equals(DriverBox.Text.Trim(), plan.DriverName.Trim(), StringComparison.OrdinalIgnoreCase) &&
         ((RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id ?? "") == plan.BaselineId &&
@@ -57,7 +57,8 @@ public partial class TelemetryWindow
         var baseline = _lastSavedForGuide?.Session.Id == plan.BaselineId ? _lastSavedForGuide :
             CompanionSavedRunLookup.Find(_sessionStore, plan.BaselineId);
         return baseline?.Session.Context is { Tune: not null } context && RunHistoryStore.ValidContext(context) &&
-            context.DriverId == plan.DriverId && context.Focus == plan.Focus && context.Tune.ContextKey == RunHistoryStore.ContextKey(_input)
+            context.DriverId == plan.DriverId && context.Focus == plan.Focus &&
+            (!TuningFocusOptions.IncludesFfb(plan.Focus) || context.Tune.FfbProvider == plan.FfbProvider) && context.Tune.ContextKey == RunHistoryStore.ContextKey(_input)
             ? [baseline] : [];
     }
 

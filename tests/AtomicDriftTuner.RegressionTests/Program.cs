@@ -228,6 +228,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
     Assert(refused, "Stale AZOM source state was accepted.");
     method.Invoke(null, new object[] { plan, new AzomLiveSnapshot { Torque = 70 } });
 });
+        PitHouseChecks.Run(Run, root);
         IntelligenceChecks.Run(Run, root);
         PedalChecks.Run(Run, root);
         AngleGoalChecks.Run(Run, root);

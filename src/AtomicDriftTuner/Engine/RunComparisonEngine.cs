@@ -20,6 +20,8 @@ public sealed class RunComparisonEngine
         Require(a?.Schema == "adt/run-context/1" && b?.Schema == "adt/run-context/1", "Legacy or unknown run context: driver, track, conditions and recorded goals are required.");
         Require(KnownSame(a?.DriverId, b?.DriverId), "Driver identity is missing or different.");
         Require(a is not null && b is not null && a.Focus == b.Focus, "Tuning mode changed. Use a baseline from the same FFB/car-setup workflow; all measured differences remain available.");
+        if (a is not null && b is not null && (TuningFocusOptions.IncludesFfb(a.Focus) || TuningFocusOptions.IncludesFfb(b.Focus)))
+            Require(a.Tune?.FfbProvider == b.Tune?.FfbProvider, "Wheelbase software changed. Record a new baseline with the same FFB provider before judging improvement.");
         Require(KnownSame(before.Session.CarFolder, after.Session.CarFolder) && KnownSame(before.Session.DriftPack, after.Session.DriftPack), "Car or drift pack differs, or its exact identity is missing.");
         Require(KnownSame(before.Session.Wheelbase, after.Session.Wheelbase) && KnownSame(before.Session.SteeringWheel, after.Session.SteeringWheel), "Wheelbase or rim differs, or its identity is missing.");
         Require(KnownSame(a?.TrackId, b?.TrackId) && KnownSame(a?.Conditions, b?.Conditions), "Track/layout, conditions or driving task is missing or different.");

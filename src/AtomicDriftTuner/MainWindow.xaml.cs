@@ -1128,6 +1128,14 @@ public partial class MainWindow : Window
         try
         {
             var input = BuildInput();
+            var provider = _workflow.Preferences().FfbProvider;
+            if (provider != FfbProvider.SimHubAzom)
+            {
+                var result = _engine.Generate(input, _calibrationStore.Get(_calibrationEngine.BuildKey(input)), _azomPreferences);
+                var providerWindow = new PitHouseSettingsWindow(input, result, _workflow) { Owner = this };
+                providerWindow.ShowDialog();
+                return;
+            }
 
             if (_azomSettingsWindow is not null)
             {

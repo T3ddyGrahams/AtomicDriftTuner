@@ -17,6 +17,9 @@ public partial class SetupWizardWindow
         InterviewFocusBox.SelectedItem = p.FocusChoiceConfirmed
             ? TuningFocusOptions.Current.FirstOrDefault(x => x.Focus == p.Focus) : null;
         InterviewHelpCheck.IsChecked = p.ShowDetailedHelp;
+        FfbProviderBox.ItemsSource = FfbProviderOptions.All;
+        FfbProviderBox.SelectedItem = FfbProviderOptions.All.Single(x => x.Provider == p.FfbProvider);
+        MozaSdkFolderBox.Text = p.MozaSdkFolder;
         SimHubChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
         AzomChoiceBox.ItemsSource = new[] { "Not sure", "Yes", "No" };
         SimHubChoiceBox.SelectedItem = p.SimHub; AzomChoiceBox.SelectedItem = p.Azom;
@@ -30,6 +33,8 @@ public partial class SetupWizardWindow
         Completed = true, SimHub = SimHubChoiceBox.SelectedItem as string ?? "Not sure",
         Azom = AzomChoiceBox.SelectedItem as string ?? "Not sure", WantLiveConnection = UseLiveGuidanceBox.IsChecked == true,
         DriverName = InterviewDriverBox.Text.Trim(),
+        FfbProvider = (FfbProviderBox.SelectedItem as FfbProviderOptions.Option)?.Provider ?? FfbProvider.SimHubAzom,
+        MozaSdkFolder = MozaSdkFolderBox.Text.Trim(),
         Focus = (InterviewFocusBox.SelectedItem as TuningFocusOptions.Option)?.Focus ?? TuningFocus.Both,
         FocusChoiceConfirmed = InterviewFocusBox.SelectedItem is TuningFocusOptions.Option,
         ShowDetailedHelp = InterviewHelpCheck.IsChecked == true
@@ -53,14 +58,23 @@ public partial class SetupWizardWindow
         InterviewOverviewText.Text = p.FocusChoiceConfirmed ? GuidedWorkflowEngine.Overview(p.Focus) : "";
         InterviewInstructionsText.Text = p.FocusChoiceConfirmed ? GuidedWorkflowEngine.Instructions(p, _integrationState) : "";
         IntegrationInterviewPanel.Visibility = ffb ? Visibility.Visible : Visibility.Collapsed;
-        UseLiveGuidanceBox.IsEnabled = !_busy && ffb && p.SimHub != "No" && p.Azom != "No";
-        OptionalSimHubCard.Visibility = ffb && p.WantLiveConnection && p.SimHub != "No" && p.Azom != "No" ? Visibility.Visible : Visibility.Collapsed;
-        TestEverythingButton.Content = ffb && p.WantLiveConnection && p.SimHub != "No" && p.Azom != "No"
+        SimHubInterviewPanel.Visibility = FfbProviderOptions.UsesAzom(p) ? Visibility.Visible : Visibility.Collapsed;
+        PitHouseInterviewPanel.Visibility = p.FfbProvider == FfbProvider.MozaPitHouse ? Visibility.Visible : Visibility.Collapsed;
+        FfbProviderBox.IsEnabled = MozaSdkFolderBox.IsEnabled = !_busy;
+        UseLiveGuidanceBox.IsEnabled = !_busy && FfbProviderOptions.UsesAzom(p) && ffb && p.SimHub != "No" && p.Azom != "No";
+        OptionalSimHubCard.Visibility = ffb && FfbProviderOptions.UsesAzom(p) && p.WantLiveConnection && p.SimHub != "No" && p.Azom != "No" ? Visibility.Visible : Visibility.Collapsed;
+        TestEverythingButton.Content = ffb && FfbProviderOptions.UsesAzom(p) && p.WantLiveConnection && p.SimHub != "No" && p.Azom != "No"
             ? "Check Paths & Connection" : "Check AC Paths";
+    }
+    private void BrowseMozaSdk_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        var picker = new Microsoft.Win32.OpenFolderDialog { Title = "Select MOZA SDK_CSharp/x64 (or x86) folder" };
+        if (picker.ShowDialog(this) == true) MozaSdkFolderBox.Text = picker.FolderName;
     }
     private async void CheckGuidedConnection_Click(object sender, RoutedEventArgs e)
     {
-        if (_busy || _closed) return;
+        if (_busy || _closed || !FfbProviderOptions.UsesAzom(InterviewPreferences())) return;
         SetBusy(true); CheckGuidedConnectionButton.IsEnabled = false;
         InterviewInstructionsText.Text = "Checking installation, running process, bridge and AZOM readback…";
         try

@@ -35,7 +35,7 @@ public partial class MainWindow
 
     private static RecordingPlan CompanionRecordingPlan(GuidedJourney journey, DriverIdentity driver, GuidedPreferences preferences) =>
         new(driver.Id, driver.Name, journey.Recommendation.Length > 0 ? journey.BaselineId : "", journey.Recommendation,
-            journey.SetupPath, journey.Conditions, journey.Focus, preferences.ShowDetailedHelp);
+            journey.SetupPath, journey.Conditions, journey.Focus, preferences.ShowDetailedHelp, preferences.FfbProvider);
 
     private CompanionWorkflowContext CompanionWorkflowContextNow()
     {

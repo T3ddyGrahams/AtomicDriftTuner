@@ -408,7 +408,7 @@ public partial class SetupWizardWindow : Window
 
             var preferences = InterviewPreferences();
             if (!preferences.FocusChoiceConfirmed || !TuningFocusOptions.IncludesFfb(preferences.Focus) ||
-                !preferences.WantLiveConnection || preferences.SimHub == "No" || preferences.Azom == "No")
+                !FfbProviderOptions.UsesAzom(preferences) || !preferences.WantLiveConnection || preferences.SimHub == "No" || preferences.Azom == "No")
             {
                 OverallStatusText.Text = string.Join(Environment.NewLine, lines);
                 return;
@@ -926,7 +926,7 @@ public partial class SetupWizardWindow : Window
             new List<string>();
 
         if (
-            TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && !string.IsNullOrWhiteSpace(
+            FfbProviderOptions.UsesAzom(InterviewPreferences()) && TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && !string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text) &&
             !SafeIsValidSimHubRoot(
                 SimHubPathBox.Text))
@@ -935,7 +935,7 @@ public partial class SetupWizardWindow : Window
                 "The SimHub folder is not currently valid.");
         }
         else if (
-            TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && string.IsNullOrWhiteSpace(
+            FfbProviderOptions.UsesAzom(InterviewPreferences()) && TuningFocusOptions.IncludesFfb(InterviewPreferences().Focus) && UseLiveGuidanceBox.IsChecked == true && SimHubChoiceBox.SelectedItem as string != "No" && AzomChoiceBox.SelectedItem as string != "No" && string.IsNullOrWhiteSpace(
                 SimHubPathBox.Text))
         {
             messages.Add(

@@ -438,6 +438,7 @@ public sealed class AzomBridgeClient
         int timeoutMs = DefaultActionTimeoutMs,
         CancellationToken cancellationToken = default)
     {
+        FfbProviderOptions.Require(AtomicDriftTuner.Models.FfbProvider.SimHubAzom);
         var normalizedAction =
             ValidateAzomName(
                 actionName,
@@ -477,6 +478,7 @@ public sealed class AzomBridgeClient
                 CreateReader(
                     pipe);
 
+            FfbProviderOptions.Require(AtomicDriftTuner.Models.FfbProvider.SimHubAzom);
             var request =
                 JsonSerializer.Serialize(
                     new
@@ -597,6 +599,7 @@ public sealed class AzomBridgeClient
         int timeoutMs = DefaultDirectWriteTimeoutMs,
         CancellationToken cancellationToken = default)
     {
+        FfbProviderOptions.Require(AtomicDriftTuner.Models.FfbProvider.SimHubAzom);
         var normalizedProperty =
             ValidateAzomName(
                 propertyName,
@@ -687,6 +690,7 @@ public sealed class AzomBridgeClient
             CreateReader(
                 pipe);
 
+        FfbProviderOptions.Require(AtomicDriftTuner.Models.FfbProvider.SimHubAzom);
         var request =
             JsonSerializer.Serialize(
                 new

@@ -1,4 +1,5 @@
 using AtomicDriftTuner.Models;
+using AtomicDriftTuner.Services;
 
 namespace AtomicDriftTuner.Engine;
 
@@ -24,6 +25,10 @@ public sealed class CarSetupTuningEngine
 
         ArgumentNullException.ThrowIfNull(
             analysis);
+
+        CarPhysicsService.EnsureUnchanged(analysis.Physics);
+        if (analysis.Physics?.Available == true && !string.Equals(analysis.Physics.CarId, analysis.CarFolderName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Imported physics belongs to a different car. Reload the selected baseline.");
 
         if (analysis.Parameters is null)
         {
@@ -261,6 +266,8 @@ public sealed class CarSetupTuningEngine
 
         analysis.BehaviorBlend =
             blendReport;
+
+        CarPhysicsGuidance.Apply(analysis);
 
         return analysis;
     }

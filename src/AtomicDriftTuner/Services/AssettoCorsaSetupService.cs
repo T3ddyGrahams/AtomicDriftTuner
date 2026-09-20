@@ -147,7 +147,8 @@ public sealed class AssettoCorsaSetupService
 
     public CarSetupAnalysis LoadBaseline(
         string path,
-        CarProfile car)
+        CarProfile car,
+        bool importPhysics = true)
     {
         ArgumentNullException.ThrowIfNull(
             car);
@@ -268,6 +269,7 @@ public sealed class AssettoCorsaSetupService
 
         return new CarSetupAnalysis
         {
+            Physics = new CarPhysicsService().Read(car, parameters, importPhysics),
             BaselinePath =
                 fullPath,
 
@@ -292,6 +294,8 @@ public sealed class AssettoCorsaSetupService
     {
         ArgumentNullException.ThrowIfNull(
             analysis);
+
+        CarPhysicsService.EnsureUnchanged(analysis.Physics);
 
         if (string.IsNullOrWhiteSpace(
                 analysis.BaselinePath))

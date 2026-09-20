@@ -2,6 +2,16 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.20 — Readable base car physics
+
+- Add optional read-only import of supported unpacked suspension, tyre, drivetrain, engine, brake and car data, with source labels and the saved baseline's selected tyre compound.
+- Show base context beside setup recommendations while preserving saved clicks/indexes. Hold controls not exposed by readable setup.ini and unverified rear-drive differential advice for FWD/AWD cars.
+- Refuse stale generation/export/pit staging after imported file changes. Record a digest in new history snapshots and flag differing/unmatched base physics in before/after comparisons.
+- Preserve saved setups, car files, existing tuning heuristics and the preview.18/.19 fixes. Packed/ambiguous sources fall back with a clear status. No unpacking, CSP/geometry simulation or automatic optimal-tune claim.
+- Add a themed, scrollable review panel and a bundled [car physics guide](docs/CAR_PHYSICS.md).
+
+This local build has not replaced public preview.17. Live-game and hardware acceptance remain tester checks.
+
 ## Local v0.9.0-preview.19 — Preserve initiation evidence when wheel-slip is unusable
 
 - Separate optional wheel-slip validity from core motion validity. Out-of-range/nonfinite axle readings no longer reset initiation, transition or angle evidence when motion remains usable.

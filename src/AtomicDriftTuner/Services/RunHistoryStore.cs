@@ -115,6 +115,10 @@ public sealed class RunHistoryStore
             version.SetupSource = "manual-file";
             version.SetupSha256 = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
         }
+        var physics = new CarPhysicsService().Read(input.Car);
+        // Store only a digest/status, never the local path or raw mod files.
+        version.BasePhysicsFingerprint = physics.Fingerprint;
+        version.BasePhysicsStatus = physics.Status;
         SaveTune(version);
         return Clone(version);
     }
@@ -156,6 +160,8 @@ public sealed class RunHistoryStore
         r.Comparison is not null && r.Comparison.Limitations is not null && r.Comparison.Metrics is not null && r.Comparison.TuneChanges is not null;
 
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
+        v.BasePhysicsFingerprint is not null && (v.BasePhysicsFingerprint.Length == 0 || v.BasePhysicsFingerprint.Length == 64 && v.BasePhysicsFingerprint.All(Uri.IsHexDigit)) &&
+        v.BasePhysicsStatus is not null && v.BasePhysicsStatus.Length <= 1000 &&
         Enum.IsDefined(v.Focus) && Enum.IsDefined(v.FfbProvider) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
         v.SetupSha256 is not null && v.SetupSource is not null && v.SetupTrackLayout is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&

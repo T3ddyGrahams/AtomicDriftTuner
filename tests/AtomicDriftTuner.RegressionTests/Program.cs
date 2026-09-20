@@ -249,6 +249,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         PitHouseChecks.Run(Run, root);
         MozaWorkerChecks.Run(Run, root);
         WheelSlipEvidenceChecks.Run(Run);
+        CarPhysicsChecks.Run(Run, root);
         IntelligenceChecks.Run(Run, root);
         PedalChecks.Run(Run, root);
         AngleGoalChecks.Run(Run, root);

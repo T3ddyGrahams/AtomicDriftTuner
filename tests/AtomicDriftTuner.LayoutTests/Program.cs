@@ -83,6 +83,12 @@ internal static partial class Program
                 CheckGuidedModes(output);
                 return 0;
             }
+            if (args.Contains("--car-physics"))
+            {
+                CheckCarPhysics(output);
+                return 0;
+            }
+            CheckCarPhysics(output);
             CheckFfbProvider(output);
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);

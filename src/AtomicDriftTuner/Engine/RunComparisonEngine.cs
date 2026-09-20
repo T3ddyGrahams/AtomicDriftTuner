@@ -23,6 +23,9 @@ public sealed class RunComparisonEngine
         if (a is not null && b is not null && (TuningFocusOptions.IncludesFfb(a.Focus) || TuningFocusOptions.IncludesFfb(b.Focus)))
             Require(a.Tune?.FfbProvider == b.Tune?.FfbProvider, "Wheelbase software changed. Record a new baseline with the same FFB provider before judging improvement.");
         Require(KnownSame(before.Session.CarFolder, after.Session.CarFolder) && KnownSame(before.Session.DriftPack, after.Session.DriftPack), "Car or drift pack differs, or its exact identity is missing.");
+        if (!string.IsNullOrEmpty(a?.Tune?.BasePhysicsFingerprint) || !string.IsNullOrEmpty(b?.Tune?.BasePhysicsFingerprint))
+            Require(KnownSame(a?.Tune?.BasePhysicsFingerprint, b?.Tune?.BasePhysicsFingerprint),
+                "Base car physics changed or could not be matched between runs. Record a fresh baseline using the same car data before judging the setup change.");
         Require(KnownSame(before.Session.Wheelbase, after.Session.Wheelbase) && KnownSame(before.Session.SteeringWheel, after.Session.SteeringWheel), "Wheelbase or rim differs, or its identity is missing.");
         Require(KnownSame(a?.TrackId, b?.TrackId) && KnownSame(a?.Conditions, b?.Conditions), "Track/layout, conditions or driving task is missing or different.");
         Require(KnownSame(before.Session.DriftTarget, after.Session.DriftTarget), "Session intent changed or is missing.");
@@ -129,6 +132,9 @@ public sealed class RunComparisonEngine
         if (string.IsNullOrWhiteSpace(a?.Tune?.SetupSha256) || string.IsNullOrWhiteSpace(b?.Tune?.SetupSha256))
             result.Limitations.Add("AC setup contents were not captured for both runs; unrecorded car-setup changes prevent recommendation attribution.");
         result.Limitations.Add("A before/after association is not proof of causation. Confirm the result with repeated comparable runs and driver feedback; tire wear, temperatures and track conditions may still differ.");
+        result.Limitations.Add(string.IsNullOrEmpty(a?.Tune?.BasePhysicsFingerprint) || string.IsNullOrEmpty(b?.Tune?.BasePhysicsFingerprint)
+            ? "Readable base physics was not captured for both runs; car-file changes cannot be ruled out."
+            : "Base physics fingerprints describe files at snapshot time, not continuous verification of the in-game physics or CSP overrides.");
         return result;
     }
 

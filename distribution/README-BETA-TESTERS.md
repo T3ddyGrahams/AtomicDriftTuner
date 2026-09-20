@@ -1,5 +1,7 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
+**Local preview.20 — readable car physics:** **AC Setup** now imports supported accessible base-car values, shows their sources beside recommendations, and holds unsupported controls/drivetrain advice. Saved setup values remain separate. New run snapshots flag differing base-file fingerprints in comparisons. See `docs/CAR_PHYSICS.md` for steps and limits. No car files are modified or unpacked. Includes the preview.18/.19 fixes below; public GitHub downloads remain preview.17.
+
 **Local preview.19 — missed initiation fix:** Unusable wheel-slip readings no longer erase valid initiation/transition evidence. Grip and pedal-slip measurements still reject those readings. Reload a saved run to reanalyze its original samples; initiation timing still needs three complete entries. This build also includes the preview.18 SDK crash containment described below. Public GitHub downloads remain preview.17.
 
 **Local preview.18 — Pit House SDK crash containment:** SDK access now runs in a separate hidden process. A native SDK failure or timeout returns a connection error instead of closing desktop ADT. Failed reads clear selectable values; interrupted Apply retains its backup and reports that settings may have changed. This build preserves the tuning intelligence and the features below. Real Pit House compatibility and the exact cause of the reported tester crash still need verification. The public GitHub release remains preview.17.

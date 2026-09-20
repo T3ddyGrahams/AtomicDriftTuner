@@ -312,6 +312,8 @@ public sealed class CarSetupParameter
     public string Reason { get; set; } =
         "No automatic change.";
 
+    public string PhysicsContext { get; set; } = "Base value not imported.";
+
     public string BlendStatus { get; set; } =
         "—";
 
@@ -491,6 +493,8 @@ public sealed class CarSetupParameter
 
 public sealed class CarSetupAnalysis
 {
+    [JsonIgnore]
+    public CarPhysicsSnapshot? Physics { get; set; }
     private List<CarSetupParameter> _parameters =
         [];
 

@@ -57,11 +57,13 @@ public partial class CarSetupWindow : Window
                 assistantGuidanceNote);
 
         RefreshSavedSetups();
+        ShowPhysics();
         if (behaviorOnly)
         {
             Title = "ADT • Desired Behavior";
             ReturnToGuideButton.Visibility = Visibility.Visible;
             SetupGenerationCard.Visibility = SetupGrid.Visibility = SaveGeneratedButton.Visibility = Visibility.Collapsed;
+            CarPhysicsCard.Visibility = Visibility.Collapsed;
             StagePitSetupButton.Visibility = ClearPendingPitSetupButton.Visibility = Visibility.Collapsed;
             CarSummaryText.Text += "\nDescribe your driving goals. Saving these goals does not apply settings to the car or wheelbase.";
             SetupStatusText.Text = "Choose your goals, save Desired Behavior, then close this window to return to the walkthrough.";
@@ -290,7 +292,8 @@ public partial class CarSetupWindow : Window
             _analysis =
                 _service.LoadBaseline(
                     path,
-                    _input.Car);
+                    _input.Car, UseCarPhysicsCheck.IsChecked == true);
+            ShowPhysics(_analysis.Physics);
 
             _generatedSignature =
                 null;
@@ -343,7 +346,8 @@ public partial class CarSetupWindow : Window
             var baseline =
                 _service.LoadBaseline(
                     baselinePath,
-                    _input.Car);
+                    _input.Car, UseCarPhysicsCheck.IsChecked == true);
+            ShowPhysics(baseline.Physics);
 
             _behavior =
                 behavior;
@@ -924,7 +928,8 @@ public partial class CarSetupWindow : Window
         _analysis =
             _service.LoadBaseline(
                 path,
-                _input.Car);
+                _input.Car, UseCarPhysicsCheck.IsChecked == true);
+        ShowPhysics(_analysis.Physics);
 
         _generatedSignature =
             null;
@@ -1028,6 +1033,7 @@ public partial class CarSetupWindow : Window
 
         return string.Join(
             "\u001F",
+            UseCarPhysicsCheck.IsChecked == true ? "physics-on" : "physics-off",
             normalizedPath.ToUpperInvariant(),
             baselineInfo.Length.ToString(),
             baselineInfo.LastWriteTimeUtc.Ticks.ToString(),

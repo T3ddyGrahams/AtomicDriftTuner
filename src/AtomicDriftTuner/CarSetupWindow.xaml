@@ -45,6 +45,23 @@
                 </Border>
 
 
+                <Border x:Name="CarPhysicsCard" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox x:Name="UseCarPhysicsCheck" IsChecked="True" Checked="PhysicsOption_Changed" Unchecked="PhysicsOption_Changed">
+                            <TextBlock Text="Use readable car physics for setup guidance" TextWrapping="Wrap" Foreground="{DynamicResource FieldLabelBrush}"/>
+                        </CheckBox>
+                        <TextBlock x:Name="PhysicsStatusText" Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap" Margin="0,8"/>
+                        <TextBlock Text="Base car data + your saved setup + recorded driving. Imported base values do not replace the setup you actually use." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                        <Expander x:Name="PhysicsDetailsExpander" HorizontalContentAlignment="Stretch" Margin="0,8,0,0">
+                            <Expander.Header><TextBlock Text="Car physics — values and sources" TextWrapping="Wrap"/></Expander.Header>
+                            <StackPanel>
+                                <Button x:Name="RefreshPhysicsButton" Content="Refresh car physics" Click="RefreshPhysics_Click" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="PhysicsDetailsText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,6"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </Border>
+
                 <Expander IsExpanded="True" Margin="0,0,0,12" HorizontalContentAlignment="Stretch">
                     <Expander.Header>
                         <WrapPanel>
@@ -193,6 +210,7 @@
                         <DataGridTextColumn Header="Delta" Binding="{Binding DeltaText}" Width="70"/>
                         <DataGridTextColumn Header="Legal Range" Binding="{Binding RangeText}" Width="120"/>
                         <DataGridTextColumn Header="Blend" Binding="{Binding BlendStatus}" Width="145"/>
+                        <DataGridTextColumn Header="Base car context" Binding="{Binding PhysicsContext}" Width="240"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*" MinWidth="180"/>
                     </DataGrid.Columns>
                 </DataGrid>

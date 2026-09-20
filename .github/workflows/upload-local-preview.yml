@@ -1,0 +1,81 @@
+name: Upload Local Preview Privately
+
+on:
+  push:
+    branches: ['main']
+    paths: ['.github/adt-private-upload-request.json']
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: 'Public upload request from the local helper (contains no private key)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adt-publish-preview
+  cancel-in-progress: false
+
+jobs:
+  transfer:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/private-preview-transfer
+            .github
+          sparse-checkout-cone-mode: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked transfer dependencies
+        working-directory: scripts/private-preview-transfer
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test transfer safeguards offline
+        working-directory: scripts/private-preview-transfer
+        run: node --test tests/*.test.mjs
+      - name: Save public upload request
+        env:
+          ADT_REQUEST_JSON: ${{ inputs.request_json }}
+        run: |
+          node --input-type=module -e '
+            import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+            import { join } from "node:path";
+            import { parseManifest } from "./scripts/private-preview-transfer/core.mjs";
+            const dir = join(process.env.RUNNER_TEMP, "adt-upload");
+            const raw = process.env.GITHUB_EVENT_NAME === "push"
+              ? readFileSync(".github/adt-private-upload-request.json", "utf8")
+              : process.env.ADT_REQUEST_JSON;
+            const request = parseManifest(raw);
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(join(dir, "request.json"), JSON.stringify(request), { flag: "wx" });
+          '
+      - name: Issue encrypted permission for these two files
+        env:
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PREVIEW_PUBLISH_TOKEN: ${{ secrets.PREVIEW_PUBLISH_TOKEN }}
+        run: node scripts/private-preview-transfer/runner.mjs grant "$RUNNER_TEMP/adt-upload/request.json" "$RUNNER_TEMP/adt-upload/grant.json"
+      - name: Return encrypted permission only
+        uses: actions/upload-artifact@v6
+        with:
+          name: adt-private-upload-${{ github.run_id }}
+          path: ${{ runner.temp }}/adt-upload/grant.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Wait for upload, verify both files, prepare private links
+        env:
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PREVIEW_PUBLISH_TOKEN: ${{ secrets.PREVIEW_PUBLISH_TOKEN }}
+        run: node scripts/private-preview-transfer/runner.mjs finalize "$RUNNER_TEMP/adt-upload/request.json"

@@ -104,7 +104,8 @@ internal static class PedalDiagnosisEngine
             {
                 e.AngleChangeDeg = Mean(after, s => Math.Abs(s.SlipAngleDeg)) - Mean(before, s => Math.Abs(s.SlipAngleDeg));
                 e.YawChangeDegPerSec = Mean(after, s => Math.Abs(s.YawRateDegPerSec)) - Mean(before, s => Math.Abs(s.YawRateDegPerSec));
-                bool wheelSlipKnown = span.Any(f => Math.Abs(f.Sample.FrontWheelSlipAvg) + Math.Abs(f.Sample.RearWheelSlipAvg) > .01);
+                bool wheelSlipKnown = span.All(f => DriftDiagnosisEngine.ValidWheelSlip(f.Sample)) &&
+                    span.Any(f => Math.Abs(f.Sample.FrontWheelSlipAvg) + Math.Abs(f.Sample.RearWheelSlipAvg) > .01);
                 if (wheelSlipKnown) e.RearSlipChange = Mean(after, s => Math.Abs(s.RearWheelSlipAvg)) - Mean(before, s => Math.Abs(s.RearWheelSlipAvg));
                 if (span.All(f => f.Sample.Rpm > 0))
                     e.RpmPeakChange = span.Max(f => f.Sample.Rpm) - Mean(before, s => s.Rpm);

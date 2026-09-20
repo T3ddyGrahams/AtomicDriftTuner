@@ -75,6 +75,7 @@ public sealed class DriftDiagnosis
     public PedalDiagnosis Pedals { get; set; } = new();
     public DriftAngleDiagnosis AngleGoal { get; set; } = new();
     public int InvalidSamples { get; set; }
+    public int InvalidWheelSlipSamples { get; set; }
     public int Discontinuities { get; set; }
     public bool TimelineReset { get; set; }
     public double ExcludedSeconds { get; set; }

@@ -10,6 +10,15 @@ internal static class PedalChecks
 {
     internal static void Run(Action<string, Action> test, string root)
     {
+        test("bad axle-slip during pedal response preserves angle evidence but leaves slip response unknown", () =>
+        {
+            var s = Events();
+            var expected = Analyze(s).Events.First(e => e.Kind == "Throttle application");
+            foreach (var f in s.Samples.Where(f => f.TimeSeconds is >= 5.15 and <= 5.4)) f.RearWheelSlipAvg = 20000;
+            var actual = Analyze(s).Events.First(e => e.Kind == "Throttle application");
+            Check(actual.ResponseComplete && actual.AngleChangeDeg == expected.AngleChangeDeg && actual.RearSlipChange is null,
+                "Optional axle error erased motion or became a slip response");
+        });
         test("pedal events retain throttle brake overlap and possible clutch context with timed car response", () =>
         {
             var s = Events();

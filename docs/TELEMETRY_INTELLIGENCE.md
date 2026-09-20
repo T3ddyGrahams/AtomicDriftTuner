@@ -1,5 +1,7 @@
 # Telemetry intelligence preview
 
+Local preview.19 separates unusable wheel-slip readings from core motion evidence. A wheel-slip spike no longer erases an otherwise valid entry or transition. Bad readings are excluded from axle-slip metrics and affected pedal-slip comparisons; analysis reports their count separately. Invalid motion, gaps and excluded driving still break phase evidence. Initiation rise time still requires three complete entries; linked transitions are not fresh initiations. Saved recordings are reanalyzed when loaded, without rewriting their raw samples.
+
 Introduced in development preview 1 and included in public beta **0.9.0-preview.3**. Driving validation with real cars and drivers is still required. See the [release notes](releases/v0.9.0-preview.3.md).
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.

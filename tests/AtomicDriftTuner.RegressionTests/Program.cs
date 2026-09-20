@@ -8,6 +8,21 @@ using System.Runtime.CompilerServices;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
 
+if (args is ["--review-telemetry", var reviewFolder])
+{
+    var store = new TelemetrySessionStore();
+    foreach (var file in Directory.GetFiles(reviewFolder, "session.json", SearchOption.AllDirectories).Order())
+    {
+        var saved = store.TryLoad(file) ?? throw new Exception("Could not load supplied recording.");
+        var a = saved.Analysis;
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { Run = Path.GetFileName(Path.GetDirectoryName(file))![..15],
+            a.DriftEntries, a.TransitionCount, a.DriftTimeSeconds, a.Diagnosis.InvalidSamples, a.Diagnosis.InvalidWheelSlipSamples,
+            Entries = a.Diagnosis.Events.Where(e => e.Phase == "Initiation").Select(e => new { e.StartSeconds, e.EndSeconds }),
+            Initiation = a.Diagnosis.Metric("initiation")?.Value }));
+    }
+    return 0;
+}
+
 if (args is ["--moza-fixture", var fixturePipe, var fixtureMode])
     return MozaWorkerChecks.RunFixture(fixturePipe, fixtureMode);
 
@@ -233,6 +248,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
 });
         PitHouseChecks.Run(Run, root);
         MozaWorkerChecks.Run(Run, root);
+        WheelSlipEvidenceChecks.Run(Run);
         IntelligenceChecks.Run(Run, root);
         PedalChecks.Run(Run, root);
         AngleGoalChecks.Run(Run, root);

@@ -22,6 +22,8 @@ public sealed class DriftDiagnosisEngine
         foreach (var s in session.Samples)
         {
             if (s is null || !Valid(s)) { d.InvalidSamples++; Break(); previous = null; continue; }
+            // Optional axle evidence must not break an otherwise valid motion timeline.
+            if (!ValidWheelSlip(s)) d.InvalidWheelSlipSamples++;
             var dt = previous is null ? 0 : s.TimeSeconds - previous.TimeSeconds;
             if (previous is not null && (dt < 0 || s.PacketId < previous.PacketId))
             {
@@ -61,8 +63,9 @@ public sealed class DriftDiagnosisEngine
         r.AverageYawRateDegPerSec = Mean(drift, s => Math.Abs(s.YawRateDegPerSec));
         r.PeakYawRateDegPerSec = Peak(drift, s => Math.Abs(s.YawRateDegPerSec));
         r.AverageSpeedWhileDriftingKmh = Mean(drift, s => s.SpeedKmh);
-        r.AverageFrontWheelSlipWhileDrifting = Mean(drift, s => Math.Abs(s.FrontWheelSlipAvg));
-        r.AverageRearWheelSlipWhileDrifting = Mean(drift, s => Math.Abs(s.RearWheelSlipAvg));
+        var driftWithSlip = drift.Where(f => ValidWheelSlip(f.Sample)).ToList();
+        r.AverageFrontWheelSlipWhileDrifting = Mean(driftWithSlip, s => Math.Abs(s.FrontWheelSlipAvg));
+        r.AverageRearWheelSlipWhileDrifting = Mean(driftWithSlip, s => Math.Abs(s.RearWheelSlipAvg));
         r.AverageFfbAbsWhileDrifting = Mean(drift, s => Math.Abs(s.FinalFfb));
         r.FfbClippingPctWhileDrifting = Mean(drift, s => Math.Abs(s.FinalFfb) >= .98 ? 100 : 0);
         foreach (var continuous in blocks) FindPhases(continuous, d.Events, driftLimit);
@@ -115,7 +118,7 @@ public sealed class DriftDiagnosisEngine
         }
         d.Events = d.Events.OrderBy(e => e.StartSeconds).ToList();
         r.OscillationEvents = d.Events.Count(e => e.Phase == "Steering oscillation proxy");
-        var slip = steady.Where(f => Math.Abs(f.Sample.FrontWheelSlipAvg) + Math.Abs(f.Sample.RearWheelSlipAvg) > .01).ToList();
+        var slip = steady.Where(f => ValidWheelSlip(f.Sample) && Math.Abs(f.Sample.FrontWheelSlipAvg) + Math.Abs(f.Sample.RearWheelSlipAvg) > .01).ToList();
         var front = frames.Where(f => f.Sample.SpeedKmh >= 30 && Math.Abs(f.Sample.SlipAngleDeg) <= 8 && Math.Abs(f.Sample.SteeringAngleDeg) is >= 12 and <= 120).ToList();
         var response = new List<Frame>();
         foreach (var continuous in blocks)
@@ -159,6 +162,10 @@ public sealed class DriftDiagnosisEngine
         Metric("throttle", "Drift throttle context", drift.Count > 0 ? Mean(drift, s => s.Throttle) : null, "0–1", r.DriftTimeSeconds, -1,
             "Used to reject substantially different driving inputs.");
         d.QualityNotes.Add($"{d.InvalidSamples} invalid frames; {d.Discontinuities} continuity breaks; {d.ExcludedSeconds:0.0}s excluded (pit limiter, AI/reverse, off-track or impact evidence).");
+        if (d.InvalidWheelSlipSamples > 0)
+            d.QualityNotes.Add($"{d.InvalidWheelSlipSamples} unusable wheel-slip readings excluded from axle-slip and affected pedal-slip measurements. Valid motion is retained for initiation, transition and angle analysis.");
+        if (entries.Count < 3)
+            d.QualityNotes.Add($"Initiation timing needs three complete entries; {entries.Count} detected. Start recording before the approach. Linked direction changes count as transitions, not new initiations.");
         if (!session.Samples.Any(s => s?.HasExtendedSignals == true)) d.QualityNotes.Add("Legacy recording: pit limiter, AI, off-track and damage signals were not captured.");
         if (session.Context?.Interrupted == true) d.QualityNotes.Add("Recording was interrupted; improvement attribution is disabled.");
         if (!string.IsNullOrEmpty(session.Context?.SetupCaptureIssue))
@@ -260,11 +267,13 @@ public sealed class DriftDiagnosisEngine
     private static bool Valid(TelemetrySample s) => !s.InvalidSourceSignals && double.IsFinite(s.TimeSeconds) && s.TimeSeconds >= 0 &&
         (s.LongitudinalVelocityMs is not double longitudinal || double.IsFinite(longitudinal) && Math.Abs(longitudinal) <= 200) &&
         new[] { s.SpeedKmh, s.SlipAngleDeg, s.SteeringAngleDeg, s.SteeringRateDegPerSec, s.YawRateDegPerSec,
-            s.Throttle, s.Brake, s.Clutch, s.FinalFfb, s.FrontWheelSlipAvg, s.RearWheelSlipAvg, s.LateralG, s.LongitudinalG, s.DamageTotal }.All(double.IsFinite) &&
+            s.Throttle, s.Brake, s.Clutch, s.FinalFfb, s.LateralG, s.LongitudinalG, s.DamageTotal }.All(double.IsFinite) &&
         s.SpeedKmh is >= 0 and <= 500 && Math.Abs(s.SlipAngleDeg) <= 180 && Math.Abs(s.SteeringAngleDeg) <= 3000 &&
         Math.Abs(s.SteeringRateDegPerSec) <= 15000 && Math.Abs(s.YawRateDegPerSec) <= 2000 && Math.Abs(s.FinalFfb) <= 10 &&
-        Math.Abs(s.FrontWheelSlipAvg) <= 10000 && Math.Abs(s.RearWheelSlipAvg) <= 10000 &&
         s.Throttle is >= 0 and <= 1.01 && s.Brake is >= 0 and <= 1.01 && s.Clutch is >= 0 and <= 1.01;
+    internal static bool ValidWheelSlip(TelemetrySample s) => !s.InvalidWheelSlipSignals &&
+        double.IsFinite(s.FrontWheelSlipAvg) && double.IsFinite(s.RearWheelSlipAvg) &&
+        Math.Abs(s.FrontWheelSlipAvg) <= 10000 && Math.Abs(s.RearWheelSlipAvg) <= 10000;
     private static bool Drifting(TelemetrySample s, double limit) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) >= 10 && Math.Abs(s.SlipAngleDeg) < limit &&
         (limit <= 72 || s.LongitudinalVelocityMs is null or >= 0);
     private static double Time(List<Frame> frames) => frames.Sum(f => f.Dt);

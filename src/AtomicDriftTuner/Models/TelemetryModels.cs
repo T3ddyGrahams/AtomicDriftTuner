@@ -7,6 +7,7 @@ public sealed class TelemetrySample
     public TelemetrySample Copy() => (TelemetrySample)MemberwiseClone();
     public bool HasExtendedSignals { get; set; }
     public bool InvalidSourceSignals { get; set; }
+    public bool InvalidWheelSlipSignals { get; set; }
     public bool PitLimiterOn { get; set; }
     public bool IsAiControlled { get; set; }
     public int WheelsOutsideTrack { get; set; }

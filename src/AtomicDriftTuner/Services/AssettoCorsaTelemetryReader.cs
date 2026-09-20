@@ -142,7 +142,8 @@ public sealed class AssettoCorsaTelemetryReader : IDisposable
             // Keep display/export values finite, but do not let sanitization fabricate evidence.
             InvalidSourceSignals = !new[] { physics.SpeedKmh, physics.SteerAngle, physics.Gas, physics.Brake, physics.Clutch, physics.FinalFF }.All(float.IsFinite) ||
                 !FiniteArray(physics.LocalVelocity, 3) || !FiniteArray(physics.LocalAngularVelocity, 3) ||
-                !FiniteArray(physics.AccG, 3) || !FiniteArray(physics.WheelSlip, 4),
+                !FiniteArray(physics.AccG, 3),
+            InvalidWheelSlipSignals = !FiniteArray(physics.WheelSlip, 4),
             PitLimiterOn = physics.PitLimiterOn != 0,
             IsAiControlled = physics.IsAIControlled != 0,
             WheelsOutsideTrack = physics.NumberOfTyresOut,

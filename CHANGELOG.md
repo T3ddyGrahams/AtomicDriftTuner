@@ -2,6 +2,15 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.19 — Preserve initiation evidence when wheel-slip is unusable
+
+- Separate optional wheel-slip validity from core motion validity. Out-of-range/nonfinite axle readings no longer reset initiation, transition or angle evidence when motion remains usable.
+- Exclude unusable wheel-slip from axle averages, grip proxies and affected pedal-slip responses; preserve angle/yaw pedal responses. Save a separate validity flag for sanitized SDK readings and explain excluded wheel-slip counts in the analysis.
+- Explain that initiation timing requires three complete entries. Do not lower detection thresholds or relabel linked transitions as fresh entries.
+- Reanalyze saved recordings on load without rewriting their raw data. Retain the preview.18 Pit House process isolation fix.
+
+This local hotfix has not replaced public preview.17. A restored event count does not establish that a tune improved the car.
+
 ## Local v0.9.0-preview.18 — Pit House SDK crash containment
 
 - Move native MOZA SDK initialization, reads, writes and teardown into a hidden helper process communicating over a random pipe restricted to the current Windows user.

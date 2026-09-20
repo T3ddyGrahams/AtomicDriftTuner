@@ -1,16 +1,17 @@
 # Atomic Drift Tuner
 
-**Atomic Drift Tuner (ADT)** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, **MOZA + AZOM/SimHub live settings**, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets.
+**Atomic Drift Tuner (ADT)** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets. FFB workflows support SimHub/AZOM, manual entry, and an experimental MOZA Pit House SDK connection.
 
-> **Current public beta:** `v0.9.0-preview.3`<br>
-> **Bundled ADT SimHub Bridge:** `v0.9.0-preview.3` (update the bridge with this beta)<br>
+> **Current public beta:** `v0.9.0-preview.17`<br>
+> **Bundled ADT SimHub Bridge:** `v0.9.0-preview.17` (update the bridge with this beta)<br>
+> **Bundled ADT Companion:** `v0.4.0-preview.1`<br>
 > **Status:** Public beta / active development
 >
 > **Code signing policy:** [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)<br>
 > **Signing status:** Preparation only; SignPath signing is not enabled.<br>
 > **Privacy policy:** [PRIVACY.md](PRIVACY.md)
 
-Local development preview **0.9.0-preview.12** starts with empty hardware/car selections and remembers each user's choices afterward. Setup asks **Car tuning only** or **Car + FFB**, then guides the user through preparation, recording, one change, comparison and review. SimHub/AZOM instructions adapt to that choice and the optional connection. Existing tuning intelligence, sustained-angle goals and run history remain. See [the start-to-finish walkthrough](docs/GUIDED_WORKFLOW.md). This local preview has not been published as a public release.
+**HUGE UPDATE — preview.17:** In-game Content Manager companion, explicit pit Save & Apply Tune, current-setup capture, a final-drive gearing planner, pedal-aware diagnosis and sustained-angle goals, adaptive touchscreen controls, clearer guided workflows and a choice of FFB provider. New users choose their own hardware/car. Pit House SDK support is experimental; real hardware and complete in-game acceptance remain pending. Read the [full release notes](docs/releases/v0.9.0-preview.17.md), [download the beta](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/tag/v0.9.0-preview.17), or follow the [start-to-finish walkthrough](docs/GUIDED_WORKFLOW.md).
 
 ADT is designed to answer a practical drifting question:
 
@@ -28,7 +29,7 @@ We're looking for feedback across different cars, drift packs, wheelbases, rims,
 
 ➡️ **[Read the ADT Beta Testing Guide](docs/BETA_TESTING.md)**
 
-For the current release, use the **[v0.9.0-preview.3 testing checklist](docs/testing/v0.9.0-preview.3-checklist.md)** and **[compatibility tracker](docs/testing/v0.9.0-preview.3-compatibility.md)**. The tracker records reviewed results for specific hardware, cars, software versions, and test cases.
+For the current release, use the **[v0.9.0-preview.17 testing checklist](docs/testing/v0.9.0-preview.17-checklist.md)** and **[compatibility tracker](docs/testing/v0.9.0-preview.17-compatibility.md)**. The tracker records the available evidence and pending checks for hardware, cars, software versions, and test cases.
 
 The guide explains how to:
 
@@ -78,7 +79,7 @@ Do not port-forward its HTTP port or expose it directly to the public Internet.
 
 See [`docs/REMOTE_IPHONE_TEST.md`](docs/REMOTE_IPHONE_TEST.md) for the architecture, pairing/security model and testing notes.
 
-The required ADT SimHub Bridge remains **v0.7.2**.
+Use the bundled ADT SimHub Bridge **v0.9.0-preview.17** when updating this release.
 
 ---
 

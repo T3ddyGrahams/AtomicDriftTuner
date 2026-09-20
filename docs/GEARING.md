@@ -1,6 +1,6 @@
 # Gearing planner — first version
 
-The local `0.9.0-preview.5` test build adds a final-drive planner. This is a separate step in **AC Setup → Gearing • Final-drive planner**.
+Public beta `0.9.0-preview.17` includes the final-drive planner first developed in preview.5. This is a separate step in **AC Setup → Gearing • Final-drive planner**.
 
 ## Try it
 

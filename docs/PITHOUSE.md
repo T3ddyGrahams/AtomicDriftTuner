@@ -1,4 +1,4 @@
-# MOZA Pit House — private preview.16
+# MOZA Pit House — experimental support in preview.17
 
 ## Choose your wheelbase software
 
@@ -63,4 +63,4 @@ Record the ADT, Pit House, SDK and firmware versions, base/rim, and each result:
 - Confirm unselected settings, hands-off protection, reversal, steering limits and EQ remain as expected in Pit House.
 - Switch back to SimHub/AZOM and verify its established workflow; new recordings should identify the chosen provider.
 
-Treat this as a private compatibility test, not a claim of verified support for every MOZA base or Pit House version.
+Record the exact hardware/software combination and actions tested. This preview does not claim verified support for every MOZA base or Pit House version.

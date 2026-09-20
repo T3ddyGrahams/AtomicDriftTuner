@@ -1,6 +1,17 @@
 # Atomic Drift Tuner — Changelog
 
-This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Local preview notes do not indicate a public release; public downloads remain preview.3 until a new release is published.
+This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
+
+## v0.9.0-preview.17 — HUGE UPDATE
+
+- Bring recording, connection status, next steps, findings, test planning and comparison feedback into Assetto Corsa with bundled ADT Companion 0.4.0-preview.1.
+- Add explicit pit Save & Apply Tune, previous/changed setup saves, verified readback, same-session restore and current-setup capture, with manual fallbacks for unsupported combinations.
+- Add a final-drive gearing planner, pedal-aware diagnosis, sustained-angle goals and an adaptive touchscreen dashboard.
+- Simplify the baseline/change/compare workflow with Car tuning only or Car + FFB, optional extra explanations and clean first-run hardware/car selections.
+- Add SimHub/AZOM, MOZA Pit House and manual FFB provider choices. The optional Pit House SDK read/apply/backup/restore path supports ten core controls; actual hardware acceptance is pending and vendor DLLs are not bundled.
+- Recover from brief telemetry gaps and fix SDK folder browsing in the embedded Setup & Paths workspace.
+
+This is a beta preview with live-game/hardware acceptance still pending. The provider addition and final folder-picker fix preserve existing tuning calculations. See the [full release notes](docs/releases/v0.9.0-preview.17.md) and [testing checklist](docs/testing/v0.9.0-preview.17-checklist.md).
 
 ---
 

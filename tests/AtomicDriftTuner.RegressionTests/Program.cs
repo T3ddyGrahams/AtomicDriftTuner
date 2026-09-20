@@ -8,6 +8,9 @@ using System.Runtime.CompilerServices;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
 
+if (args is ["--moza-fixture", var fixturePipe, var fixtureMode])
+    return MozaWorkerChecks.RunFixture(fixturePipe, fixtureMode);
+
 if (args is ["--render-remote", var renderDirectory])
 {
     Directory.CreateDirectory(renderDirectory);
@@ -229,6 +232,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
     method.Invoke(null, new object[] { plan, new AzomLiveSnapshot { Torque = 70 } });
 });
         PitHouseChecks.Run(Run, root);
+        MozaWorkerChecks.Run(Run, root);
         IntelligenceChecks.Run(Run, root);
         PedalChecks.Run(Run, root);
         AngleGoalChecks.Run(Run, root);

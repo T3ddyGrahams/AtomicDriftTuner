@@ -42,6 +42,15 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(
         StartupEventArgs e)
     {
+        if (e.Args is [MozaWorkerApi.WorkerArgument, var pipeName])
+        {
+            int code;
+            try { code = MozaWorkerApi.RunWorker(pipeName); }
+            catch { code = 1; }
+            Shutdown(code);
+            return;
+        }
+
         HookGlobalExceptionHandlers();
 
         // Helper-mode routing happens before normal WPF startup. This keeps a

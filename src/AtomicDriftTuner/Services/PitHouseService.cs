@@ -22,7 +22,7 @@ public sealed class PitHouseService
     private readonly Func<IMozaMotorApi> _open;
     private readonly Action _requireProvider;
     private readonly string _backups;
-    public PitHouseService(string folder) : this(() => new MozaNativeApi(folder),
+    public PitHouseService(string folder) : this(() => new MozaWorkerApi(folder),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AtomicDriftTuner", "PitHouseBackups"),
         () => FfbProviderOptions.Require(FfbProvider.MozaPitHouse)) { }
     // The fake API used in tests never loads native code or accesses a device.
@@ -47,7 +47,7 @@ public sealed class PitHouseService
                 if (!setting.Accepts(value)) throw new InvalidDataException("Readback outside the documented SDK range; this control is unavailable.");
                 values.Add(setting.Key, value);
             }
-            catch (Exception ex) { errors.Add(setting.Key, ex.Message); }
+            catch (Exception ex) when (ex is not MozaWorkerFailureException) { errors.Add(setting.Key, ex.Message); }
         }
         if (api.DeviceName() != device) throw new InvalidOperationException("The connected base changed during the read. Read again.");
         return new(device, DateTimeOffset.UtcNow, new ReadOnlyDictionary<string, int>(values), new ReadOnlyDictionary<string, string>(errors));

@@ -19,17 +19,20 @@ public partial class PitHouseSettingsWindow : Window
     }
     private readonly GuidedWorkflowStore _store;
     private readonly TuneResult _result;
+    private readonly Func<string, PitHouseService> _serviceFactory;
     private readonly bool _sdkEnabled;
     private bool _ready, _busy;
     private PitHouseReading? _reading;
     private IReadOnlyDictionary<string, int>? _restoreTargets;
     private List<SettingRow> _rows = [];
     private string _backupPath = "";
-    public PitHouseSettingsWindow(TuneInput input, TuneResult result, GuidedWorkflowStore? store = null)
+    public PitHouseSettingsWindow(TuneInput input, TuneResult result, GuidedWorkflowStore? store = null,
+        Func<string, PitHouseService>? serviceFactory = null)
     {
         InitializeComponent();
         _store = store ?? new GuidedWorkflowStore();
         _result = result;
+        _serviceFactory = serviceFactory ?? (folder => new PitHouseService(folder));
         var prefs = _store.Preferences();
         _sdkEnabled = prefs.FfbProvider == FfbProvider.MozaPitHouse &&
             input.Hardware.Manufacturer.Trim().Equals("MOZA", StringComparison.OrdinalIgnoreCase);
@@ -91,7 +94,7 @@ public partial class PitHouseSettingsWindow : Window
         FfbProviderOptions.Require(FfbProvider.MozaPitHouse, prefs.FfbProvider);
         prefs.MozaSdkFolder = SdkFolderBox.Text.Trim();
         _store.SavePreferences(prefs);
-        return new PitHouseService(prefs.MozaSdkFolder);
+        return _serviceFactory(prefs.MozaSdkFolder);
     }
     private async void Read_Click(object sender, RoutedEventArgs e)
     {

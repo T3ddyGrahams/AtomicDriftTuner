@@ -2,6 +2,16 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.18 — Pit House SDK crash containment
+
+- Move native MOZA SDK initialization, reads, writes and teardown into a hidden helper process communicating over a random pipe restricted to the current Windows user.
+- Keep ADT open when the SDK process exits or a request times out. Show a connection error, clear stale selections and leave Apply disabled after a failed Read.
+- Preserve explicit Apply, provider/device/staleness checks, durable original-value backups and uncertain-write reporting. Never reconnect or retry a failed request automatically.
+- Test abrupt initialization/read/write exits, ordinary SDK errors, timeout and teardown failure using isolated fixture processes; test the actual helper startup with missing SDK files without loading vendor code.
+- Tuning calculations, telemetry diagnosis, gearing and SimHub/AZOM behavior are unchanged. The reported tester crash's exact native cause and real Pit House hardware compatibility remain unconfirmed.
+
+This local hotfix has not replaced the public preview.17 release.
+
 ## v0.9.0-preview.17 — HUGE UPDATE
 
 - Bring recording, connection status, next steps, findings, test planning and comparison feedback into Assetto Corsa with bundled ADT Companion 0.4.0-preview.1.

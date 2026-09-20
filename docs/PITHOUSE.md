@@ -19,6 +19,8 @@ ADT's diagnosis, car tuning, gearing, calibration and FFB generation algorithms 
 
 This is implemented and tested with a simulated wheelbase. **Actual Pit House / wheelbase acceptance is still pending.** The primary development PC did not have Pit House installed, and no vendor DLL or real wheelbase operation was executed during these checks.
 
+Local preview.18 runs SDK operations in a separate hidden helper process. If the SDK exits or stops responding, ADT displays a connection error and remains usable. An individual SDK request times out after 20 seconds. This contains native failures; it does not establish compatibility with a particular Pit House/SDK/firmware combination. During Read no settings are written. During Apply, an interrupted response can mean some settings changed: inspect Pit House and review the saved backup before another action. ADT never automatically retries an uncertain write.
+
 On the tester's wheelbase PC:
 
 1. Use **SDK-compatible MOZA Pit House**. The supplied MOZA SDK documentation specifically requires the SDK version; compatibility with an arbitrary regular Pit House version is not established.

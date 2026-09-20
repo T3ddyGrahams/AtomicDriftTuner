@@ -108,6 +108,32 @@ internal static partial class Program
             }
             finally { window.Close(); }
         }
+        var readPrefs = store.Preferences(); readPrefs.FfbProvider = FfbProvider.MozaPitHouse; store.SavePreferences(readPrefs);
+        var readWindow = new PitHouseSettingsWindow(new TuneInput(), new TuneResult(), store,
+            _ => new PitHouseService(() => throw new MozaWorkerFailureException("Fixture SDK stopped; ADT is still running.", new IOException()), root, () => { }));
+        try
+        {
+            var oldContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(readWindow.Dispatcher));
+                typeof(PitHouseSettingsWindow).GetMethod("Read_Click", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(readWindow, [readWindow, new RoutedEventArgs()]);
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(oldContext); }
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            while ((bool)typeof(PitHouseSettingsWindow).GetField("_busy", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(readWindow)!
+                   && timer.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Thread.Sleep(10);
+            }
+            Check(((TextBlock)readWindow.FindName("StatusText")).Text.Contains("ADT is still running"), "Contained SDK failure did not reach the UI");
+            Check(((Button)readWindow.FindName("ReadButton")).IsEnabled && ((Button)readWindow.FindName("CloseButton")).IsEnabled, "Read failure left window disabled");
+            Check(!((Button)readWindow.FindName("ApplyButton")).IsEnabled, "Read failure enabled Apply");
+            Check(((ItemsControl)readWindow.FindName("SettingsRows")).Items.Cast<PitHouseSettingsWindow.SettingRow>().All(x => !x.CanSelect && !x.Selected), "Read failure left stale selectable rows");
+        }
+        finally { readWindow.Close(); }
         Progress($"PASS FFB provider UI: {checks} assertions; native SDK never loaded");
     }
 }

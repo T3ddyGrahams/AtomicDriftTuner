@@ -68,6 +68,14 @@ internal static partial class Program
                 CheckAngleSummary(output);
                 return 0;
             }
+            if (args.Contains("--setup-comparison"))
+            {
+                CheckSetupComparison(output);
+                CheckCarTest(output);
+                CheckAngleSummary(output);
+                CheckCarPhysics(output);
+                return 0;
+            }
             if (args.Contains("--powertrain"))
             {
                 CheckPowertrain(output);
@@ -112,6 +120,7 @@ internal static partial class Program
             }
             CheckCarPhysics(output);
             CheckEvidenceNotifications(output);
+            CheckSetupComparison(output);
             CheckPowertrain(output);
             CheckFfbProvider(output);
             CheckThemeCoverage(repo, output);

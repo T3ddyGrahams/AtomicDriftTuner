@@ -205,6 +205,8 @@
                     </Border>
                 </Expander>
 
+                <layout:SetupComparisonView x:Name="SetupComparison"/>
+                <Expander x:Name="SetupTechnicalDetails" Header="Technical setup details" HorizontalContentAlignment="Stretch" Margin="0,8,0,0">
                 <DataGrid x:Name="SetupGrid" AutoGenerateColumns="False" IsReadOnly="True" Height="300"
                           ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column" CanUserAddRows="False">
@@ -228,6 +230,7 @@
                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*" MinWidth="180"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                </Expander>
 
                 <TextBlock Text="ADT preserves the loaded baseline and writes a separate setup file. Review every recommendation in-game before relying on it." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
             </StackPanel>

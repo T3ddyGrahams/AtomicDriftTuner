@@ -63,6 +63,7 @@ public partial class CarSetupWindow : Window
             Title = "ADT • Desired Behavior";
             ReturnToGuideButton.Visibility = Visibility.Visible;
             SetupGenerationCard.Visibility = SetupGrid.Visibility = SaveGeneratedButton.Visibility = Visibility.Collapsed;
+            SetupComparison.Visibility = SetupTechnicalDetails.Visibility = Visibility.Collapsed;
             CarPhysicsCard.Visibility = Visibility.Collapsed;
             StagePitSetupButton.Visibility = ClearPendingPitSetupButton.Visibility = Visibility.Collapsed;
             CarSummaryText.Text += "\nDescribe your driving goals. Saving these goals does not apply settings to the car or wheelbase.";
@@ -284,6 +285,7 @@ public partial class CarSetupWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        SetupComparison.Clear("Loading the selected baseline. No current comparison is available yet.");
         try
         {
             var path =
@@ -303,6 +305,8 @@ public partial class CarSetupWindow : Window
 
             SetupGrid.ItemsSource =
                 _analysis.Parameters;
+            SetupComparison.Show(SetupComparisonPresentation.Proposed(_analysis, false),
+                "Baseline loaded. Generate a setup to see before / recommended values and why each change is suggested.");
 
             RangeStatusText.Text =
                 _analysis.RangeSummary;
@@ -327,6 +331,7 @@ public partial class CarSetupWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        SetupComparison.Clear("Generating the selected setup. No current comparison is available yet.");
         try
         {
             var baselinePath =
@@ -370,6 +375,8 @@ public partial class CarSetupWindow : Window
 
             SetupGrid.ItemsSource =
                 _analysis.Parameters;
+            SetupComparison.Show(SetupComparisonPresentation.Proposed(_analysis, true),
+                "Before = your loaded saved setup. Recommended = ADT's generated setup using your handling goals. Review, save or stage, then apply in the pits.");
 
             RangeStatusText.Text =
                 _analysis.RangeSummary;
@@ -957,6 +964,7 @@ public partial class CarSetupWindow : Window
     private void InvalidateGeneratedRecommendations(
         string reason)
     {
+        SetupComparison.Clear(reason + " Generate again to refresh the comparison.");
         if (_generatedSignature is null)
         {
             SaveGeneratedButton.IsEnabled =
@@ -980,6 +988,7 @@ public partial class CarSetupWindow : Window
 
     private void ClearGeneratedSignature()
     {
+        SetupComparison.Clear("Load or generate a setup to refresh the comparison.");
         _generatedSignature =
             null;
 

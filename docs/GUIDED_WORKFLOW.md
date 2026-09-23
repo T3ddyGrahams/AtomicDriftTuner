@@ -1,6 +1,14 @@
 # Start-to-finish tuning
 
-ADT starts with your own hardware/car choices and asks what you want to tune. The current local preview.31 adds clearer saved-run setup tests. Public preview.30 includes the earlier guided workflow, sustained-angle goals, run history, touchscreen, gearing support and explicit pit Save & Apply Tune through Companion 0.4.0-preview.4.
+ADT starts with your own hardware/car choices and asks what you want to tune. Local preview.32 adds setup comparisons to the clearer saved-run setup tests from preview.31. Public preview.30 includes the earlier guided workflow, sustained-angle goals, run history, touchscreen, gearing support and explicit pit Save & Apply Tune through Companion 0.4.0-preview.4.
+
+## See exactly what changes — local preview.32
+
+Before saving a full generated setup or a focused one-adjustment test, read **Your setup changes**. Each changed setting shows a readable name, **Before**, **Recommended**, **Difference** and the recommendation's reason. **Show all settings** also shows the controls left unchanged. Expand **Saved values and source** for raw values and mapping details. Saving or staging is still followed by explicitly applying the setup in the pits.
+
+After recording the test, open **Tuning Assistant → Before / After**, choose the earlier baseline, and read **Your setup changes** there. **Recorded after** means the values stored with the later run, not a proposed recommendation. This works with current CSP captures and manually attached setup snapshots; confirm the attached file was actually used. Missing values say **Not captured**. The recorded test plan is shown when available, but ADT does not invent a per-setting reason for historical changes.
+
+Only verified values are shown in physical/display units. Unsupported controls retain their saved values; gearing/ECU names come from each recording's captured mapping. FFB entries are explicitly generated targets, not live hardware readbacks. Different settings alone do not establish an improvement: use the existing comparison conditions, telemetry results and driver feedback. All supported captured settings are included; controls absent from both snapshots cannot be reconstructed.
 
 ## Clearer saved-run setup tests — local preview.31
 

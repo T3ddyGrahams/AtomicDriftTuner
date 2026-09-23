@@ -65,6 +65,10 @@ public partial class CarSetupTestWindow : Window
         ChangesText.Text = Selected?.Changes ?? "No verified setup change yet.";
         DetailsText.Text = Selected?.Details ?? "";
         AdjustmentHelpText.Text = Selected?.Explanation ?? "";
+        if (Selected is { } choice)
+            TestComparison.Show(SetupComparisonPresentation.Proposed(choice.Analysis, true, choice.Explanation),
+                "Before = the setup used in your baseline run. Recommended = this one proposed test. Saving or staging does not apply it.");
+        else TestComparison.Clear("Choose the matching baseline to review one proposed test and all its unchanged settings.");
         if (Selected is not null) TestStatusText.Text = "Review this option. A new selection does not replace any file or previously staged plan.";
     }
     private void SaveTest_Click(object sender, RoutedEventArgs e)

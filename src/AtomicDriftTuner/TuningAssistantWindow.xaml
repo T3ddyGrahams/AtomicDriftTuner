@@ -1,6 +1,7 @@
 <Window x:Class="AtomicDriftTuner.TuningAssistantWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:layout="clr-namespace:AtomicDriftTuner.Controls"
         Title="ADT • Tuning Assistant"
         Width="1320"
         Height="900"
@@ -379,12 +380,8 @@
                 </StackPanel>
             </TabItem>
             <TabItem Header="Before / After">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
+                <ScrollViewer x:Name="BeforeAfterScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="12">
                     <StackPanel>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Baseline run (choose an earlier run by this driver)" TextWrapping="Wrap" FontWeight="Bold"/>
                     <ComboBox x:Name="BaselineSessionBox" AutomationProperties.Name="Baseline run" SelectionChanged="BaselineSession_SelectionChanged" Margin="0,4,0,8"/>
@@ -397,8 +394,8 @@
                                Margin="0,0,0,10"/>
                     </Expander>
                     </StackPanel>
-
-                    <Expander Grid.Row="1" x:Name="ComparisonDetailsExpander" Header="View detailed measurements" IsExpanded="False" HorizontalContentAlignment="Stretch">
+                    <layout:SetupComparisonView x:Name="RecordedSetupComparison" Margin="0,0,0,12"/>
+                    <Expander x:Name="ComparisonDetailsExpander" Header="View detailed measurements" IsExpanded="False" HorizontalContentAlignment="Stretch">
                     <DataGrid
                               x:Name="ComparisonGrid"
                               MinHeight="180"
@@ -418,7 +415,8 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     </Expander>
-                </Grid>
+                </StackPanel>
+                </ScrollViewer>
             </TabItem>
             <TabItem Header="Tune &amp; Run History">
                 <StackPanel Margin="12">

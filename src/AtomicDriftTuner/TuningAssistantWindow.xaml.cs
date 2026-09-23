@@ -125,6 +125,9 @@ public partial class TuningAssistantWindow : Window
         TuneHistoryBox.SelectedIndex = -1;
         TuneChangesGrid.ItemsSource = _report?.Outcome.TuneChanges;
         TuneHistoryText.Text = "Changes between the selected run and its baseline. Generated values are targets; attached AC setup values are file snapshots.";
+        var tab = RecordedSetupComparison.Parent;
+        while (tab is FrameworkElement element && tab is not TabItem) tab = element.Parent;
+        if (tab is TabItem comparisonTab) comparisonTab.IsSelected = true;
     }
 
     private void PreserveReviewDraft()
@@ -348,6 +351,7 @@ public partial class TuningAssistantWindow : Window
 
             _reportSession =
                 null;
+            RecordedSetupComparison.Clear("Selected-session analysis failed. Choose a saved run again.");
 
             AssessmentGrid.ItemsSource =
                 null;
@@ -451,6 +455,7 @@ public partial class TuningAssistantWindow : Window
         PedalSummaryText.Text = pedals.Summary;
         PedalLimitationsText.Text = pedals.Limitations;
         RenderPowertrain(selected, previous, report.Outcome);
+        RenderSetupComparison(selected, previous);
         QualityText.Text = string.Join("\n", selected.Analysis.Diagnosis.QualityNotes) +
             $"\nDrift exposure: left {selected.Analysis.Diagnosis.LeftDriftSeconds:0.0}s / right {selected.Analysis.Diagnosis.RightDriftSeconds:0.0}s; " +
             $"below 50 km/h {selected.Analysis.Diagnosis.LowSpeedSeconds:0.0}s / 50–90 {selected.Analysis.Diagnosis.MediumSpeedSeconds:0.0}s / above 90 {selected.Analysis.Diagnosis.HighSpeedSeconds:0.0}s.";
@@ -566,6 +571,7 @@ public partial class TuningAssistantWindow : Window
         PedalLimitationsText.Text = "";
         RenderPowertrain(null, null, null);
         TuneChangesGrid.ItemsSource = null;
+        RecordedSetupComparison.Clear();
         TuneHistoryBox.ItemsSource = null;
         ReviewHistoryBox.ItemsSource = null;
         QualityText.Text = "Select a run to inspect phase evidence.";

@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Setup comparisons (local preview.32)
+
+`dotnet run --project tests/AtomicDriftTuner.RegressionTests -c Release -- --setup-comparison` checks read-only projection of actual tuner output, all unchanged/missing settings, verified versus stale/partial mappings, camber units, FFB target provenance, changed ratio definitions and culture handling. Included in the full regression suite.
+
+`dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/setup-comparison-wpf --setup-comparison` exercises proposed and recorded comparisons, filtering, stale selection clearing, history navigation, wrapped explanations, custom colours and narrow/portrait/wide layouts. Includes existing focused setup, goal and car-physics UI checks. Test fixtures are isolated; no live tuning or hardware commands are issued.
+
 ## Focused saved-run setup tests (local preview.31)
 
 `MatchingCarDataChecks` also verifies the camera-only dual-source exception: only finite driver-eye/pitch values in a valid, otherwise identical `car.ini` can differ. Mass, inertia, steering, FFB, fuel, other graphics fields, unrelated files, duplicate/malformed sections, misplaced keys, nonfinite values and stale fingerprints remain guarded. A read-only RX-7 probe reproduced the real two-field camera difference and verified gearing load/calculation and a workspace-only final-drive export without changing the car or user's baseline.

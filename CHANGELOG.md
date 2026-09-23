@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.32 — Clear setup comparisons
+
+- Add **Your setup changes** to full AC Setup generation and the focused saved-run setup test. Readable setting names, before/recommended values, differences and the existing recommendation reasons appear together. Changed rows are highlighted; **Show all settings** includes preserved values. Technical details remain expandable.
+- Add the same comparison directly to **Tuning Assistant → Before / After**. Compare both immutable run snapshots, including unchanged settings, missing captures, recorded test plans and confirmation limitations. Generated FFB targets are labelled separately from captured car settings.
+- Keep verified gearing/ECU meanings tied to each snapshot's saved value. Unknown units remain saved values; missing entries are never zero-filled. Changed definitions for the same saved index remain visible for review. Raw values and sources remain available.
+- Wrap long explanations and adapt value columns to narrow, portrait and wide windows. Theme colours remain customizable. Invalidate stale proposed comparisons when the baseline or goals change.
+- Presentation only: no changes to telemetry diagnosis, tuning formulas, goal blending, range validation, save/stage/apply actions, recommendation credit or before/after scoring. No companion update is required. Public preview.30 remains the published release.
+
 ## Local v0.9.0-preview.31 — Clearer saved-run setup tests
 
 - Fix a false packed/unpacked conflict after adjusting the cockpit viewpoint. Permit only finite `[GRAPHICS] DRIVEREYES` and `ON_BOARD_PITCH_ANGLE` value differences in otherwise matching `car.ini` files. All other supported content must still match; both raw sources remain fingerprinted and source changes require recalculation. Car and camera files are never modified.

@@ -313,6 +313,7 @@ public sealed class CarSetupParameter
         "No automatic change.";
 
     public string PhysicsContext { get; set; } = "Base value not imported.";
+    public string DecodedContext { get; set; } = "Not decoded.";
 
     public string BlendStatus { get; set; } =
         "—";
@@ -495,6 +496,11 @@ public sealed class CarSetupAnalysis
 {
     [JsonIgnore]
     public CarPhysicsSnapshot? Physics { get; set; }
+    [JsonIgnore]
+    public CarDataEvidence? SourceEvidence { get; set; }
+    public List<string> DecodeWarnings { get; set; } = [];
+    public bool HasUnassignedValues { get; set; }
+    public bool BaselineIdentityVerified { get; set; }
     private List<CarSetupParameter> _parameters =
         [];
 
@@ -549,7 +555,7 @@ public sealed class CarSetupAnalysis
             if (!HasSetupDefinition)
             {
                 return
-                    "No unpacked data/setup.ini found; recommendations use conservative baseline-relative changes.";
+                    "No supported setup definition found; recommendations use conservative baseline-relative changes.";
             }
 
             string fileName;

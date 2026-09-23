@@ -6,6 +6,8 @@ Introduced in development preview 1 and included in public beta **0.9.0-preview.
 
 ADT now keeps phase evidence, the goals recorded with each run, immutable tune snapshots, and driver feedback together. A comparison can report **Closer to goals**, **Farther from goals**, **Tradeoff**, **No clear change**, or **Inconclusive**. A saved review separately assesses whether the driver and telemetry support improvement in the recorded recommendation test.
 
+Local preview.21 also records supported decoded gearing/ECU meanings and car-data fingerprints with new tune snapshots. Comparisons show verified physical ratios separately from saved indexes; partial/unsupported interpretations cannot become measured power or live readback. A manual setup with unnamed VALUE entries cannot support an improvement verdict because the control cannot be identified. Wrong-car/duplicate model identities are rejected; missing model identity leaves file-derived meanings partial. Record a fresh preview.21 baseline: its packed-archive or expanded unpacked-text fingerprint covers more files than preview.20. These are snapshot-time file checks, not continuous verification of CSP overrides or active physics. See [car-data decoding](CAR_PHYSICS.md).
+
 ## Current setup capture and live evidence — local preview.14
 
 Local preview.15 adds a separate [explicit pit Save & Apply Tune workflow](PIT_SETUP.md): generate/review in AC Setup, stage the numeric plan, then explicitly apply from the companion's Pit setup tab. Goals, findings, feedback and generation still do not apply settings. A verified pit action does not establish improved handling; a clean baseline/comparison and the existing evidence checks are still required. Real-game acceptance is pending.

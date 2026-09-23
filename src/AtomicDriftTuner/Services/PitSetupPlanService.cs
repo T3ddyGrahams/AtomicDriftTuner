@@ -17,6 +17,7 @@ public sealed class PitSetupPlanService
     {
         ArgumentNullException.ThrowIfNull(analysis);
         CarPhysicsService.EnsureUnchanged(analysis.Physics);
+        if (analysis.SourceEvidence is not null) CarDataSource.EnsureUnchanged(analysis.SourceEvidence);
         if (string.IsNullOrWhiteSpace(carId) ||
             !string.Equals(analysis.CarFolderName, carId, StringComparison.OrdinalIgnoreCase))
             throw Invalid("The selected car does not match the analyzed setup. Load its baseline again.");

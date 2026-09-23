@@ -89,6 +89,7 @@ public sealed class RunHistoryStore
             else Flatten(JsonSerializer.SerializeToElement(tune.Azom), "Generated.AZOM");
         }
         else version.Source = "Car setup snapshot; FFB settings held fixed by driver, no generated FFB targets claimed in use";
+        CarPhysicsSnapshot? attachedPhysics = null;
         if (capturedSetup is not null)
         {
             if (!string.Equals(capturedSetup.CarId, input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
@@ -107,6 +108,8 @@ public sealed class RunHistoryStore
             if (info.Length is <= 0 or > 2_000_000) throw new InvalidDataException("Choose an AC setup INI smaller than 2 MB.");
             using var source = new FileStream(setupPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             var baseline = new AssettoCorsaSetupService().LoadBaseline(setupPath, input.Car);
+            attachedPhysics = baseline.Physics;
+            version.HasUnassignedSetupValues = baseline.HasUnassignedValues;
             if (baseline.Parameters.Select(p => p.Section).Distinct(StringComparer.OrdinalIgnoreCase).Count() != baseline.Parameters.Count)
                 throw new InvalidDataException("The attached setup has duplicate VALUE sections and cannot be snapshotted unambiguously.");
             foreach (var p in baseline.Parameters.Where(p => p.CurrentValue is double v && double.IsFinite(v)))
@@ -115,10 +118,13 @@ public sealed class RunHistoryStore
             version.SetupSource = "manual-file";
             version.SetupSha256 = Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
         }
-        var physics = new CarPhysicsService().Read(input.Car);
+        var savedValues = version.Settings.Where(x => x.Key.StartsWith("ACSetup.", StringComparison.Ordinal)).Select(x => new CarSetupParameter {
+            Section = x.Key[8..], CurrentValue = x.Value, CurrentRaw = x.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture) }).ToList();
+        var physics = attachedPhysics ?? new CarPhysicsService().Read(input.Car, savedValues);
         // Store only a digest/status, never the local path or raw mod files.
         version.BasePhysicsFingerprint = physics.Fingerprint;
         version.BasePhysicsStatus = physics.Status;
+        version.DecodedSetup = physics.DecodedSettings.ToList();
         SaveTune(version);
         return Clone(version);
     }
@@ -162,6 +168,10 @@ public sealed class RunHistoryStore
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
         v.BasePhysicsFingerprint is not null && (v.BasePhysicsFingerprint.Length == 0 || v.BasePhysicsFingerprint.Length == 64 && v.BasePhysicsFingerprint.All(Uri.IsHexDigit)) &&
         v.BasePhysicsStatus is not null && v.BasePhysicsStatus.Length <= 1000 &&
+        v.DecodedSetup is not null && v.DecodedSetup.Count <= 2000 && v.DecodedSetup.All(d => d is not null &&
+            d.Status is DecodedSetupSetting.Verified or DecodedSetupSetting.Partial or DecodedSetupSetting.Unsupported &&
+            new[] { d.Section, d.SavedValue, d.Value, d.Source, d.Explanation }.All(t => t is not null && t.Length <= 8000) &&
+            (d.NumericValue is null || double.IsFinite(d.NumericValue.Value))) &&
         Enum.IsDefined(v.Focus) && Enum.IsDefined(v.FfbProvider) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
         v.SetupSha256 is not null && v.SetupSource is not null && v.SetupTrackLayout is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&

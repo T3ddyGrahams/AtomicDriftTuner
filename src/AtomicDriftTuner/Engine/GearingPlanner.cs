@@ -16,7 +16,7 @@ public static class GearingPlanner
         if (target.Gear != data.Gear)
             throw new InvalidDataException("The selected gear changed. Calculate again.");
         if (target.MaximumRpm > data.LimiterRpm)
-            throw new InvalidDataException($"The target RPM exceeds this car's {data.LimiterRpm:N0} RPM limiter. Lower the RPM target.");
+            throw new InvalidDataException($"The target RPM exceeds the base engine.ini limiter of {data.LimiterRpm:N0} RPM. Lower the RPM target; active ECU/script overrides are not verified.");
 
         var options = data.FinalDrives.Select(ratio =>
         {
@@ -33,7 +33,7 @@ public static class GearingPlanner
         // Never recommend a ratio that reaches the limiter within the requested speed range.
         var eligible = options.Where(x => x.HighRpm < data.LimiterRpm).ToArray();
         if (eligible.Length == 0)
-            throw new InvalidDataException("Every supported final drive reaches the limiter within this speed range. Try a higher drift gear or lower your maximum speed.");
+            throw new InvalidDataException("Every supported final drive reaches the base engine.ini limiter within this speed range. Try a higher drift gear or lower your maximum speed; active ECU/script overrides are not verified.");
         var ranked = eligible.OrderByDescending(x => x.FitsTarget).ThenBy(x => x.Score)
             .ThenBy(x => x.FinalDrive.Index == data.CurrentIndex ? 0 : 1).ThenBy(x => x.FinalDrive.Index).ToArray();
         var best = ranked[0];

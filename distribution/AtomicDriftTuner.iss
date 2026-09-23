@@ -68,6 +68,7 @@ Source: "{#StagingDir}\docs\TELEMETRY_INTELLIGENCE.md"; DestDir: "{app}\docs"; F
 Source: "{#StagingDir}\docs\PIT_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\PITHOUSE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\CAR_PHYSICS.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\PACKED_FORMAT_SOURCES.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\ADTCompanion-ContentManager.zip"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\README.md"; DestDir: "{app}\CompanionPayload"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\ADTCompanion.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion

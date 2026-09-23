@@ -2,6 +2,15 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.21 — Packed car data and verified setup meanings
+
+- Read supported ordinary data.acd archives into a bounded private memory cache without installing tools or changing car files. Keep protected, corrupt, ambiguous and unsupported sources explicit; never execute car scripts.
+- Decode final-drive indexes, documented individual gears/gearsets and supported CSP engine-map selections using the selected car's own definitions. Show numeric ratios separately from display labels, sources, and Verified mapping / Partial understanding / Unsupported states.
+- Extend the gearing planner to supported packed cars with identical calculations and source checks. Identify RPM estimates as based on engine.ini, not verified ECU/script limits.
+- Show saved-setting meanings in AC Setup and retain them in new run/tune snapshots and comparisons. Flag unnamed values; refuse wrong-car baselines and stale archive/map data. A decoded engine-map multiplier is not a horsepower measurement or proof of in-game application.
+- Expand file fingerprints to the complete packed archive or supported unpacked text files. Record a fresh preview.21 baseline before comparing; older fingerprints have narrower coverage.
+- Preserve the existing telemetry, Desired Behavior, FFB workflows, and preview.18/.19 fixes. No public release has been made for this local build.
+
 ## Local v0.9.0-preview.20 — Readable base car physics
 
 - Add optional read-only import of supported unpacked suspension, tyre, drivetrain, engine, brake and car data, with source labels and the saved baseline's selected tyre compound.

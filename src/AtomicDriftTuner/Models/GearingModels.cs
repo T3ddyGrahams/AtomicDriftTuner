@@ -25,7 +25,10 @@ public sealed record FinalDriveRatio(int Index, string Label, double Ratio);
 public sealed record GearingData(
     string BaselinePath, string CarPath, IReadOnlyList<FinalDriveRatio> FinalDrives,
     int CurrentIndex, int Gear, double GearRatio, double TyreRadius, double LimiterRpm,
-    string GearSource, string TyreSource, IReadOnlyDictionary<string, string> Fingerprints);
+    string GearSource, string TyreSource, IReadOnlyDictionary<string, string> Fingerprints)
+{
+    public CarDataEvidence? CarDataEvidence { get; init; }
+}
 
 public sealed record GearingOption(FinalDriveRatio FinalDrive, double LowRpm, double HighRpm,
     double LimiterSpeedKmh, double Score, bool FitsTarget);

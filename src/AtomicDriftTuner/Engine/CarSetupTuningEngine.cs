@@ -27,6 +27,7 @@ public sealed class CarSetupTuningEngine
             analysis);
 
         CarPhysicsService.EnsureUnchanged(analysis.Physics);
+        if (analysis.SourceEvidence is not null) CarDataSource.EnsureUnchanged(analysis.SourceEvidence);
         if (analysis.Physics?.Available == true && !string.Equals(analysis.Physics.CarId, analysis.CarFolderName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Imported physics belongs to a different car. Reload the selected baseline.");
 

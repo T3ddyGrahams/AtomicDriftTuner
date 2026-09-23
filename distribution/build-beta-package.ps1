@@ -181,7 +181,7 @@ Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $stag
 
 $guidePayload = Join-Path $staging "docs"
 New-Item -ItemType Directory -Path $guidePayload -Force | Out-Null
-foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md", "PIT_SETUP.md", "PITHOUSE.md", "CAR_PHYSICS.md")) {
+foreach ($guide in @("GUIDED_WORKFLOW.md", "TOUCHSCREEN.md", "GEARING.md", "TELEMETRY_INTELLIGENCE.md", "PIT_SETUP.md", "PITHOUSE.md", "CAR_PHYSICS.md", "PACKED_FORMAT_SOURCES.md")) {
     Copy-Item -LiteralPath (Join-Path $repo "docs/$guide") -Destination (Join-Path $guidePayload $guide)
 }
 

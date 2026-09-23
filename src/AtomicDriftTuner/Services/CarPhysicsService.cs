@@ -9,7 +9,6 @@ namespace AtomicDriftTuner.Services;
 /// <summary>Read-only base physics context, never a reconstruction of the live pit setup.</summary>
 public sealed class CarPhysicsService
 {
-    private const int MaxBytes = 1024 * 1024;
     private static readonly string[] Files = ["car.ini", "suspensions.ini", "tyres.ini", "drivetrain.ini", "engine.ini", "brakes.ini", "setup.ini"];
     private sealed class Ini : Dictionary<string, Dictionary<string, string>>
     {
@@ -17,34 +16,25 @@ public sealed class CarPhysicsService
         public string? Value(string section, string key) => TryGetValue(section, out var values) ? values.GetValueOrDefault(key) : null;
     }
 
-    public CarPhysicsSnapshot Read(CarProfile car, IReadOnlyList<CarSetupParameter>? baseline = null, bool enabled = true)
+    public CarPhysicsSnapshot Read(CarProfile car, IReadOnlyList<CarSetupParameter>? baseline = null, bool enabled = true, CarDataSource? suppliedSource = null)
     {
         if (!enabled) return new() { Status = "Car physics import is off. Existing setup guidance remains available." };
         if (string.IsNullOrWhiteSpace(car.SourceFolderPath)) return new() { Status = "Select an installed car to read its base physics." };
         try
         {
-            var root = Path.GetFullPath(car.SourceFolderPath);
-            var data = Path.Combine(root, "data");
-            if (!Directory.Exists(root)) return new() { Status = "The selected car folder is unavailable. Refresh the installed car scan." };
-            if (File.Exists(Path.Combine(root, "data.acd")))
-                return new() { Status = Directory.Exists(data)
-                    ? "Both data.acd and data are present. Base physics import is unavailable because the active source is ambiguous."
-                    : "This car has packed physics (data.acd). Base physics import needs accessible, unambiguous data supplied by the car author.",
-                    Notes = ["ADT does not unpack, decrypt, delete or modify car physics. Saved-setup and telemetry workflows remain available."] };
-            if (!Directory.Exists(data)) return new() { Status = "No accessible data folder. Saved-setup and telemetry workflows remain available." };
-            RejectLink(root); RejectLink(data);
-            var ini = new Dictionary<string, Ini>(); var hashes = new Dictionary<string, string>(); var notes = new List<string>();
+            var source = suppliedSource ?? CarDataSource.Open(car);
+            var root = source.Evidence.CarPath;
+            var ini = new Dictionary<string, Ini>(); var notes = new List<string>();
             foreach (var name in Files)
             {
-                var path = Path.Combine(data, name);
-                if (!File.Exists(path)) { hashes[name] = "missing"; notes.Add(name + ": not available."); continue; }
                 try
                 {
-                    var bytes = ReadBytes(path); hashes[name] = Convert.ToHexString(SHA256.HashData(bytes));
-                    ini[name] = Parse(bytes);
+                    var text = source.ReadText(name);
+                    if (text is null) { notes.Add(name + ": not available."); continue; }
+                    ini[name] = Parse(Encoding.UTF8.GetBytes(text));
                 }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
-                { notes.Add(name + ": unavailable or malformed; its values were not imported."); hashes.TryAdd(name, "unreadable"); }
+                { notes.Add(name + ": unavailable or malformed; its values were not imported."); }
             }
             var facts = new List<CarPhysicsFact>();
             string? Raw(string file, string section, string key) => ini.TryGetValue(file, out var content) ? content.Value(section, key) : null;
@@ -104,12 +94,20 @@ public sealed class CarPhysicsService
                 }
             }
             var hasDefinition = ini.TryGetValue("setup.ini", out var definition);
+            var decoded = new CarSetupDecoder().Decode(baseline ?? [], source.ReadText);
+            notes.Add(source.Kind == "packed" ? "Ordinary data.acd decoded in a private, bounded memory cache. Installed files were not changed; cache is cleared when ADT exits." : "Read from the existing unpacked data folder.");
+            notes.Add("File evidence covers supported INI/LUT/RTO/Lua data (the entire archive for packed cars), not external CSP overrides or proof of active in-game settings. Scripts are never executed.");
+            if (source.FileNames.Any(x => x.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)))
+                notes.Add("This car includes Lua scripts. Decoded selections describe file mappings only; custom scripted effects are not evaluated.");
             return new() { CarPath = root, CarId = car.SourceFolderName ?? Path.GetFileName(root), Available = facts.Count > 0,
-                Fingerprint = facts.Count == 0 ? "" : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", hashes.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key + "=" + x.Value))))),
-                Status = facts.Count > 0 ? $"Imported {facts.Count} base physics values from {ini.Count} readable file(s). No car files were changed." : "No supported base values found. Existing setup guidance remains available.",
+                SourceEvidence = source.Evidence, DecodedSettings = decoded,
+                Fingerprint = source.Evidence.Fingerprint,
+                Status = facts.Count > 0 ? $"Imported {facts.Count} base physics values from {source.Kind} car data. No car files were changed." : $"Read {source.Kind} car data; no supported base values found. Saved-setting decoding is shown below when available.",
                 Facts = facts.AsReadOnly(), Notes = notes.AsReadOnly(), DriveType = drive, HasSetupDefinition = hasDefinition,
-                AdjustableSections = Array.AsReadOnly(definition?.Keys.ToArray() ?? []), Fingerprints = new ReadOnlyDictionary<string, string>(hashes) };
+                AdjustableSections = Array.AsReadOnly(definition?.Keys.ToArray() ?? []), Fingerprints = source.Evidence.Fingerprints };
         }
+        catch (InvalidDataException ex)
+        { return new() { Status = "Car physics unavailable: " + ex.Message + " Saved-setup guidance remains available." }; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         { return new() { Status = "The car data could not be read safely. Check the selected car folder and permissions; existing setup guidance remains available." }; }
     }
@@ -117,35 +115,13 @@ public sealed class CarPhysicsService
     public static void EnsureUnchanged(CarPhysicsSnapshot? snapshot)
     {
         if (snapshot?.Available != true) return;
-        var data = Path.Combine(snapshot.CarPath, "data");
         try
         {
-            RejectLink(snapshot.CarPath); RejectLink(data);
-            if (File.Exists(Path.Combine(snapshot.CarPath, "data.acd"))) throw new IOException();
-            foreach (var (name, expected) in snapshot.Fingerprints)
-            {
-                if (!Files.Contains(name)) throw new IOException();
-                var path = Path.Combine(data, name);
-                string actual;
-                try { actual = !File.Exists(path) ? "missing" : Convert.ToHexString(SHA256.HashData(ReadBytes(path))); }
-                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { actual = "unreadable"; }
-                if (actual != expected) throw new IOException();
-            }
+            if (snapshot.SourceEvidence is null) throw new IOException();
+            CarDataSource.EnsureUnchanged(snapshot.SourceEvidence);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         { throw new InvalidOperationException("Car physics or setup definitions changed or became unavailable. Reload the baseline and generate again before saving or staging.", ex); }
-    }
-
-    private static void RejectLink(string path)
-    { if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked car data is not supported."); }
-    private static byte[] ReadBytes(string path)
-    {
-        RejectLink(path);
-        using var stream = File.OpenRead(path);
-        if (stream.Length > MaxBytes) throw new InvalidDataException("Physics file too large.");
-        using var buffer = new MemoryStream(); var chunk = new byte[8192]; int count;
-        while ((count = stream.Read(chunk)) > 0) { if (buffer.Length + count > MaxBytes) throw new InvalidDataException("Physics file too large."); buffer.Write(chunk, 0, count); }
-        return buffer.ToArray();
     }
     private static Ini Parse(byte[] bytes)
     {

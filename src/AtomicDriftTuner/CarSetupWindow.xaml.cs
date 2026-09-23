@@ -293,7 +293,7 @@ public partial class CarSetupWindow : Window
                 _service.LoadBaseline(
                     path,
                     _input.Car, UseCarPhysicsCheck.IsChecked == true);
-            ShowPhysics(_analysis.Physics);
+            ShowPhysics(_analysis.Physics, _analysis.DecodeWarnings);
 
             _generatedSignature =
                 null;
@@ -347,7 +347,7 @@ public partial class CarSetupWindow : Window
                 _service.LoadBaseline(
                     baselinePath,
                     _input.Car, UseCarPhysicsCheck.IsChecked == true);
-            ShowPhysics(baseline.Physics);
+            ShowPhysics(baseline.Physics, baseline.DecodeWarnings);
 
             _behavior =
                 behavior;
@@ -929,7 +929,7 @@ public partial class CarSetupWindow : Window
             _service.LoadBaseline(
                 path,
                 _input.Car, UseCarPhysicsCheck.IsChecked == true);
-        ShowPhysics(_analysis.Physics);
+        ShowPhysics(_analysis.Physics, _analysis.DecodeWarnings);
 
         _generatedSignature =
             null;

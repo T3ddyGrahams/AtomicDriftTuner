@@ -1,25 +1,27 @@
-# Gearing planner — first version
+# Gearing planner
 
-Public beta `0.9.0-preview.17` includes the final-drive planner first developed in preview.5. This is a separate step in **AC Setup → Gearing • Final-drive planner**.
+The final-drive planner is a separate step in **AC Setup → Gearing • Final-drive planner**. The current development build adds read-only support for ordinary packed `data.acd` files alongside unpacked data. Public beta `0.9.0-preview.17` has the earlier unpacked-only planner; packed support requires the updated build.
 
 ## Try it
 
 1. Select your installed car in ADT. Save a setup for that car in Assetto Corsa.
 2. Open **AC Setup**, choose the baseline, then open **Gearing**. If you already generated handling changes, save those first and use that generated setup as the gearing baseline.
 3. Enter the gear you want to hold, your minimum/maximum road speed, and your desired engine RPM range. Choose km/h or mph. The initial numbers are examples, not a detected power band.
-4. Click **Calculate final drive**. Review the actual current/suggested ratios, predicted RPM at both speed endpoints, and the reason for the choice. Expand the supported-ratio list to compare alternatives.
+4. Click **Calculate final drive**. Review the decoded current/suggested ratios, predicted RPM at both speed endpoints, and the reason for the choice. The source text identifies packed or unpacked data and the saved selections used. Expand the supported-ratio list to compare alternatives.
 5. **Save target for this car** remembers your choices. **Save gearing setup…** writes a separate `.ini`, changing only `[FINAL_RATIO] VALUE`. It is disabled when the current ratio is already the best match.
 6. Load that new setup in Assetto Corsa's Setup menu. Test the same section, gear and driving conditions against your baseline. Watch for limiter contact or dropping below the usable RPM range; adjust your target and repeat.
 
 There is no automatic in-game application. Saving a target does not change a setup. Saving a gearing setup preserves the source setup and every unrelated setting.
 
+For a supported packed car, no manual Content Manager unpacking is needed. ADT reads it into a bounded private memory cache and leaves the installed `data.acd` intact. It does not create a `data` folder, run mod scripts, or redistribute the extracted physics. If reading or mapping cannot be verified, the planner explains the missing or unsupported evidence.
+
 ## What the estimate means
 
-The planner uses the selected gear, actual supported final-drive ratios, nominal driven-tyre radius and engine limiter. It predicts RPM from road speed with **no tyre or clutch slip**:
+The planner uses the selected gear, decoded supported final-drive ratios, nominal driven-tyre radius and the base limiter from `engine.ini`. It predicts RPM from road speed with **no tyre or clutch slip**:
 
 `RPM = (km/h ÷ 3.6) ÷ (2π × tyre radius in metres) × 60 × gear ratio × final drive`
 
-Ratios that hit the limiter within the requested speed range are excluded. Ranking prefers ratios whose endpoints fit inside the requested RPM band, then minimizes the squared proportional mismatch to the two requested RPM endpoints. Equal/negligibly different results keep the existing ratio. If no ratio spans the entire RPM band, the result explicitly says it is a partial fit. If all ratios reach the limiter, change the gear or speed target.
+Ratios that hit the base limiter within the requested speed range are excluded. Ranking prefers ratios whose endpoints fit inside the requested RPM band, then minimizes the squared proportional mismatch to the two requested RPM endpoints. Equal/negligibly different results keep the existing ratio. If no ratio spans the entire RPM band, the result explicitly says it is a partial fit. If all ratios reach the base limiter, change the gear or speed target. An ECU, CSP controller or script may change the active limiter; that behavior is not simulated here. Confirm the usable RPM range in game.
 
 A numerically larger final drive is shorter: it increases engine RPM and torque multiplication in every gear. A smaller ratio is taller. This describes gearing multiplication, not a prediction of available traction or delivered engine torque. Drift wheelspin, clutch slip, tyre deformation and custom physics can materially change RPM. Version 1 does not diagnose gearing from telemetry, infer an engine power band, optimize individual gears, or score improvement from runs.
 
@@ -27,18 +29,21 @@ Gearing targets are saved separately from the seven existing Desired Behavior ha
 
 ## Supported car data
 
-- Unambiguous unpacked `data/setup.ini`, `drivetrain.ini`, `tyres.ini`, `engine.ini`, and local `.rto` files.
+- One unambiguous source: ordinary supported `data.acd`, or an unpacked `data` folder. It must supply readable `setup.ini`, `drivetrain.ini`, `tyres.ini`, `engine.ini` and referenced local ratio files.
 - RWD and FWD; fixed gears, explicitly selected gearsets, and individually adjustable gears whose selected ratio indexes can be decoded.
-- A saved setup with matching `[CAR] MODEL`, `[FINAL_RATIO] VALUE`, and `[TYRES] VALUE`; gearsets also require `[GEARSET] VALUE`, adjustable gears require their `INTERNAL_GEAR_n` selection.
+- A saved setup with matching `[CAR] MODEL`, `[FINAL_RATIO] VALUE`, and `[TYRES] VALUE`; gearsets also require `[GEARSET] VALUE`. Individually adjustable forward gear `n` requires its saved `INTERNAL_GEAR_(n+1)` selection because AC's internal numbering includes reverse.
 - Fixed engine RPM limiter and a resolvable driven-tyre compound/radius.
 
-Packed/encrypted data, both packed and unpacked sources together, AWD, adjustable limiters, duplicate ratio labels, malformed or incomplete files, and unresolved selections receive an explanation instead of a guessed recommendation. ADT does not unpack or modify a car's physics. Do not alter a car's data merely to enable this planner; use a supported car for initial testing.
+Packed does not automatically mean protected. Ordinary supported AC archive records can be read; additional protection, unknown archive layouts, binary or otherwise unreadable physics remain unsupported. Both packed and unpacked sources together, AWD, explicit adjustable limiters, duplicate ratio labels, malformed or incomplete files, and unresolved selections receive an explanation instead of a guessed recommendation. Referenced files must be flat files inside the selected source; external paths and scripts are not followed or executed. Keep the installed car intact.
 
-Saving rechecks content fingerprints for the baseline and every physics/ratio file used in the estimate, recomputes the recommendation, and uses the existing guarded setup writer. A changed baseline or car file requires recalculation. Targets persist under `%LOCALAPPDATA%/AtomicDriftTuner/gearing-targets/`, keyed by the same car/pack identity used for behavior profiles.
+Reading is bounded: at most 1 MiB per car-data file, 16 MiB of decoded data, 64 MiB per archive and 1,024 entries. A renamed packed-car folder can make the archive unreadable because the ordinary format depends on the car identifier. An accepted saved-value mapping does not prove the setup was loaded in game, validate every CSP override, or establish that the tune will feel better.
+
+Saving separately rechecks the baseline fingerprint and the source snapshot, reloads the definitions, recomputes the recommendation, and uses the existing guarded setup writer. Packed evidence covers the entire archive. Unpacked evidence covers the supported INI/LUT/RTO/Lua files, including ratio lists. Changed files, a missing source or newly ambiguous packed/unpacked copies require recalculation. Fingerprints do not monitor external CSP files or prove active in-game physics. Targets persist under `%LOCALAPPDATA%/AtomicDriftTuner/gearing-targets/`, keyed by the same car/pack identity used for behavior profiles.
 
 ## Verification
 
 - Synthetic regressions cover non-monotonic ratio lists, gearsets, adjustable gears, tyre compound/drive axle, invalid inputs, limiter exclusion, partial/no-op results, stale data, wrong-car baselines, source preservation, single-parameter exports and per-car persistence.
+- Packed fixture checks cover the same saved-index mapping, gearsets, individual-gear numbering and driven compounds; they also reject changed archives, changed baselines, newly ambiguous sources and invalid references. The export check compares original archive bytes and confirms no installed `data` folder or other file was created.
 - WPF checks exercise real calculation handlers, stale-result invalidation, unit switching, persistence, themed text/buttons and narrow/portrait/ultrawide controls. They use isolated fixtures.
 - Read-only installed-car check: `687_Bros_Toyota_GR_86_drift` with its existing `generic/last.ini` successfully decoded the fixed third gear, current final drive and selected tyre. The test export was written to a temporary test folder, not the game or user setup folder.
 - `bdb_nissan_laurel_c33` was correctly blocked because two final-drive entries reuse the same label. No mapping was guessed and no car data was edited.

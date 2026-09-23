@@ -23,6 +23,8 @@ public sealed class TuneVersion
     public string SetupSha256 { get; set; } = "";
     public string BasePhysicsFingerprint { get; set; } = "";
     public string BasePhysicsStatus { get; set; } = "Not captured in this recording.";
+    public List<DecodedSetupSetting> DecodedSetup { get; set; } = [];
+    public bool HasUnassignedSetupValues { get; set; }
     public string SetupSource { get; set; } = "";
     public string SetupTrackLayout { get; set; } = "";
     public DateTime? SetupCapturedUtc { get; set; }

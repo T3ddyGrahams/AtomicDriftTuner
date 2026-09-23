@@ -8,6 +8,31 @@ using System.Runtime.CompilerServices;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
 
+if (args is ["--verify-car-archive", var installedCarDirectory])
+{
+    var path = Path.Combine(installedCarDirectory, "data.acd"); var bytes = File.ReadAllBytes(path);
+    var beforeHash = System.Security.Cryptography.SHA256.HashData(bytes);
+    var entries = PackedCarDataReader.Read(bytes, Path.GetFileName(installedCarDirectory.TrimEnd('\\', '/')));
+    foreach (var entry in entries)
+        if (!entry.Value.SequenceEqual(File.ReadAllBytes(Path.Combine(installedCarDirectory, "data", entry.Key))))
+            throw new Exception("Packed/unpacked bytes differ: " + entry.Key);
+    if (!beforeHash.SequenceEqual(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))) throw new Exception("Archive changed during review.");
+    Console.WriteLine($"PASS {entries.Count} decoded text files match the independently unpacked copy byte for byte; source archive unchanged.");
+    return 0;
+}
+
+if (args is ["--review-setup", var carDirectory, var setupFile])
+{
+    var profile = new CarProfile { SourceFolderPath = carDirectory, SourceFolderName = Path.GetFileName(carDirectory.TrimEnd('\\', '/')) };
+    var analysis = new AssettoCorsaSetupService().LoadBaseline(setupFile, profile);
+    Console.WriteLine(analysis.Physics!.Status);
+    Console.WriteLine("Car-data fingerprint: " + analysis.Physics.Fingerprint);
+    foreach (var warning in analysis.DecodeWarnings) Console.WriteLine(warning);
+    foreach (var row in analysis.Physics.DecodedSettings.Where(x => x.Section is "FINAL_RATIO" or "GEARSET" or "ENGINE_MAPS" || x.Section.StartsWith("INTERNAL_GEAR_")))
+        Console.WriteLine(row.Display);
+    return analysis.Physics.Available ? 0 : 1;
+}
+
 if (args is ["--review-telemetry", var reviewFolder])
 {
     var store = new TelemetrySessionStore();
@@ -250,6 +275,11 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         MozaWorkerChecks.Run(Run, root);
         WheelSlipEvidenceChecks.Run(Run);
         CarPhysicsChecks.Run(Run, root);
+        PackedArchiveChecks.Run(Run, root);
+        SetupDecodingChecks.Run(Run, root);
+        PackedGearingChecks.Run(Run, root);
+        PackedIntegrationChecks.Run(Run, root);
+        PackedIdentityChecks.Run(Run, root);
         IntelligenceChecks.Run(Run, root);
         PedalChecks.Run(Run, root);
         AngleGoalChecks.Run(Run, root);

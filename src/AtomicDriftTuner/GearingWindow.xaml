@@ -18,6 +18,7 @@
                 <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" x:Name="CarText" Margin="0,6,0,10"/>
                 <TextBlock Text="1. Choose your baseline" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
                 <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="Start with a setup saved in Assetto Corsa for this car. To keep ADT's handling changes, choose your generated handling setup as this baseline." Margin="0,5,0,5"/>
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="ADT can read supported packed data.acd or unpacked car data without changing the installed car. Protected, incomplete or ambiguous data is explained instead of guessed." Margin="0,0,0,5"/>
                 <TextBox x:Name="BaselinePathBox" IsReadOnly="True" AutomationProperties.Name="Gearing baseline setup path" TextChanged="ControlsChanged"/>
                 <Button Content="Browse baseline…" Click="Browse_Click" HorizontalAlignment="Left"/>
                 <TextBlock Text="2. Set your drift target" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" Margin="0,14,0,8"/>

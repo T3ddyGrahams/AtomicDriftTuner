@@ -48,10 +48,16 @@
                 <Border x:Name="CarPhysicsCard" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,0,0,12">
                     <StackPanel>
                         <CheckBox x:Name="UseCarPhysicsCheck" IsChecked="True" Checked="PhysicsOption_Changed" Unchecked="PhysicsOption_Changed">
-                            <TextBlock Text="Use readable car physics for setup guidance" TextWrapping="Wrap" Foreground="{DynamicResource FieldLabelBrush}"/>
+                            <TextBlock Text="Use car data for setup guidance (packed or unpacked)" TextWrapping="Wrap" Foreground="{DynamicResource FieldLabelBrush}"/>
                         </CheckBox>
                         <TextBlock x:Name="PhysicsStatusText" Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap" Margin="0,8"/>
                         <TextBlock Text="Base car data + your saved setup + recorded driving. Imported base values do not replace the setup you actually use." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="DecodingSummaryText" Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <TextBlock x:Name="DecodeWarningsText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        <Expander x:Name="DecodedSettingsExpander" HorizontalContentAlignment="Stretch" Margin="0,8,0,0">
+                            <Expander.Header><TextBlock Text="What my saved settings mean" TextWrapping="Wrap"/></Expander.Header>
+                            <TextBlock x:Name="DecodedSettingsText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,6"/>
+                        </Expander>
                         <Expander x:Name="PhysicsDetailsExpander" HorizontalContentAlignment="Stretch" Margin="0,8,0,0">
                             <Expander.Header><TextBlock Text="Car physics — values and sources" TextWrapping="Wrap"/></Expander.Header>
                             <StackPanel>
@@ -211,6 +217,7 @@
                         <DataGridTextColumn Header="Legal Range" Binding="{Binding RangeText}" Width="120"/>
                         <DataGridTextColumn Header="Blend" Binding="{Binding BlendStatus}" Width="145"/>
                         <DataGridTextColumn Header="Base car context" Binding="{Binding PhysicsContext}" Width="240"/>
+                        <DataGridTextColumn Header="Saved setting meaning" Binding="{Binding DecodedContext}" Width="280"/>
                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*" MinWidth="180"/>
                     </DataGrid.Columns>
                 </DataGrid>

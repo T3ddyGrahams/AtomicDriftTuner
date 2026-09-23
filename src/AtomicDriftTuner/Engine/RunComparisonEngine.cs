@@ -23,6 +23,8 @@ public sealed class RunComparisonEngine
         if (a is not null && b is not null && (TuningFocusOptions.IncludesFfb(a.Focus) || TuningFocusOptions.IncludesFfb(b.Focus)))
             Require(a.Tune?.FfbProvider == b.Tune?.FfbProvider, "Wheelbase software changed. Record a new baseline with the same FFB provider before judging improvement.");
         Require(KnownSame(before.Session.CarFolder, after.Session.CarFolder) && KnownSame(before.Session.DriftPack, after.Session.DriftPack), "Car or drift pack differs, or its exact identity is missing.");
+        Require(a?.Tune?.HasUnassignedSetupValues != true && b?.Tune?.HasUnassignedSetupValues != true,
+            "A saved setup contains unnamed VALUE entries whose controls cannot be identified (possibly a custom ECU setting). Use a complete named setup capture before attributing improvement to a change.");
         if (!string.IsNullOrEmpty(a?.Tune?.BasePhysicsFingerprint) || !string.IsNullOrEmpty(b?.Tune?.BasePhysicsFingerprint))
             Require(KnownSame(a?.Tune?.BasePhysicsFingerprint, b?.Tune?.BasePhysicsFingerprint),
                 "Base car physics changed or could not be matched between runs. Record a fresh baseline using the same car data before judging the setup change.");
@@ -103,12 +105,19 @@ public sealed class RunComparisonEngine
                 var hasOld = a.Tune.Settings.TryGetValue(key, out var old);
                 var hasNew = b.Tune.Settings.TryGetValue(key, out var current);
                 if (hasOld && hasNew && Math.Abs(old - current) < .000001) continue;
-                result.TuneChanges.Add(new AssistantComparisonRow { Metric = key, Previous = hasOld ? $"{old:0.###}" : "Not captured",
-                    Current = hasNew ? $"{current:0.###}" : "Not captured", Change = hasOld && hasNew ? $"{current - old:+0.###;-0.###;0}" : "Added / removed",
+                var oldMeaning = key.StartsWith("ACSetup.", StringComparison.Ordinal) ? a.Tune.DecodedSetup.FirstOrDefault(d => d.Section.Equals(key[8..], StringComparison.OrdinalIgnoreCase)) : null;
+                var newMeaning = key.StartsWith("ACSetup.", StringComparison.Ordinal) ? b.Tune.DecodedSetup.FirstOrDefault(d => d.Section.Equals(key[8..], StringComparison.OrdinalIgnoreCase)) : null;
+                string Shown(bool hasValue, double value, DecodedSetupSetting? meaning) => !hasValue ? "Not captured" :
+                    meaning?.Status == DecodedSetupSetting.Verified ? $"{meaning.Value} (saved {value:0.###})" : $"{value:0.###}";
+                var mappingNote = oldMeaning is null && newMeaning is null ? "" : " Saved-setting decoding: " +
+                    (oldMeaning?.Status ?? "Not captured") + " → " + (newMeaning?.Status ?? "Not captured") +
+                    ". Decoded mappings are from snapshot files, not measured output or live verification.";
+                result.TuneChanges.Add(new AssistantComparisonRow { Metric = key, Previous = Shown(hasOld, old, oldMeaning),
+                    Current = Shown(hasNew, current, newMeaning), Change = hasOld && hasNew ? $"{current - old:+0.###;-0.###;0} (saved value)" : "Added / removed",
                     Interpretation = key.StartsWith("ACSetup.", StringComparison.Ordinal)
-                        ? a.Tune.SetupSource == "csp-current-setup" && b.Tune.SetupSource == "csp-current-setup"
+                        ? (a.Tune.SetupSource == "csp-current-setup" && b.Tune.SetupSource == "csp-current-setup"
                             ? "Current CSP setup VALUE, sampled periodically. Stored setup units may differ from the game's display units."
-                            : "Captured setup-file value; use is driver-confirmed."
+                            : "Captured setup-file value; use is driver-confirmed.") + mappingNote
                         : "Generated ADT target; not live hardware readback." });
             }
             if (a.Tune.SetupSource != "csp-current-setup" && b.Tune.SetupSource != "csp-current-setup" &&

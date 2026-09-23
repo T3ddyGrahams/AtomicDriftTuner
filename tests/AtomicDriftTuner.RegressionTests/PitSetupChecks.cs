@@ -227,14 +227,14 @@ internal static class PitSetupChecks
     private static FixtureData Fixture(string root)
     {
         var directory = Path.Combine(root, "pit-plan-" + Guid.NewGuid().ToString("N"));
-        var data = Path.Combine(directory, "car", "data");
+        var data = Path.Combine(directory, "test_car", "data");
         Directory.CreateDirectory(data);
         File.WriteAllText(Path.Combine(data, "setup.ini"),
             "[PRESSURE_LF]\nMIN=20\nMAX=40\nSTEP=1\n[CAMBER_LF]\nMIN=-5\nMAX=0\nSTEP=0.1\n");
         var path = Path.Combine(directory, "baseline.ini");
         File.WriteAllText(path, "[CAR]\nMODEL=test_car\n[PRESSURE_LF]\nVALUE=24\n[CAMBER_LF]\nVALUE=-3.5\n[FUEL]\nVALUE=25\n[METADATA]\nNAME=PRIVATE_LABEL\n");
         var analysis = new AssettoCorsaSetupService().LoadBaseline(path,
-            new CarProfile { SourceFolderName = "test_car", SourceFolderPath = Path.Combine(directory, "car") });
+            new CarProfile { SourceFolderName = "test_car", SourceFolderPath = Path.Combine(directory, "test_car") });
         analysis.Parameters[0].RecommendedValue = 25;
         return new FixtureData(directory, path, analysis, new PitSetupPlanService());
     }

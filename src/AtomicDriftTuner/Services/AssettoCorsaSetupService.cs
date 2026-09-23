@@ -179,7 +179,10 @@ public sealed class AssettoCorsaSetupService
 
         var definitions =
             LoadDefinitions(
-                car);
+                car, out var source);
+        var hasUnassigned = false;
+        var decodeWarnings = new List<string>();
+        var modelNames = new List<string>();
 
         var parameters =
             new List<CarSetupParameter>();
@@ -205,12 +208,20 @@ public sealed class AssettoCorsaSetupService
                 continue;
             }
 
+            if (line.StartsWith('[')) section = string.Empty; // A malformed header must not inherit the prior control.
+            var modelEquals = line.IndexOf('=');
+            if (section.Equals("CAR", StringComparison.OrdinalIgnoreCase) && modelEquals > 0 &&
+                line[..modelEquals].Trim().Equals("MODEL", StringComparison.OrdinalIgnoreCase))
+                modelNames.Add(line[(modelEquals + 1)..].Split(';')[0].Trim());
+
             if (
                 string.IsNullOrWhiteSpace(section) ||
                 !line.StartsWith(
                     "VALUE=",
                     StringComparison.OrdinalIgnoreCase))
             {
+                if (string.IsNullOrWhiteSpace(section) && line.StartsWith("VALUE=", StringComparison.OrdinalIgnoreCase))
+                    hasUnassigned = true;
                 continue;
             }
 
@@ -267,9 +278,23 @@ public sealed class AssettoCorsaSetupService
                 "This file does not contain Assetto Corsa setup sections with VALUE= entries.");
         }
 
+        var selectedId = car.SourceFolderName?.Trim();
+        if (string.IsNullOrWhiteSpace(selectedId) && !string.IsNullOrWhiteSpace(car.SourceFolderPath))
+            selectedId = Path.GetFileName(Path.TrimEndingDirectorySeparator(car.SourceFolderPath));
+        if (modelNames.Count > 1 || modelNames.Count == 1 && !string.IsNullOrWhiteSpace(selectedId) &&
+            !modelNames[0].Equals(selectedId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The baseline's CAR/MODEL is duplicated or belongs to a different car. Choose a setup saved for the selected car.");
+        var identityKnown = modelNames.Count == 1 && !string.IsNullOrWhiteSpace(selectedId) && modelNames[0].Equals(selectedId, StringComparison.OrdinalIgnoreCase);
+        if (!identityKnown) decodeWarnings.Add("The baseline has no verified CAR/MODEL identity. Its values are preserved, but decoded selections cannot be verified against this car. Save a baseline from the selected car in game.");
+        if (hasUnassigned) decodeWarnings.Add("This saved setup contains VALUE entries without a section name. ADT preserves them but cannot identify their control or assume they are an ECU map. Confirm these settings in game; a complete named setup capture is needed for attribution.");
+        var physics = new CarPhysicsService().Read(car, parameters, importPhysics, source);
+        if (!identityKnown) physics = physics with { DecodedSettings = Array.AsReadOnly(physics.DecodedSettings.Select(d => d.Status == DecodedSetupSetting.Verified ?
+            d with { Status = DecodedSetupSetting.Partial, Explanation = "Baseline car identity is unverified; this is only a candidate interpretation for the selected car. " + d.Explanation } : d).ToArray()) };
+        foreach (var parameter in parameters)
+            parameter.DecodedContext = physics.DecodedSettings.FirstOrDefault(d => d.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase))?.Display ?? "Not decoded.";
         return new CarSetupAnalysis
         {
-            Physics = new CarPhysicsService().Read(car, parameters, importPhysics),
+            Physics = physics, SourceEvidence = source?.Evidence, DecodeWarnings = decodeWarnings, HasUnassignedValues = hasUnassigned, BaselineIdentityVerified = identityKnown,
             BaselinePath =
                 fullPath,
 
@@ -280,8 +305,7 @@ public sealed class AssettoCorsaSetupService
                     : car.SourceFolderName.Trim(),
 
             SetupDefinitionPath =
-                FindSetupDefinition(
-                    car),
+                definitions.Count > 0 ? source?.Kind == "packed" ? "data.acd → setup.ini" : FindSetupDefinition(car) : null,
 
             Parameters =
                 parameters
@@ -296,6 +320,7 @@ public sealed class AssettoCorsaSetupService
             analysis);
 
         CarPhysicsService.EnsureUnchanged(analysis.Physics);
+        if (analysis.SourceEvidence is not null) CarDataSource.EnsureUnchanged(analysis.SourceEvidence);
 
         if (string.IsNullOrWhiteSpace(
                 analysis.BaselinePath))
@@ -419,27 +444,20 @@ public sealed class AssettoCorsaSetupService
     }
 
     private Dictionary<string, SetupRangeDefinition> LoadDefinitions(
-        CarProfile car)
+        CarProfile car, out CarDataSource? source)
     {
-        var path =
-            FindSetupDefinition(
-                car);
-
+        source = null;
         var result =
             new Dictionary<
                 string,
                 SetupRangeDefinition>(
                 StringComparer.OrdinalIgnoreCase);
 
-        if (path is null)
-        {
-            return result;
-        }
-
-        EnsureFileSize(
-            path,
-            MaximumDefinitionBytes,
-            "Assetto Corsa setup definition");
+        string? text;
+        try { source = CarDataSource.Open(car); text = source.ReadText("setup.ini"); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        { return result; }
+        if (text is null) return result;
 
         var raw =
             new Dictionary<
@@ -451,9 +469,7 @@ public sealed class AssettoCorsaSetupService
             string.Empty;
 
         foreach (var rawLine in
-                 ReadAllLinesBounded(
-                     path,
-                     MaximumDefinitionBytes))
+                 text.Split('\n'))
         {
             var line =
                 rawLine.Trim();
@@ -473,16 +489,17 @@ public sealed class AssettoCorsaSetupService
                 section =
                     parsedSection;
 
-                if (!raw.ContainsKey(
-                        section))
+                if (!raw.ContainsKey(section))
                 {
                     raw[section] =
                         new Dictionary<string, string>(
                             StringComparer.OrdinalIgnoreCase);
                 }
+                else return result; // Ambiguous definitions must never set tuning ranges.
 
                 continue;
             }
+            if (line.StartsWith('[')) return result;
 
             var equalsIndex =
                 line.IndexOf('=');
@@ -511,8 +528,7 @@ public sealed class AssettoCorsaSetupService
                         2)[0]
                     .Trim();
 
-            raw[section][key] =
-                value;
+            if (!raw[section].TryAdd(key, value)) return result;
         }
 
         var globalClicks =
@@ -555,7 +571,7 @@ public sealed class AssettoCorsaSetupService
                         sectionClicks,
 
                     Source =
-                        "data/setup.ini"
+                        source.Kind == "packed" ? "data.acd → setup.ini" : "data/setup.ini"
                 };
 
             if (

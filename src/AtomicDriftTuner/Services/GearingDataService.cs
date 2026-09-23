@@ -6,12 +6,11 @@ using AtomicDriftTuner.Models;
 
 namespace AtomicDriftTuner.Services;
 
-/// <summary>Reads unpacked AC data without changing car physics. Saved ratios are list indexes.</summary>
+/// <summary>Reads supported AC data without changing car physics. Saved ratios are list indexes.</summary>
 public sealed class GearingDataService
 {
     private const int MaxBytes = 4 * 1024 * 1024;
     private readonly Dictionary<string, string> _fingerprints = new(StringComparer.OrdinalIgnoreCase);
-    private string _dataPath = "";
 
     public GearingData Load(CarProfile car, string baselinePath, int gear)
     {
@@ -20,21 +19,16 @@ public sealed class GearingDataService
         if (string.IsNullOrWhiteSpace(car.SourceFolderPath))
             throw new InvalidDataException("Select an installed Assetto Corsa car first, then open Gearing again.");
         var carPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(car.SourceFolderPath));
-        _dataPath = Path.Combine(carPath, "data");
-        if (!Directory.Exists(_dataPath))
-            throw new InvalidDataException("This car has no readable data folder. Version 1 needs unpacked setup.ini, drivetrain.ini, tyres.ini, engine.ini and ratio lists supplied by the car author. Packed/encrypted cars are not supported yet.");
-        // A packed and unpacked copy can disagree about which physics are active.
-        if (File.Exists(Path.Combine(carPath, "data.acd")))
-            throw new InvalidDataException("This car contains both data.acd and an unpacked data folder. ADT cannot verify which gearing is active. Use a car with an unambiguous unpacked data source.");
+        var source = CarDataSource.Open(car);
         var baselineFull = Path.GetFullPath(baselinePath);
-        var saved = ReadIni(baselineFull);
+        var saved = ParseIni(Read(baselineFull), Path.GetFileName(baselineFull));
         if (!saved.Required("CAR", "MODEL").Equals(Path.GetFileName(carPath.TrimEnd(Path.DirectorySeparatorChar)), StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("This setup belongs to a different car. Choose a baseline saved for the selected car.");
-        var setup = ReadIni(DataFile("setup.ini"));
-        var drive = ReadIni(DataFile("drivetrain.ini"));
-        var tyres = ReadIni(DataFile("tyres.ini"));
-        var engine = ReadIni(DataFile("engine.ini"));
-        var ratios = ReadRatios(setup.Required("FINAL_GEAR_RATIO", "RATIOS"));
+        var setup = ReadDataIni(source, "setup.ini");
+        var drive = ReadDataIni(source, "drivetrain.ini");
+        var tyres = ReadDataIni(source, "tyres.ini");
+        var engine = ReadDataIni(source, "engine.ini");
+        var ratios = ReadRatios(source, setup.Required("FINAL_GEAR_RATIO", "RATIOS"));
         var current = Index(saved.Required("FINAL_RATIO", "VALUE"), ratios.Count, "final drive");
         var count = Index(drive.Required("GEARS", "COUNT"), 11, "forward gear count");
         if (gear > count) throw new InvalidDataException($"This car has {count} forward gears. Choose one of those gears.");
@@ -53,7 +47,7 @@ public sealed class GearingDataService
         }
         else if (useGearSet == "0" && setup.Sections.ContainsKey($"GEAR_{gear}"))
         {
-            var gears = ReadRatios(setup.Required($"GEAR_{gear}", "RATIOS"));
+            var gears = ReadRatios(source, setup.Required($"GEAR_{gear}", "RATIOS"));
             // AC's internal index includes reverse. Content Manager maps GEAR_n to INTERNAL_GEAR_(n+1).
             var selected = Index(saved.Required($"INTERNAL_GEAR_{gear + 1}", "VALUE"), gears.Count, "selected gear");
             gearRatio = gears[selected].Ratio;
@@ -81,7 +75,11 @@ public sealed class GearingDataService
         var limiter = Number(engine.Required("ENGINE_DATA", "LIMITER"), 1000, 30000, "engine limiter");
         return new GearingData(baselineFull, carPath, ratios.AsReadOnly(), current, gear, gearRatio, radius, limiter,
             gearSource, $"{axle.ToLowerInvariant()} compound {compound}: {tyres.Optional(tyreSection, "NAME") ?? "unnamed"}",
-            new Dictionary<string, string>(_fingerprints, StringComparer.OrdinalIgnoreCase));
+            new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
+                new Dictionary<string, string>(_fingerprints, StringComparer.OrdinalIgnoreCase)))
+        {
+            CarDataEvidence = source.Evidence
+        };
     }
 
     public string Save(GearingPlan plan, string outputPath)
@@ -110,28 +108,26 @@ public sealed class GearingDataService
 
     private static void EnsureUnchanged(GearingData data)
     {
-        if (File.Exists(Path.Combine(data.CarPath, "data.acd")))
-            throw new InvalidDataException("The car's data source changed. Calculate again before saving.");
+        if (data.CarDataEvidence is null)
+            throw new InvalidDataException("The car's data source was not captured. Calculate again before saving.");
+        CarDataSource.EnsureUnchanged(data.CarDataEvidence);
         foreach (var (path, hash) in data.Fingerprints)
             if (!File.Exists(path) || Convert.ToHexString(SHA256.HashData(ReadBytes(path))) != hash)
                 throw new InvalidDataException("The baseline setup or car data changed after calculation. Calculate again before saving.");
     }
 
-    private string DataFile(string name)
+    private static string ReadData(CarDataSource source, string name)
     {
-        // Ratio files must be local files supplied in the same data directory.
+        // Ratio references must be flat files from this exact car-data snapshot.
         if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(['/', '\\', ':']) >= 0 || name is "." or "..")
             throw new InvalidDataException("Unsupported ratio-file path in this car's setup definition.");
-        var path = Path.Combine(_dataPath, name);
-        if ((File.GetAttributes(_dataPath) & FileAttributes.ReparsePoint) != 0 ||
-            File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException("Linked car data files are not supported by the gearing planner.");
-        return path;
+        return source.ReadText(name) ?? throw new InvalidDataException(
+            $"Required car-data file '{name}' is missing. Gearing needs the car's setup, drivetrain, engine, selected tyres and referenced ratio lists.");
     }
 
     private string Read(string path)
     {
-        if (!File.Exists(path)) throw new InvalidDataException($"Required file '{Path.GetFileName(path)}' is missing. Choose a saved setup and a car with complete unpacked gearing data.");
+        if (!File.Exists(path)) throw new InvalidDataException($"Required baseline '{Path.GetFileName(path)}' is missing. Choose a setup saved for this car.");
         var bytes = ReadBytes(path);
         _fingerprints[path] = Convert.ToHexString(SHA256.HashData(bytes));
         return Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF');
@@ -152,11 +148,11 @@ public sealed class GearingDataService
         return buffer.ToArray();
     }
 
-    private List<FinalDriveRatio> ReadRatios(string file)
+    private static List<FinalDriveRatio> ReadRatios(CarDataSource source, string file)
     {
         var result = new List<FinalDriveRatio>();
         var labels = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var raw in Read(DataFile(file)).Split('\n'))
+        foreach (var raw in ReadData(source, file).Split('\n'))
         {
             var line = raw.Trim();
             if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#') || line.StartsWith("//")) continue;
@@ -171,27 +167,29 @@ public sealed class GearingDataService
         return result;
     }
 
-    private Ini ReadIni(string path)
+    private static Ini ReadDataIni(CarDataSource source, string name) => ParseIni(ReadData(source, name), name);
+
+    private static Ini ParseIni(string text, string name)
     {
         var ini = new Ini();
         Dictionary<string, string>? section = null;
-        foreach (var raw in Read(path).Split('\n'))
+        foreach (var raw in text.Split('\n'))
         {
             var line = raw.Split(';')[0].Trim();
             if (line.Length == 0 || line.StartsWith("//") || line.StartsWith('#')) continue;
             if (line.StartsWith('['))
             {
                 var close = line.IndexOf(']');
-                if (close <= 1) throw new InvalidDataException($"Malformed section in {Path.GetFileName(path)}.");
-                var name = line[1..close].Trim();
+                if (close <= 1) throw new InvalidDataException($"Malformed section in {name}.");
+                var sectionName = line[1..close].Trim();
                 section = new(StringComparer.OrdinalIgnoreCase);
-                if (!ini.Sections.TryAdd(name, section))
-                    throw new InvalidDataException($"Duplicate [{name}] section in {Path.GetFileName(path)}. Gearing cannot be resolved safely.");
+                if (!ini.Sections.TryAdd(sectionName, section))
+                    throw new InvalidDataException($"Duplicate [{sectionName}] section in {name}. Gearing cannot be resolved safely.");
                 continue;
             }
             var equals = line.IndexOf('=');
             if (equals > 0 && section is not null && !section.TryAdd(line[..equals].Trim(), line[(equals + 1)..].Trim()))
-                throw new InvalidDataException($"Duplicate setting in {Path.GetFileName(path)}. Gearing cannot be resolved safely.");
+                throw new InvalidDataException($"Duplicate setting in {name}. Gearing cannot be resolved safely.");
         }
         return ini;
     }

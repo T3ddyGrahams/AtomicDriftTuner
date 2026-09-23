@@ -291,6 +291,7 @@ public sealed class SetupRangeDefinition
     // Only standard CAMBER_* serialization is verified here. Null keeps it unsupported.
     public int? CamberValueMode { get; set; }
     public string? UnavailableReason { get; set; }
+    public bool DirectValueRangeVerified { get; set; }
 
     public string Source { get; set; } =
         "None";

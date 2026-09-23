@@ -24,6 +24,7 @@ public partial class TuningAssistantWindow
             NextInstructionText.Text = "Keep this setup and use the dashboard to prepare another run.";
             NextActionButton.Content = "Back to dashboard";
         }
+        RenderCarTest();
     }
     private void SelectAssistantTab(string header)
     {
@@ -49,6 +50,12 @@ public partial class TuningAssistantWindow
         {
             case "Plan":
                 if (_nextStep.Recommendation is null || _reportSession is null) return;
+                if (_nextStep.Recommendation.Area == RecommendationArea.CarSetup)
+                {
+                    if (AssistantCarTestService.UnavailableReason(_input, _reportSession, _report).Length > 0) Close();
+                    else ReviewCarTest_Click(sender, e);
+                    break;
+                }
                 if (RecommendationTestRequested is null) { StatusText.Text = "Open this assistant from the dashboard to prepare a recorded test."; return; }
                 RecommendationGrid.SelectedItem = _nextStep.Recommendation;
                 TestRecommendation_Click(sender, e);

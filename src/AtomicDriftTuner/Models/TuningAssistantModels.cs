@@ -259,6 +259,7 @@ public sealed class AssistantBehaviorAssessment
 
 public sealed class AssistantRecommendation
 {
+    public string MetricKey { get; set; } = "";
     public RecommendationArea Area { get; set; } = RecommendationArea.General;
     private string _domain =
         string.Empty;

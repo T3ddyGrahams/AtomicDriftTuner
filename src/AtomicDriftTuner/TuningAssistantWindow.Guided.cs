@@ -43,6 +43,13 @@ public partial class TuningAssistantWindow
         if (_reportSession is null || RecommendationGrid.SelectedItem is not AssistantRecommendation recommendation)
         { StatusText.Text = "Select one row in Recommendations, then choose Test This Recommendation."; return; }
         if (!TuningFocusOptions.Allows(_focus, recommendation)) { StatusText.Text = "Choose a recommendation for the selected tuning mode."; return; }
+        if (recommendation.Area == RecommendationArea.CarSetup)
+        {
+            if (!ReferenceEquals(recommendation, _report?.NextStep.Recommendation))
+            { StatusText.Text = "Use Your next step to review the prioritized finding before preparing a car setup test."; SelectAssistantTab("Your next step"); return; }
+            ReviewCarTest_Click(sender, e);
+            return;
+        }
         if (!RunHistoryStore.ValidContext(_reportSession.Session.Context))
         { StatusText.Text = "This older run has no complete driver/tune context. Record a new baseline before starting a guided test."; return; }
         try

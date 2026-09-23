@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.31 — Clearer saved-run setup tests
+
+- Show **Your next car setup change** in normal saved-run review, with **Review one car setup change** as the primary action for eligible car findings. Technical evidence remains expandable; Advanced telemetry is optional.
+- Match an explicitly chosen baseline against the recorded car, full numeric setup and car-data fingerprint. Show exact current → proposed values for one supported adjustment, with a plain-language aim, possible tradeoff and save → apply → record → compare instructions.
+- Reuse existing tuner output for supported front/rear response, initiation and transition findings. Each option isolates a setting family (paired left/right controls count as one axle adjustment), preserves other values and checks legal steps before saving a separate file or staging an explicit pit action. No new diagnostic thresholds, tuning formulas, FFB writes or improvement scores.
+- Track the exact settings being tested against the selected run. Staging clears the old prepared desktop file path so the next recorder must capture or attach the actual applied setup. Saving/staging does not apply the tune in game.
+- Explain when a change cannot be justified or mapped. Unknown display mappings, missing paired controls, unmatched or incomplete snapshots, changed car data and changes that round away remain blocked. General tuning-engine audit findings remain open. Companion 0.4.0-preview.4 is unchanged.
+
 ## v0.9.0-preview.30 — HUGE UPDATE
 
 Public update from preview.17: corner-based gearing goals and recorded-speed assistance, Gearing & ECU run review, packed/unpacked car-data context, recording readiness notifications and partial review, background telemetry buffering, Pit House crash containment, CSP setup-capture fixes, camber staging and conflicting-definition isolation. Includes Companion 0.4.0-preview.4 and SimHub Bridge 0.9.0-preview.30. The tested desktop application binary is unchanged from local preview.30; public distribution guides are refreshed. See the [full release notes](docs/releases/v0.9.0-preview.30.md) and [testing checklist](docs/testing/v0.9.0-preview.30-checklist.md).

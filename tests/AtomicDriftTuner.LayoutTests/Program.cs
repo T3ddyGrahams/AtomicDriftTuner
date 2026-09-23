@@ -62,6 +62,12 @@ internal static partial class Program
                 CheckGearingWorkflow(output);
                 return 0;
             }
+            if (args.Contains("--car-test"))
+            {
+                CheckCarTest(output);
+                CheckAngleSummary(output);
+                return 0;
+            }
             if (args.Contains("--powertrain"))
             {
                 CheckPowertrain(output);

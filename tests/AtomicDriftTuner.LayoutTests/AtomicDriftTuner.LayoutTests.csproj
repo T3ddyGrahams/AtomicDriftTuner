@@ -6,5 +6,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../src/AtomicDriftTuner/AtomicDriftTuner.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../src/AtomicDriftTuner/AtomicDriftTuner.csproj" /><Compile Include="../Shared/CarTestFixture.cs" Link="CarTestFixture.cs" /></ItemGroup>
 </Project>

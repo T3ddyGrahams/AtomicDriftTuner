@@ -1,6 +1,22 @@
-# Start-to-finish tuning — local preview.15
+# Start-to-finish tuning
 
-Local 0.9.0-preview.15 starts with your own hardware/car choices and asks what you want to tune. It keeps the existing tuning intelligence, sustained-angle goals, run history, touchscreen and gearing support, and adds explicit pit Save & Apply Tune through the updated in-game companion. It is a local test build; the public release remains preview.3. Live-game acceptance is pending.
+ADT starts with your own hardware/car choices and asks what you want to tune. The current local preview.31 adds clearer saved-run setup tests. Public preview.30 includes the earlier guided workflow, sustained-angle goals, run history, touchscreen, gearing support and explicit pit Save & Apply Tune through Companion 0.4.0-preview.4.
+
+## Clearer saved-run setup tests — local preview.31
+
+After saving a recording, open **Tuning Assistant → Your next step**. The **Your next car setup change** card is visible without Advanced telemetry. If the run supports a car setup test:
+
+1. Choose **Review one car setup change**. ADT explains the finding in plain language; expand **What ADT measured** for the original evidence.
+2. Choose the saved setup used in that run. The picker opens the car's setup folder when available. For an unsaved automatic capture, first save that same setup in AC. ADT checks all recorded numeric values, car identity and car-data fingerprint; it does not assume the newest file is correct.
+3. Review one supported option. Read **Current → proposed test**, its aim and what to watch for. Left/right axle controls may be paired; all other setup values stay at the baseline. If no option survives the car's supported ranges and legal steps, ADT explains why and does not invent a change.
+4. Choose **Save test setup…** to write a separate file, then load it in AC's pit setup menu. Alternatively choose **Stage test for in-game pits**, then explicitly **Pit setup → Save & Apply Tune** in ADT Companion while stationary in editable pits. Saving or staging alone does not apply anything.
+5. Return to the dashboard. Confirm the actual loaded setup, record the same section with similar driving/conditions, stop and save. Use **Before / After** against the original baseline, then add how the car felt in **Tune & Run History**. Keep or revert based on repeated comparable results and your feedback.
+
+ADT records the exact setting changes as the test plan. A staged test clears the old prepared file path; use fresh automatic capture or attach the newly applied file before confirming the next recording. If tracking fails after saving/staging, the status distinguishes that failure from the successful file/plan creation.
+
+**No car setup change recommended yet** can be the correct result. Follow the stated next step: collect missing evidence, review input technique/FFB, resolve a comparison limitation, or record a fresh confirmed baseline. This first version covers supported setting families for front/rear response, initiation and transitions. Gearing remains in its dedicated planner. Unsupported settings, ECU maps and incomplete captures are not guessed. The advanced full **AC Setup with Guidance** generator remains available separately.
+
+The telemetry diagnosis, tuning calculations, recorded Desired Behavior and before/after scoring are unchanged. The review window narrows existing generated output to one experiment; it does not prove the cause or promise an improvement.
 
 ## Choose what to tune
 

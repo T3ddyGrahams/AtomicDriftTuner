@@ -523,6 +523,9 @@ public sealed class AssettoCorsaSetupService
                     ShowClicks =
                         sectionClicks,
 
+                    DirectValueRangeVerified = !values.ContainsKey("LUT") && !values.ContainsKey("RATIOS") &&
+                        (values.GetValueOrDefault("SHOW_CLICKS") ?? raw.GetValueOrDefault("DISPLAY_METHOD")?.GetValueOrDefault("SHOW_CLICKS") ?? "0") == "0",
+
                     Source =
                         source.Kind == "packed" ? "data.acd → setup.ini" : "data/setup.ini"
                 };

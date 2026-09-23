@@ -46,7 +46,7 @@ public partial class TuningAssistantWindow : Window
 
     private TuningAssistantReport? _report;
     private SavedTelemetrySession? _reportSession;
-    private CarSetupWindow? _guidedSetupWindow;
+    private Window? _guidedSetupWindow;
 
     private bool _closing;
 
@@ -506,6 +506,7 @@ public partial class TuningAssistantWindow : Window
     private void UpdateActionAvailability(
         SavedTelemetrySession selected)
     {
+        RenderCarTest();
         var currentReport =
             _report is not null &&
             ReferenceEquals(
@@ -851,6 +852,9 @@ public partial class TuningAssistantWindow : Window
     private void SetGuidedSetupState(
         bool isOpen)
     {
+        HistoryDriverBox.IsEnabled = BaselineSessionBox.IsEnabled = !isOpen;
+        NextActionButton.IsEnabled = !isOpen;
+        RenderCarTest();
         SessionBox.IsEnabled =
             !isOpen;
 
@@ -885,7 +889,7 @@ public partial class TuningAssistantWindow : Window
         EventArgs e)
     {
         if (
-            sender is CarSetupWindow window)
+            sender is Window window)
         {
             window.Closed -=
                 GuidedSetupWindow_Closed;

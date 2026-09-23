@@ -125,6 +125,13 @@
                             <Button x:Name="ShowEvidenceButton" Content="View supporting events" Click="ShowEvidence_Click" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Expander>
+                    <Border x:Name="CarTestCard" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,16,0,4">
+                        <StackPanel>
+                            <TextBlock Text="Your next car setup change" Foreground="{DynamicResource SectionHeadingBrush}" FontWeight="Bold" FontSize="17" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="CarTestSummaryText" Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,8"/>
+                            <Button x:Name="ReviewCarTestButton" Content="Review one car setup change" Click="ReviewCarTest_Click" HorizontalAlignment="Left" Style="{StaticResource AtomicButtonStyle}"/>
+                        </StackPanel>
+                    </Border>
                     <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Gearing &amp; ECU" FontWeight="Bold" Margin="0,16,0,4"/>
                     <TextBlock x:Name="PowertrainQuickText" Foreground="{DynamicResource FieldLabelBrush}" Text="Select a run to review RPM and recorded setup evidence." TextWrapping="Wrap"/>
                     <Button Content="Review gearing &amp; ECU" Click="ShowPowertrain_Click" HorizontalAlignment="Left" Margin="0,6,0,0"/>

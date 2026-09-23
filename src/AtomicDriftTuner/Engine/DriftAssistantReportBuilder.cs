@@ -63,7 +63,7 @@ public sealed class DriftAssistantReportBuilder
                     "For a looser rear, test one small rear-grip change and watch extreme-angle events; extra rotation can reduce recovery margin.";
             r.Assessments.Add(new AssistantBehaviorAssessment { Behavior = m.Name, Desired = desired, Observed = m.DisplayValue,
                 Status = status, Confidence = m.Confidence, Evidence = $"{m.EvidenceSeconds:0.0}s evidence" + (m.Events >= 0 ? $", {m.Events} events. " : ". ") + m.Evidence });
-            if (guidance.Length > 0) r.Recommendations.Add(new AssistantRecommendation { Domain = m.Name, Priority = status == "NEEDS WORK" ? "Review" : "Explore",
+            if (guidance.Length > 0) r.Recommendations.Add(new AssistantRecommendation { MetricKey = m.Key, Domain = m.Name, Priority = status == "NEEDS WORK" ? "Review" : "Explore",
                 Area = m.Key is "clipping" ? RecommendationArea.Ffb : m.Key is "oscillation" or "extreme-angle" ? RecommendationArea.General : RecommendationArea.CarSetup,
                 Change = guidance, Why = $"Goal: {desired}. Observed: {m.DisplayValue}. {m.Evidence}", Confidence = m.Confidence });
         }

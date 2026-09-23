@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Focused saved-run setup tests (local preview.31)
+
+`dotnet run --project tests/AtomicDriftTuner.RegressionTests -c Release -- --car-test` covers matching recorded baselines, source/identity/confirmation gates, one-setting-family isolation, preserved original files and unrelated values, exact history descriptions, direct-mode/camber mappings, paired controls, no-op limits, stale save/stage rejection, unchanged input/report/goal state, and next-step priority. These checks are also included in the full regression suite.
+
+`dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/car-test-wpf --car-test` exercises the default card and primary action, real review/save/stage handlers, partial-success tracking errors, locked run selection, FFB-only visibility, narrow/portrait/wide scrolling and action reachability. It includes the existing angle/summary checks. All fixture writes are isolated; no live pit or hardware commands are sent. A fresh in-game before/after run remains a manual acceptance check.
+
 ## Gearing and ECU review (local preview.27)
 
 `PowertrainChecks` covers saved/fixed/individual/gearset decoding, missing and ambiguous selections, forward-gear numbering, backward/invalid/frozen/excluded frames, 15–100 Hz and uneven time weighting, saved target gear/speed windows, gaps/shifts/clutch/brake episode boundaries, confirmed context, base-versus-adjustable limiter evidence, bounded ECU lookup, unknown selections, descriptive comparison, packed/unpacked immutable snapshots, invalid metadata, legacy recordings and unchanged handling/FFB analysis. Gearing checks cover real `ENGINE_LIMITER` in both definition-only and saved-only cases and stale export after its introduction. The suite passes 311 regression groups, including the existing 8,000-combination tuning sweep.

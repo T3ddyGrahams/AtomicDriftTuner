@@ -1,5 +1,9 @@
 # ADT regression checks
 
+## Partial physics import (local preview.25)
+
+`PartialPhysicsChecks` covers malformed auxiliary text with packed/unpacked/matching sources, whole-section exclusion for duplicate fields/sections, malformed-header boundaries, unassigned values, unchanged valid differential scaling, explicit unsupported differential values and resource limits. The WPF car-physics fixture verifies recovered suspension context and uncertainty messages, including first/last-line reachability of the expanded details at small, portrait and wide sizes. Real-car inspection uses read-only hashes and does not save or apply settings.
+
 ## Matching car-data copies (local preview.24)
 
 `MatchingCarDataChecks` verifies exact supported file-set/byte equality, independent source fingerprints, unchanged single-source fingerprint formats, differing/missing/extra files, cache revalidation, changes to either or both copies, source removal and resource limits. `PackedGearingChecks` loads, calculates and exports a matching-copy fixture, verifies that only the output final-drive selection changes, and refuses stale export after either source changes. All writes use isolated fixture cars; actual installed-car validation is read-only.

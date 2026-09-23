@@ -31,7 +31,7 @@ public sealed class CarPhysicsService
                 {
                     var text = source.ReadText(name);
                     if (text is null) { notes.Add(name + ": not available."); continue; }
-                    ini[name] = Parse(Encoding.UTF8.GetBytes(text));
+                    ini[name] = Parse(text, name, notes);
                 }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
                 { notes.Add(name + ": unavailable or malformed; its values were not imported."); }
@@ -51,6 +51,22 @@ public sealed class CarPhysicsService
                 var raw = Raw(file, section, key);
                 if (!string.IsNullOrWhiteSpace(raw) && raw.Length <= 100 && !raw.Any(char.IsControl)) facts.Add(new(file, section, key, label, raw, ""));
             }
+            void DifferentialLock(string key)
+            {
+                var raw = Raw("drivetrain.ini", "DIFFERENTIAL", key);
+                if (raw is null) return;
+                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value))
+                {
+                    if (value is >= 0 and <= 1)
+                    {
+                        Number("drivetrain.ini", "DIFFERENTIAL", key, "Base differential " + key.ToLowerInvariant() + " lock", "%", 0, 1, 100);
+                        return;
+                    }
+                    notes.Add($"drivetrain.ini [DIFFERENTIAL] {key}: raw file value {value.ToString("G", CultureInfo.InvariantCulture)} is outside the supported 0–1 scale. Effective lock remains unknown; confirm the active setting in the pits.");
+                    return;
+                }
+                notes.Add($"drivetrain.ini [DIFFERENTIAL] {key}: unsupported numeric value. Effective lock remains unknown; confirm the active setting in the pits.");
+            }
             Number("car.ini", "BASIC", "TOTALMASS", "Base total mass", "kg", 100, 10000);
             Number("suspensions.ini", "BASIC", "WHEELBASE", "Wheelbase", "m", .5, 10);
             Number("suspensions.ini", "BASIC", "CG_LOCATION", "Base front weight distribution", "%", 0, 1, 100);
@@ -69,7 +85,7 @@ public sealed class CarPhysicsService
             var drive = Raw("drivetrain.ini", "TRACTION", "TYPE")?.ToUpperInvariant() ?? "";
             if (drive is "RWD" or "FWD" or "AWD" or "AWD2") Text("drivetrain.ini", "TRACTION", "TYPE", "Base driven wheels");
             else drive = "";
-            foreach (var key in new[] { "POWER", "COAST" }) Number("drivetrain.ini", "DIFFERENTIAL", key, "Base differential " + key.ToLowerInvariant() + " lock", "%", 0, 1, 100);
+            foreach (var key in new[] { "POWER", "COAST" }) DifferentialLock(key);
             Number("drivetrain.ini", "DIFFERENTIAL", "PRELOAD", "Base differential preload", "Nm", 0, 10000);
             Number("drivetrain.ini", "GEARS", "FINAL", "Base final-drive ratio", ":1", .1, 30);
             Number("engine.ini", "ENGINE_DATA", "LIMITER", "Base engine limiter", "rpm", 1000, 30000);
@@ -125,25 +141,51 @@ public sealed class CarPhysicsService
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         { throw new InvalidOperationException("Car physics or setup definitions changed or became unavailable. Reload the baseline and generate again before saving or staging.", ex); }
     }
-    private static Ini Parse(byte[] bytes)
+    private static Ini Parse(string text, string file, List<string> notes)
     {
-        var result = new Ini(); Dictionary<string, string>? section = null;
-        foreach (var raw in Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF').Split('\n'))
+        var result = new Ini();
+        var invalid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        string? current = null;
+        var outsideSections = false;
+        var headerCount = 0;
+        void Invalidate(string reason) { if (current is not null) invalid.TryAdd(current, reason); }
+        foreach (var raw in text.TrimStart('\uFEFF').Split('\n'))
         {
             var line = raw.Split(';')[0].Trim();
             if (line.Length == 0 || line.StartsWith('#') || line.StartsWith("//")) continue;
             if (line.StartsWith('['))
             {
-                var end = line.IndexOf(']'); if (end < 2 || result.Count >= 2048) throw new InvalidDataException();
-                section = new(StringComparer.OrdinalIgnoreCase);
-                if (!result.TryAdd(line[1..end].Trim(), section)) throw new InvalidDataException("Duplicate section.");
+                if (++headerCount > 2048) throw new InvalidDataException("Too many sections.");
+                if (!line.EndsWith(']') || line.Length is < 3 or > 256 || line[1..^1].IndexOfAny(['[', ']']) >= 0 ||
+                    string.IsNullOrWhiteSpace(line[1..^1]))
+                {
+                    // A broken header cannot establish where following fields belong.
+                    Invalidate("malformed section boundary"); current = null; outsideSections = true; continue;
+                }
+                current = line[1..^1].Trim();
+                if (!result.TryAdd(current, new(StringComparer.OrdinalIgnoreCase))) Invalidate("duplicate section");
             }
             else
             {
-                var equals = line.IndexOf('='); if (equals < 1 || section is null) throw new InvalidDataException();
-                if (section.Count >= 2048 || !section.TryAdd(line[..equals].Trim(), line[(equals + 1)..].Trim())) throw new InvalidDataException("Duplicate field.");
+                if (current is null) { outsideSections = true; continue; }
+                if (invalid.ContainsKey(current)) continue;
+                var equals = line.IndexOf('=');
+                if (equals < 1 || line.Length > 4096 || string.IsNullOrWhiteSpace(line[..equals]))
+                { Invalidate("unrecognized or malformed line"); continue; }
+                var section = result[current];
+                if (section.Count >= 2048) throw new InvalidDataException("Too many fields.");
+                if (!section.TryAdd(line[..equals].Trim(), line[(equals + 1)..].Trim())) Invalidate("duplicate field");
             }
         }
+        // One malformed auxiliary section must not erase independent, readable
+        // suspension/tyre/engine sections. Ambiguous sections remain wholly unknown,
+        // including values seen before a duplicate or malformed boundary.
+        foreach (var item in invalid)
+        {
+            result.Remove(item.Key);
+            notes.Add($"{file} [{item.Key}]: {item.Value}; this section was not imported. Other readable sections remain available.");
+        }
+        if (outsideSections) notes.Add($"{file}: text outside a valid section was not imported.");
         return result;
     }
 }

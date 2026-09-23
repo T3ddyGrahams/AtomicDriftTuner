@@ -16,8 +16,8 @@ internal static partial class Program
         static void Call(object target, string name) => target.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(target, [target, new RoutedEventArgs()]);
         var root = Path.Combine(output, "car-physics-" + Guid.NewGuid().ToString("N"));
         var car = Path.Combine(root, "physics_ui_fixture"); var data = Path.Combine(car, "data"); Directory.CreateDirectory(data);
-        File.WriteAllText(Path.Combine(data, "suspensions.ini"), "[FRONT]\nSPRING_RATE=80000\n");
-        File.WriteAllText(Path.Combine(data, "drivetrain.ini"), "[TRACTION]\nTYPE=RWD\n[DIFFERENTIAL]\nPOWER=0.7\n");
+        File.WriteAllText(Path.Combine(data, "suspensions.ini"), "[FRONT]\nSPRING_RATE=80000\n[DAMAGE]\nMIN_VELOCITY=40\nUNCOMMENTED DAMAGE NOTE\n");
+        File.WriteAllText(Path.Combine(data, "drivetrain.ini"), "[TRACTION]\nTYPE=RWD\n[DIFFERENTIAL]\nPOWER=0.7\nCOAST=65\n");
         File.WriteAllText(Path.Combine(data, "tyres.ini"), "[FRONT_1]\nNAME=Selected compound\nWIDTH=0.275\n");
         File.WriteAllText(Path.Combine(data, "setup.ini"), "[DIFF_POWER]\nMIN=0\nMAX=100\nSTEP=1\n[TYRES]\nMIN=0\nMAX=1\nSTEP=1\n[FINAL_GEAR_RATIO]\nRATIOS=final.rto\n[ENGINE_MAPS]\nNAME=ECU tune\nSHOW_CLICKS=0\nLUT=maps.lut\n");
         File.WriteAllText(Path.Combine(data, "final.rto"), "Long|3.9\n4.30|4.3\n");
@@ -50,6 +50,10 @@ internal static partial class Program
             Generate();
             Check(save.IsEnabled && status.Text.StartsWith("Imported"), "Import/generation failed");
             Check(details.Text.Contains("275 mm") && details.Text.Contains("FRONT_1"), "Saved compound missing from details");
+            Check(details.Text.Contains("[DAMAGE]") && details.Text.Contains("80000 N/m") && !details.Text.Contains("unavailable or malformed"),
+                "Auxiliary malformed text erased readable suspension details");
+            Check(details.Text.Contains("raw file value 65") && details.Text.Contains("Effective lock remains unknown"),
+                "Nonstandard differential scale was hidden or guessed");
             var analysis = (CarSetupAnalysis)typeof(CarSetupWindow).GetField("_analysis", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
             Check(analysis.Parameters.Single(p => p.Section == "DIFF_POWER").PhysicsContext.Contains("70 %"), "Base context not attached to rows");
             Check(decodingSummary.Text.Contains("2 verified mapping(s)") && decoded.Text.Contains("[FINAL_RATIO] saved 1") &&
@@ -110,6 +114,7 @@ internal static partial class Program
                 AssertReachableByScrolling(content, "CarSetupScroll", "RefreshPhysicsButton", size);
                 CheckScrollableText(decodingSummary, size);
                 CheckScrollableText(decodeWarnings, size);
+                CheckScrollableText(details, size);
                 CheckScrollableText(decoded, size);
                 AssertVisible(content, "SaveGeneratedButton", size);
                 Render(content, size, Path.Combine(output, $"Car-Physics-{size.Width}.png"));

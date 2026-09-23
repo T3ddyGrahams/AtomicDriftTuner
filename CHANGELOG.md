@@ -2,6 +2,12 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.25 — Preserve readable physics sections
+
+- Keep independently readable physics sections when an auxiliary section contains malformed text. Explain the excluded section; duplicate fields/sections and uncertain section boundaries remain unknown. This recovers readable suspension values in cars whose damage section contains un-commented notes.
+- Explain nonstandard differential POWER/COAST values with their raw number and the supported 0–1 base-file scale. Do not convert values such as 85/65 into assumed percentages or guess their effective in-game behavior. Valid 0–1 values retain their existing percent display.
+- Preserve resource bounds, source-change checks, installed car files, tuning formulas and the preview.23/.24 fixes. Local test build only; public preview.17 is unchanged.
+
 ## Local v0.9.0-preview.24 — Allow verified matching car-data copies
 
 - Read cars with both `data.acd` and an unpacked `data` folder when their complete supported INI/LUT/RTO/Lua file sets and bytes match exactly. Read one complete packed snapshot and fingerprint both copies; never combine files or assume source precedence.

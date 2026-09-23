@@ -85,6 +85,7 @@ public sealed class PitSetupPlanService
     private static void ValidateRange(CarSetupParameter parameter, double before, double after)
     {
         var range = parameter.Range;
+        if (range?.UnavailableReason is { } unavailable) throw Invalid(unavailable);
         if (CamberSetupValues.IsCamber(parameter.Section))
         {
             if (range is null || !range.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase) ||

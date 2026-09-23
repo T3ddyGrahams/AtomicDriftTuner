@@ -82,6 +82,12 @@ public sealed class CarSetupTuningEngine
                 continue;
             }
 
+            if (parameter.Range?.UnavailableReason is { } unavailable)
+            {
+                parameter.Reason = "Left unchanged: " + unavailable;
+                continue;
+            }
+
             var styleDelta =
                 CalculateDelta(
                     input,

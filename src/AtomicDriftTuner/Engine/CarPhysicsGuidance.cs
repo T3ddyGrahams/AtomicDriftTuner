@@ -10,6 +10,13 @@ public static class CarPhysicsGuidance
         foreach (var parameter in analysis.Parameters)
         {
             parameter.PhysicsContext = "Base value not mapped.";
+            if (parameter.Range?.UnavailableReason is { } unavailable)
+            {
+                parameter.RecommendedValue = parameter.CurrentValue;
+                parameter.Reason = "Left unchanged: " + unavailable;
+                parameter.BlendStatus = "Definition unavailable";
+                continue;
+            }
             if (physics?.Available != true) continue;
             var section = parameter.Section.ToUpperInvariant();
             var front = section.EndsWith("_LF") || section.EndsWith("_RF") || section.EndsWith("_FRONT");

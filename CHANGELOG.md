@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.30 — Isolate conflicting car setup definitions
+
+- Fix valid pit settings losing their ranges when another control has duplicate definitions in the car's setup.ini. A conflicting control is held unchanged and explained; independent valid controls retain their own limits and steps. Generation, staging and export refuse changes to the conflicting control.
+- Allow gearing to read a car with unrelated duplicate definitions, such as conflicting FRONT_BIAS sections. Warn about the unused section while retaining strict checks for the final drive, selected gears/gearbox, limiter, saved baseline identity and changed source files. Gearing export still changes only the final-drive selection.
+- Preserve explicit local display modes when global display metadata conflicts; controls inheriting that ambiguity remain unavailable. Malformed section boundaries still block definition use. These rules cover packed and unpacked cars without editing their files.
+- Local desktop update only; no game companion, telemetry diagnosis, FFB tuning or recommendation-credit changes. General tuning-engine audit findings remain open.
+
 ## Local v0.9.0-preview.29 — Gearing for tight corners and sweepers
 
 - Ask which gear and speed range the driver wants for tight corners and long sweepers. Compare both goals together against the car's real final-drive presets, show each section's fit and explain compromises. Legacy single-gear targets remain available and load unchanged.

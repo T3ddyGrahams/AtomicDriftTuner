@@ -151,7 +151,8 @@ public partial class GearingWindow : Window
     }
     private static string DescribeCar(GearingData data) => $"Detected: {data.GearCount} forward gears. {data.GearboxKind}. " +
         (data.SelectedGearChoices > 1 ? $"Gear {data.Gear} has {data.SelectedGearChoices} defined choices. " : "") +
-        (data.FinalDriveAdjustable ? $"{data.FinalDrives.Count} final-drive presets available. This planner compares those presets and keeps individual gears as saved." : "Final drive is fixed; this planner can assess the target but cannot export a final-drive change.");
+        (data.FinalDriveAdjustable ? $"{data.FinalDrives.Count} final-drive presets available. This planner compares those presets and keeps individual gears as saved." : "Final drive is fixed; this planner can assess the target but cannot export a final-drive change.") +
+        (data.DefinitionWarnings.Count == 0 ? "" : "\n" + string.Join("\n", data.DefinitionWarnings));
     private void Calculate_Click(object sender, RoutedEventArgs e)
     {
         Invalidate();

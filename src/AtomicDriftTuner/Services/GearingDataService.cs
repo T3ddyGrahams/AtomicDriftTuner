@@ -91,6 +91,8 @@ public sealed partial class GearingDataService
         {
             CarDataEvidence = source.Evidence, GearCount = count, GearboxKind = gearboxKind,
             SelectedGearChoices = selectedGearChoices, FinalDriveAdjustable = adjustableFinal,
+            DefinitionWarnings = Array.AsReadOnly(setup.InvalidSections.Select(p =>
+                $"setup.ini [{p.Key}] has a {p.Value}; it is not used by this gearing calculation and is left unchanged.").ToArray()),
             RpmEstimate = ReadRpmEstimate(source, engine, limiter)
         };
     }
@@ -190,7 +192,16 @@ public sealed partial class GearingDataService
         return result;
     }
 
-    private static Ini ReadDataIni(CarDataSource source, string name) => ParseIni(ReadData(source, name), name);
+    private static Ini ReadDataIni(CarDataSource source, string name)
+    {
+        var text = ReadData(source, name);
+        if (!name.Equals("setup.ini", StringComparison.OrdinalIgnoreCase)) return ParseIni(text, name);
+        var definitions = CarSetupDefinitionFile.Parse(text);
+        var ini = new Ini();
+        foreach (var pair in definitions.Sections) ini.Sections.Add(pair.Key, pair.Value);
+        foreach (var pair in definitions.InvalidSections) ini.InvalidSections.Add(pair.Key, pair.Value);
+        return ini;
+    }
 
     private static Ini ParseIni(string text, string name)
     {
@@ -235,7 +246,13 @@ public sealed partial class GearingDataService
     private sealed class Ini
     {
         public Dictionary<string, Dictionary<string, string>> Sections { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public string? Optional(string section, string key) => Sections.TryGetValue(section, out var values) && values.TryGetValue(key, out var value) ? value : null;
+        public Dictionary<string, string> InvalidSections { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public string? Optional(string section, string key)
+        {
+            if (InvalidSections.TryGetValue(section, out var reason))
+                throw new InvalidDataException($"setup.ini [{section}] has a {reason}. Gearing needs this definition and cannot resolve it safely.");
+            return Sections.TryGetValue(section, out var values) && values.TryGetValue(key, out var value) ? value : null;
+        }
         public string Required(string section, string key) => Optional(section, key) ??
             throw new InvalidDataException($"Required [{section}] {key} is missing. This car/setup is not supported by gearing version 1.");
     }

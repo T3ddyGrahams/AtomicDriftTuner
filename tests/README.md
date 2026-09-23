@@ -145,6 +145,10 @@ The regression runner has 101 scenarios, including 14 in `PedalChecks`. Coverage
 
 The WPF suite checks production report binding and clearing, selected-event detail binding, theme inheritance, minimum column widths, and scroll access to the event/detail/context sections. It passes 381 geometry assertions plus 167 theme, 16 companion-recorder, 50 recovery, 14 gearing and 25 guided-workflow assertions. Pedal screenshots are explicitly synthetic fixtures. Actual driving is still required to evaluate the usefulness of the provisional event/comparison thresholds.
 
+## Definition isolation (local preview.30)
+
+`SetupDefinitionIsolationChecks` covers conflicting, identical and case-varied duplicate car definitions, duplicate fields, inherited versus explicit display modes, malformed boundaries, legal raw anti-roll-bar steps, generation/staging/export parity, unrelated gearing conflicts, required gearing conflicts, strict saved-baseline duplicates and stale sources. Fixtures cover packed and unpacked cars. The full runner passes 341 regression groups. Focused `--pit-setup` and `--gearing` WPF runs exercise the actual handlers with conflicting brake-bias definitions and visible explanations (31 and 27 assertions respectively). These tests do not apply anything in the game.
+
 ## Corner gearing (local preview.29)
 
 `CornerGearingChecks` adds packed/unpacked joint-goal ranking and final-drive-only export, per-goal limiter rejection, compromise/no-op results, stale second-gear evidence, fixed/individual/preset gearbox detection, RPM curve estimation/refusals/source changes, old/new target persistence, unit defaults, two-goal history/exposure, changed-target comparisons and recorded-speed helper gates. Estimates are hypotheses for a test; tests do not establish better driving behavior.

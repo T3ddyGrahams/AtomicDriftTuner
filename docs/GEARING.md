@@ -50,6 +50,8 @@ Saving rechecks the baseline and complete source fingerprints, reloads both requ
 
 Targets remain per car/pack under `%LOCALAPPDATA%/AtomicDriftTuner/gearing-targets/`; the shared unit default is in `speed-units.json`. Neither is shipped in release packages.
 
+In local preview.30, a duplicate or malformed field in an unrelated, identifiable `setup.ini` section no longer blocks gearing. For example, conflicting `FRONT_BIAS` definitions are reported and left untouched while valid gearing definitions remain usable. ADT does not choose between conflicting definitions: a conflict in a required final-drive, selected gear or gearbox definition still blocks calculation. Limiter controls remain detected even when ambiguous. Malformed section boundaries and duplicate saved baseline sections remain unsupported. Handling generation, staging and export also hold conflicting controls unchanged while retaining independent valid ranges.
+
 ## Gearing and ECU run review
 
 Save the targets, confirm the actual setup in the recorder and record comparable sections. New run history retains both goals, the RPM source and readable powertrain context. **Tuning Assistant → Gearing & ECU** counts below/above-target exposure only inside the requested gear/speed windows. Overlapping windows for the same gear count each frame once. Corner labels do not imply automatic track recognition. Later target edits do not reinterpret old snapshots, and comparisons flag changed goals.

@@ -17,6 +17,7 @@ internal static partial class Program
         var root = Path.Combine(output, "gearing-fixture");
         var carPath = Path.Combine(root, "example_car"); var data = Path.Combine(carPath, "data"); Directory.CreateDirectory(data);
         File.WriteAllText(Path.Combine(data, "setup.ini"), "[FINAL_GEAR_RATIO]\nRATIOS=final.rto\n");
+        File.AppendAllText(Path.Combine(data, "setup.ini"), "[FRONT_BIAS]\nMIN=55\nMAX=100\n[FRONT_BIAS]\nMIN=45\nMAX=85\n");
         File.WriteAllText(Path.Combine(data, "drivetrain.ini"), "[TRACTION]\nTYPE=RWD\n[GEARS]\nCOUNT=6\nGEAR_2=2.1\nGEAR_3=1.5\nFINAL=3\n");
         File.WriteAllText(Path.Combine(data, "engine.ini"), "[HEADER]\nPOWER_CURVE=power.lut\n[ENGINE_DATA]\nLIMITER=8000\n");
         File.WriteAllText(Path.Combine(data, "power.lut"), "1000|100\n3000|250\n5000|300\n6000|280\n7000|200\n8000|100\n");
@@ -34,6 +35,7 @@ internal static partial class Program
         Box("LowRpmBox").Text = "3100"; Box("HighRpmBox").Text = "5400";
         Call(window, "Calculate_Click");
         Check(save.IsEnabled, "calculation did not enable a supported setup export");
+        Check(((TextBlock)window.FindName("DetectedText")).Text.Contains("FRONT_BIAS"), "unrelated conflicting definition was hidden");
         var result = (TextBlock)window.FindName("ResultText");
         Check(result.Text.Contains("4:1") && result.Text.Contains("3,183") && result.Text.Contains("5,305"), "decoded ratio/RPM missing from review");
         Box("HighSpeedBox").Text = "110";

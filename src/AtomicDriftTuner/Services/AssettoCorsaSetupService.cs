@@ -247,6 +247,8 @@ public sealed class AssettoCorsaSetupService
             definitions.TryGetValue(
                 section,
                 out var range);
+            if (definitions.TryGetValue("*", out var unreadable))
+                range = new() { Section = section, UnavailableReason = unreadable.UnavailableReason };
 
             parameters.Add(
                 new CarSetupParameter
@@ -287,6 +289,8 @@ public sealed class AssettoCorsaSetupService
         var identityKnown = modelNames.Count == 1 && !string.IsNullOrWhiteSpace(selectedId) && modelNames[0].Equals(selectedId, StringComparison.OrdinalIgnoreCase);
         if (!identityKnown) decodeWarnings.Add("The baseline has no verified CAR/MODEL identity. Its values are preserved, but decoded selections cannot be verified against this car. Save a baseline from the selected car in game.");
         if (hasUnassigned) decodeWarnings.Add("This saved setup contains VALUE entries without a section name. ADT preserves them but cannot identify their control or assume they are an ECU map. Confirm these settings in game; a complete named setup capture is needed for attribution.");
+        decodeWarnings.AddRange(definitions.Values.Where(d => d.UnavailableReason is not null)
+            .Select(d => d.UnavailableReason!).Distinct(StringComparer.Ordinal));
         var physics = new CarPhysicsService().Read(car, parameters, importPhysics, source);
         if (!identityKnown) physics = physics with { DecodedSettings = Array.AsReadOnly(physics.DecodedSettings.Select(d => d.Status == DecodedSetupSetting.Verified ?
             d with { Status = DecodedSetupSetting.Partial, Explanation = "Baseline car identity is unverified; this is only a candidate interpretation for the selected car. " + d.Explanation } : d).ToArray()) };
@@ -459,77 +463,18 @@ public sealed class AssettoCorsaSetupService
         { return result; }
         if (text is null) return result;
 
-        var raw =
-            new Dictionary<
-                string,
-                Dictionary<string, string>>(
-                StringComparer.OrdinalIgnoreCase);
-
-        var section =
-            string.Empty;
-
-        foreach (var rawLine in
-                 text.Split('\n'))
+        CarSetupDefinitionFile parsed;
+        try { parsed = CarSetupDefinitionFile.Parse(text); }
+        catch (InvalidDataException ex)
         {
-            var line =
-                rawLine.Trim();
-
-            if (
-                line.Length == 0 ||
-                line.StartsWith(
-                    ';'))
-            {
-                continue;
-            }
-
-            if (TryReadSectionHeader(
-                    line,
-                    out var parsedSection))
-            {
-                section =
-                    parsedSection;
-
-                if (!raw.ContainsKey(section))
-                {
-                    raw[section] =
-                        new Dictionary<string, string>(
-                            StringComparer.OrdinalIgnoreCase);
-                }
-                else return result; // Ambiguous definitions must never set tuning ranges.
-
-                continue;
-            }
-            if (line.StartsWith('[')) return result;
-
-            var equalsIndex =
-                line.IndexOf('=');
-
-            if (
-                equalsIndex <= 0 ||
-                string.IsNullOrWhiteSpace(
-                    section))
-            {
-                continue;
-            }
-
-            var key =
-                line[..equalsIndex]
-                    .Trim();
-
-            if (key.Length == 0)
-            {
-                continue;
-            }
-
-            var value =
-                line[(equalsIndex + 1)..]
-                    .Split(
-                        ';',
-                        2)[0]
-                    .Trim();
-
-            if (!raw[section].TryAdd(key, value)) return result;
+            // Mark every identifiable control unavailable when section boundaries are unsafe.
+            // A wildcard is consumed by LoadBaseline, never treated as a setup parameter.
+            result["*"] = new() { Section = "*", UnavailableReason = ex.Message };
+            return result;
         }
+        var raw = parsed.Sections;
+        foreach (var item in parsed.InvalidSections)
+            result[item.Key] = new() { Section = item.Key, UnavailableReason = CarSetupDefinitionFile.Warning(item.Key, item.Value) };
 
         var globalClicks =
             raw.TryGetValue(
@@ -546,8 +491,16 @@ public sealed class AssettoCorsaSetupService
             var name =
                 pair.Key;
 
+            if (parsed.InvalidSections.ContainsKey(name)) continue;
+
             var values =
                 pair.Value;
+
+            if (!values.ContainsKey("SHOW_CLICKS") && parsed.InvalidSections.ContainsKey("DISPLAY_METHOD"))
+            {
+                result[name] = new() { Section = name, UnavailableReason = $"setup.ini [{name}] inherits an ambiguous DISPLAY_METHOD; this control is left unchanged." };
+                continue;
+            }
 
             var sectionClicks =
                 globalClicks;
@@ -701,6 +654,9 @@ public sealed class AssettoCorsaSetupService
 
             var replacement =
                 parameter.RecommendedRaw;
+
+            if (parameter.Range?.UnavailableReason is { } unavailable)
+                throw new InvalidDataException(unavailable);
 
             if (CamberSetupValues.IsCamber(section) &&
                 (parameter.Range is null || !parameter.Range.Section.Equals(section, StringComparison.OrdinalIgnoreCase) ||

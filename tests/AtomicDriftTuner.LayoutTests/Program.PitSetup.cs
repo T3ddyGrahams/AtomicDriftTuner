@@ -29,8 +29,9 @@ internal static partial class Program
         var carPath = Path.Combine(directory, "isolated_pit_setup_fixture");
         var data = Path.Combine(carPath, "data"); Directory.CreateDirectory(data);
         File.WriteAllText(Path.Combine(data, "setup.ini"), "[DIFF_POWER]\nMIN=0\nMAX=100\nSTEP=1\n[CAMBER_LF]\nMIN=-10\nMAX=-2\nSTEP=1\nSHOW_CLICKS=1\n");
+        File.AppendAllText(Path.Combine(data, "setup.ini"), "[ARB_REAR]\nMIN=0\nMAX=30000\nSTEP=1000\nSHOW_CLICKS=0\n[FRONT_BIAS]\nMIN=55\nMAX=100\nSTEP=1\n[FRONT_BIAS]\nMIN=45\nMAX=85\nSTEP=1\n");
         var baseline = Path.Combine(directory, "baseline.ini");
-        const string baselineText = "[CAR]\nMODEL=isolated_pit_setup_fixture\n[DIFF_POWER]\nVALUE=60\n[CAMBER_LF]\nVALUE=-55\n";
+        const string baselineText = "[CAR]\nMODEL=isolated_pit_setup_fixture\n[DIFF_POWER]\nVALUE=60\n[CAMBER_LF]\nVALUE=-55\n[ARB_REAR]\nVALUE=4000\n[FRONT_BIAS]\nVALUE=60\n";
         File.WriteAllText(baseline, baselineText);
         var originalFiles = Files(directory);
         var input = new TuneInput();
@@ -81,6 +82,9 @@ internal static partial class Program
                 "staging did not show the result or wrote a setup file");
             Check(staged[0].Changes.Any(c => c.Section == "CAMBER_LF" && c.Before == -55 && c.After == -56),
                 "the actual Stage button did not preserve camber saved-tenths units");
+            Check(staged[0].Changes.All(c => c.Section != "FRONT_BIAS" && c.Section != "ARB_REAR") &&
+                ((TextBlock)window.FindName("DecodeWarningsText")).Text.Contains("FRONT_BIAS"),
+                "conflicting brake bias or sub-step ARB was changed, or the warning was hidden");
             var frozen = JsonSerializer.Serialize(staged[0]);
 
             ((Slider)window.FindName("FrontEndBiteSlider")).Value = 1; Flush();

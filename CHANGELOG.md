@@ -2,6 +2,12 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local companion 0.4.0-preview.2 — CSP setup capture compatibility
+
+- Accept CSP's callable car-reader API in current-setup capture and guarded pit preflight. The old function-only check incorrectly reported a supported CSP API as unavailable.
+- Add runtime-shaped regression fixtures while retaining replay, pause, identity, parked-car and setup checks. Fix the UI test harness's multi-return loadfile argument for LuaJIT.
+- Standalone companion update for existing desktop preview.21; no tuning calculations, physics files or desktop version changed. The tuning-engine audit fixes remain pending. Live-game acceptance still needs confirmation after restarting the session.
+
 ## Local v0.9.0-preview.21 — Packed car data and verified setup meanings
 
 - Read supported ordinary data.acd archives into a bounded private memory cache without installing tools or changing car files. Keep protected, corrupt, ambiguous and unsupported sources explicit; never execute car scripts.

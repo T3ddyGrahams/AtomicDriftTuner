@@ -6,7 +6,7 @@ local preferences
 local function check(value, message) assert(value, message); count=count+1 end
 require = function(name)
   if name=='setup_capture' then return assert(loadfile(arg[3]))() end
-  if name=='pit_setup' then return assert(loadfile(arg[3]:gsub('setup_capture.lua$', 'pit_setup.lua')))() end
+  if name=='pit_setup' then return assert(loadfile((arg[3]:gsub('setup_capture.lua$', 'pit_setup.lua'))))() end
   assert(name=='companion_client'); return create
 end
 ac = {storage=function(defaults) preferences=defaults; return preferences end}

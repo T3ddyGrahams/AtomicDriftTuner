@@ -24,7 +24,16 @@ return function(api)
       code = code, message = message, captureSequence = c.sequence,
       sessionGeneration = c.sessionGeneration, setupRevision = c.setupRevision }
   end
-  local function capability(name) return type(api) == 'table' and type(api[name]) == 'function' end
+  local function capability(name)
+    if type(api) ~= 'table' then return false end
+    local value = api[name]
+    if type(value) == 'function' then return true end
+    -- CSP's getCar is a callable table with ordered/leaderboard helpers.
+    -- Accept that documented shape only; other required APIs remain functions.
+    if name ~= 'getCar' or type(value) ~= 'table' then return false end
+    local meta = getmetatable(value)
+    return type(meta) == 'table' and type(meta.__call) == 'function'
+  end
 
   -- These events invalidate identity. They do not capture or read any setup files.
   -- Spinner edits need not emit onSetupFile, so fresh serialization is always required.

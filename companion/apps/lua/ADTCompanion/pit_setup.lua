@@ -11,6 +11,14 @@ return function(api, filesystem)
   local function result(success, state, message) return {success=success, state=state, message=message} end
   local function failure(message, verification) return result(false, verification and 'verification-failed' or 'failed', message) end
   local function near(a, b) return finite(a) and finite(b) and math.abs(a - b) <= 0.000001 end
+  local function capability(name)
+    local value = api[name]
+    if type(value) == 'function' then return true end
+    -- CSP's getCar is a callable table with ordered/leaderboard helpers.
+    if name ~= 'getCar' or type(value) ~= 'table' then return false end
+    local meta = getmetatable(value)
+    return type(meta) == 'table' and type(meta.__call) == 'function'
+  end
   local function equal(a, b)
     for key, value in pairs(a) do if b[key] ~= value then return false end end
     for key, value in pairs(b) do if a[key] ~= value then return false end end
@@ -68,7 +76,7 @@ return function(api, filesystem)
   local function context()
     for _, name in ipairs({'getSim','getCar','getCarID','getTrackID','getTrackLayout','isSetupAvailableToEdit',
       'getSetupSpinners','stringifyCurrentSetup','saveCurrentSetup','loadSetup','getFolder'}) do
-      if type(api[name]) ~= 'function' then return nil, 'This CSP version does not support guarded setup changes.' end
+      if not capability(name) then return nil, 'This CSP version does not support guarded setup changes.' end
     end
     if type(filesystem) ~= 'table' or type(filesystem.exists) ~= 'function'
       or type(api.FolderID) ~= 'table' or api.FolderID.UserSetups == nil then

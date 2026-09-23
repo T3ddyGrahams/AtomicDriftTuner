@@ -2,7 +2,9 @@
 
 Record runs, read findings, explicitly apply a staged car setup in the pits and save comparison feedback inside Assetto Corsa.
 
-Companion **0.4.0-preview.1** adds **Pit setup** alongside the scrollable **Record**, **Findings**, **Compare** and **Help** tabs. After installing or updating, exit the current driving session and launch a new session so CSP reloads the app.
+Companion **0.4.0-preview.2** fixes automatic setup capture and pit preflight rejecting CSP's callable car-reader API. It retains **Pit setup** alongside the scrollable **Record**, **Findings**, **Compare** and **Help** tabs. After installing or updating, exit the current driving session and launch a new session so CSP reloads the app.
+
+This companion-only hotfix works with the existing desktop **ADT 0.9.0-preview.21**; reinstalling desktop ADT is not required. Install this updated companion package directly if the desktop's bundled package is older. It does not implement the separate tuning-engine audit fixes. If automatic capture still fails after updating, use a manual saved-setup attachment and report the new result; the compatibility correction does not bypass malformed data, wrong-car or stale-session checks.
 
 Pit setup actions require desktop **ADT 0.9.0-preview.15 or newer** running on the same PC and compatible CSP setup APIs. Current-setup capture requires preview.14 or newer and CSP's current-setup serializer. Desktop preview.13 supports the in-game workflow with manual setup attachment; preview.4–preview.12 retain recording controls. Public preview.3 lacks the companion endpoints. SimHub/AZOM is not required for AC recording or pit setup actions. Desktop ADT remains responsible for analysis and saved history. Live-game acceptance is pending.
 

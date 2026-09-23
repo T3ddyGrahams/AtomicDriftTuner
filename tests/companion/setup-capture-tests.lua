@@ -59,6 +59,23 @@ end
 f,c=fixture(); f.api.onSetupFile=nil; f.api.onSessionStart=nil; f.api.getPatchVersion=nil; c=create(f.api)
 check(c:capture().available,'optional hooks/version incorrectly required')
 
+-- CSP exposes getCar as a callable table so getCar.ordered()/leaderboard() can
+-- coexist with getCar(0). A plain-function mock alone misses that API shape.
+f,c=fixture()
+local getCar=f.api.getCar
+f.api.getCar=setmetatable({}, {__call=function(_,index) return getCar(index) end})
+local callableCapture=c:capture()
+check(callableCapture.available and callableCapture.setupIni==f.current and f.reads==1,
+  'CSP callable-table getCar was rejected or skipped fresh serialization')
+f.sim.isPaused=true
+check(not c:capture().available and f.reads==1,'callable getCar bypassed live-session guards')
+for _,bad in ipairs({{},setmetatable({}, {__call=false}),setmetatable({}, {__call='invalid'}),setmetatable({}, {__call={}})}) do
+  f,c=fixture(); f.api.getCar=bad
+  local result=c:capture()
+  check(not result.available and result.code=='unsupported_csp' and f.reads==0,
+    'non-callable getCar table passed capability checks')
+end
+
 for _, field in ipairs({'isReplayActive','isReplayOnlyMode','isShowroomMode','isPreviewsGenerationMode'}) do
   f,c=fixture(); f.sim[field]=true
   local result=c:capture()

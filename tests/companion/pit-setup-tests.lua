@@ -62,6 +62,20 @@ out=c:execute(nil,'command-2',restore)
 check(out.success and out.state=='restored' and f.current==original and #f.loads==2 and #f.saves==4,'restore did not verify/save original')
 check(f.saves[3].name~=f.saves[1].name and f.saves[3].name~=f.saves[2].name,'restore reused an existing backup filename')
 
+-- Runtime CSP getCar is a callable table, not a Lua function.
+f,c=fixture()
+local getCar=f.api.getCar
+f.api.getCar=setmetatable({}, {__call=function(_,index) return getCar(index) end})
+out=apply(f,c)
+check(out.success and #f.saves==2 and #f.loads==1,'CSP callable-table getCar blocked guarded apply')
+f.car.speedKmh=10
+check(c:prepare(nil,'restore')==nil and #f.loads==1,'callable getCar bypassed parked-car guards')
+for _,bad in ipairs({{},setmetatable({}, {__call=false}),setmetatable({}, {__call='invalid'}),setmetatable({}, {__call={}})}) do
+  f,c=fixture(); f.api.getCar=bad
+  check(c:prepare(f.plan,'apply')==nil and #f.saves==0 and #f.loads==0,
+    'non-callable getCar table passed guarded setup capability checks')
+end
+
 for _,name in ipairs({'getSim','getCar','getCarID','getTrackID','getTrackLayout','isSetupAvailableToEdit','getSetupSpinners','stringifyCurrentSetup','saveCurrentSetup','loadSetup','getFolder'}) do
   f,c=fixture();f.api[name]=nil
   check(c:prepare(f.plan,'apply')==nil and #f.saves==0 and #f.loads==0,'missing capability allowed: '..name)

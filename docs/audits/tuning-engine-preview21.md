@@ -27,6 +27,8 @@ Priority definitions: **P1** should be addressed before relying on the affected 
 
 ### A1 — Represent saved values, clicks and physical values separately
 
+Local preview.28 partially addresses A1/A2 for standard four-wheel CAMBER sections: a shared saved-tenths mapping for verified local modes 0/1/2, bounds/step checks in generation/export/staging, decoded direction for offset mode, and truthful boundary holds. Packed/unpacked and wrong/stale-source tests cover the contract. Other parameters, custom camber mappings and unverified global offset inheritance remain outside this correction; A1/A2 stay open as general findings.
+
 Evidence: `Services/AssettoCorsaSetupService.cs:534–562` and `:1065–1071` reduce SHOW_CLICKS to a boolean recognizing only literal 1. `Models/CarSetupModels.cs:290` stores that boolean. `Engine/CarSetupTuningEngine.cs:1711–1774` bypasses numeric bounds for clicks or incompatible raw values. `Services/AssettoCorsaSetupService.cs:427` writes generated replacements without an independent semantic-range check.
 
 Content Manager's [mode enum](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupStepsMode.cs) distinguishes actual values, normalized steps and offset steps. Its [saved-value loader](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupEntry.cs#L153) applies the step and, for offset steps, the minimum. Camber has additional serialization handling. These primary references were checked during the audit; no external code was copied.

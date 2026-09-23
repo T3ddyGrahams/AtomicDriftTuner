@@ -155,4 +155,22 @@ check(not out.success and #f.saves==0 and #f.loads==0,'existing backup files ove
 f,c=fixture();local collisions=0;f.existsOverride=function() collisions=collisions+1;return collisions==1 end;out=apply(f,c)
 check(out.success and collisions>4,'colliding filename was not regenerated')
 f,c=fixture();f.fs.exists=nil;check(c:prepare(f.plan,'apply')==nil,'missing collision check allowed a mutation')
+-- GT86-style camber: saved -55 corresponds to -5.5 in the car definition.
+-- Runtime spinners expose raw saved units; never rescale or bypass their live bounds.
+f,c=fixture();f.current=original:gsub('VALUE = %-30','VALUE = -55')
+f.spinner.min=-100;f.spinner.max=-20;f.spinner.step=1;f.spinner.value=-55;f.spinner.displayMultiplier=0.1;f.spinner.showClicksMode=1
+f.plan.baselineValues.CAMBER_LF=-55;f.plan.changes[1].before=-55;f.plan.changes[1].after=-56
+out=apply(f,c);check(out.success and f.current:find('VALUE = -56',1,true),'legal camber tenths did not save/apply')
+restore=c:prepare(nil,'restore');check(restore,'camber restore unavailable');out=c:execute(nil,'camber-restore',restore)
+check(out.success and f.current:find('VALUE = -55',1,true),'camber restore changed serialization')
+for _,invalid in ipairs({'lower','upper','fraction','physical-range','readonly'}) do
+  f,c=fixture();f.current=original:gsub('VALUE = %-30','VALUE = -55')
+  f.spinner.min=-100;f.spinner.max=-20;f.spinner.step=1;f.spinner.value=-55
+  f.plan.baselineValues.CAMBER_LF=-55;f.plan.changes[1].before=-55;f.plan.changes[1].after=-56
+  if invalid=='lower' then f.plan.changes[1].after=-101 elseif invalid=='upper' then f.plan.changes[1].after=-19
+  elseif invalid=='fraction' then f.plan.changes[1].after=-55.5
+  elseif invalid=='physical-range' then f.spinner.min=-10;f.spinner.max=-2
+  else f.spinner.readOnly=true end
+  check(c:prepare(f.plan,'apply')==nil and #f.loads==0 and #f.saves==0,'camber runtime guard bypassed: '..invalid)
+end
 print('PASS '..count..' pit setup assertions: guards, unique backup, precise patch, full readback, failure preservation and explicit restore.')

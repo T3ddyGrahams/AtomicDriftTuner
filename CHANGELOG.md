@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.28 — Camber staging correction
+
+- Fix standard camber values being rejected by **Stage for in-game pits** when the car's definition uses a different scale from its saved setup. Generation, file export and pit staging now share verified camber bounds and whole saved-value steps for supported modes 0/1/2, including packed car data.
+- Interpret offset-mode camber direction using the decoded setup value. Clamp at verified limits and explain unchanged values instead of promising an adjustment beyond an end stop. The Legal Range column wraps the scale explanation. These setup units are not geometry-derived wheel angles.
+- Keep unknown modes, custom mappings, invalid baselines and stale car data blocked. The companion still checks its live editable ranges and verifies setup readback; no companion update is needed.
+- Partial correction of audit A1/A2 for standard camber only; other controls and the remaining audit findings are still pending. Telemetry diagnosis, FFB, Gearing & ECU review and learning attribution are unchanged. Local test build only; public preview.17 is unchanged.
+
 ## Local v0.9.0-preview.27 — Gearing and ECU run review
 
 - Add a **Gearing & ECU** tab to the Tuning Assistant: time-weighted RPM/speed ranges by forward gear, RPM through drift phases, high-throttle exposure, and repeated input events. Detailed tables stay collapsed until requested; all text uses customizable theme colors.

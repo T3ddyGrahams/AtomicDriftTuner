@@ -125,6 +125,12 @@ node tests/remote/touch-browser-tests.cjs artifacts/touch-browser
 
 The browser suite uses fake HTTP responses and never changes game or wheelbase settings. It covers touch pairing, live telemetry display, recording, reconnects, edit retention, in-page confirmation, remote-write opt-out, pairing revocation and layouts from 320×568 through 1280×720. SimHub native rendering and real touch hardware still require hands-on validation. Build test projects sequentially because their shared WPF project generates files under the same `obj` directory; already-built test executables can run independently.
 
+## Camber staging (local preview.28)
+
+`CamberSetupChecks` covers packed/unpacked mode 0/1/2 round trips, equivalent adjustment direction across encodings, both end stops, fractional/out-of-range values, malformed/custom mappings, explicit local overrides, all four wheels, and stale source rejection. File export and pit staging must agree without rewriting the baseline. The pit WPF fixture also generates and stages a -55 to -56 camber adjustment through the production handlers. Its setup limits match the reported GT86 case.
+
+`tests/companion/pit-setup-tests.lua` includes saved-tenths apply/restore and independent live-range refusals. It uses mocked game APIs under Lua 5.1/LuaJIT; it does not prove live game application. No production companion code changed.
+
 ## Final-drive gearing
 
 The regression runner includes 16 gearing scenarios (68 total). `GearingChecks` covers actual ratio/index mapping, selected gearsets/gears/tyres, malformed and unavailable data, wrong-car baselines, limiter exclusion, no-op/partial fits, per-car goals and preservation of all unrelated setup settings. Stale-source checks include the entire baseline and each data file.

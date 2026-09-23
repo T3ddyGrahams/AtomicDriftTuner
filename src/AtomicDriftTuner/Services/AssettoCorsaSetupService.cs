@@ -658,6 +658,16 @@ public sealed class AssettoCorsaSetupService
                 result[name] =
                     definition;
             }
+            if (CamberSetupValues.IsCamber(name) && !values.ContainsKey("LUT") && !values.ContainsKey("RATIOS"))
+            {
+                // Local mode is explicit. Global 0/1 have the same camber serialization;
+                // global-only offset/unknown modes are not inferred from display metadata.
+                var localMode = values.GetValueOrDefault("SHOW_CLICKS");
+                var globalMode = raw.GetValueOrDefault("DISPLAY_METHOD")?.GetValueOrDefault("SHOW_CLICKS");
+                var modeText = localMode ?? globalMode ?? "0";
+                if (int.TryParse(modeText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mode) &&
+                    mode is >= 0 and <= 2 && (localMode is not null || mode != 2)) definition.CamberValueMode = mode;
+            }
         }
 
         return result;
@@ -691,6 +701,13 @@ public sealed class AssettoCorsaSetupService
 
             var replacement =
                 parameter.RecommendedRaw;
+
+            if (CamberSetupValues.IsCamber(section) &&
+                (parameter.Range is null || !parameter.Range.Section.Equals(section, StringComparison.OrdinalIgnoreCase) ||
+                 parameter.CurrentValue is not double before || parameter.RecommendedValue is not double after ||
+                 !CamberSetupValues.IsLegal(parameter.Range, before) || !CamberSetupValues.IsLegal(parameter.Range, after) ||
+                 !TryNum(replacement, out var serialized) || !PitSetupPlanService.NumbersEqual(after, serialized)))
+                throw new InvalidDataException($"{section} cannot be saved: its camber VALUE is outside a verified range or step. Reload the baseline and generate again.");
 
             if (string.IsNullOrWhiteSpace(
                     replacement))

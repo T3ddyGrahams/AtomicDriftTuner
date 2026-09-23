@@ -85,8 +85,15 @@ public sealed class PitSetupPlanService
     private static void ValidateRange(CarSetupParameter parameter, double before, double after)
     {
         var range = parameter.Range;
-        // SHOW_CLICKS describes display/physical ranges, not a proven mapping to the saved VALUE.
-        // The tuning engine also treats those mappings as unknown: applying guessed indexes is unsafe.
+        if (CamberSetupValues.IsCamber(parameter.Section))
+        {
+            if (range is null || !range.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase) ||
+                !CamberSetupValues.TryRawRange(range, out var camberRange))
+                throw Invalid($"{parameter.Section} has no verified camber saved-value mapping. Reload its baseline and car definitions before staging.");
+            range = camberRange;
+        }
+        // Other SHOW_CLICKS controls still lack a verified saved-VALUE mapping here.
+        // Camber reaches this gate only after conversion to its verified raw range.
         if (range is null || range.ShowClicks ||
             !string.Equals(range.Section, parameter.Section, StringComparison.OrdinalIgnoreCase) ||
             range.Min is not double min || !Numeric(min) ||

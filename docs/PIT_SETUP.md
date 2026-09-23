@@ -34,6 +34,14 @@ If desktop ADT restarts while a result is waiting to sync, its old operation rec
 
 After clearing a pending action, restart the AC session, inspect/load the intended setup and regenerate/stage a fresh plan before another pit test. Clearing only resolves ADT's pending state; it does not apply or restore any car values. Wait for fresh setup capture and confirm the recording settings again before driving.
 
+## Standard camber values (local preview.28)
+
+ADT now maps standard `CAMBER_LF/RF/LR/RR` bounds into the same saved `VALUE` units used by export and pit plans. For example, a definition range of -10 to -2 with local `SHOW_CLICKS=1` supports saved values -100 through -20, in whole steps. A baseline of -55 can be staged as -56 without confusing it with an out-of-range physical number. Reload the baseline and generate again after updating.
+
+The verified mapping follows Content Manager's [camber fixed step and saved-value loader](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupEntry.cs) and [mode enum](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupStepsMode.cs): modes 0/1 use raw × 0.1; explicit local mode 2 uses MIN + raw × 0.1. These are setup units, not a computed wheel angle. Missing/global 0/1 mode metadata shares the same camber serialization; global-only mode 2, unknown modes and custom LUT/RATIOS mappings remain unsupported.
+
+The companion's live spinner bounds remain an independent requirement. Desktop support never overrides a fixed, read-only, unavailable or incompatible in-game control. This correction does not add general click-mode support for other parameters.
+
 ## Manual fallback
 
 The existing **Save AC Setup File** action remains available after valid generation. Save under a new name, load that exact file in AC's Setup menu and inspect its values. If current-setup capture is unsupported, turn off **Capture the current car setup through the in-game companion** in Telemetry Recorder and attach the saved file with **Attach AC Setup Snapshot**. The attachment cannot represent later unsaved edits. Explicitly confirm settings before recording, and use the same capture method for the baseline and comparison.

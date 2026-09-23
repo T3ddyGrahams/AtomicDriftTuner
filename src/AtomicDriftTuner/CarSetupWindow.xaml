@@ -214,7 +214,14 @@
                         <DataGridTextColumn Header="Current" Binding="{Binding CurrentRaw}" Width="85"/>
                         <DataGridTextColumn Header="Recommended" Binding="{Binding RecommendedRaw}" Width="105"/>
                         <DataGridTextColumn Header="Delta" Binding="{Binding DeltaText}" Width="70"/>
-                        <DataGridTextColumn Header="Legal Range" Binding="{Binding RangeText}" Width="120"/>
+                        <DataGridTextColumn Header="Legal Range" Binding="{Binding RangeText}" Width="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="ToolTip" Value="{Binding RangeText}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="Blend" Binding="{Binding BlendStatus}" Width="145"/>
                         <DataGridTextColumn Header="Base car context" Binding="{Binding PhysicsContext}" Width="240"/>
                         <DataGridTextColumn Header="Saved setting meaning" Binding="{Binding DecodedContext}" Width="280"/>

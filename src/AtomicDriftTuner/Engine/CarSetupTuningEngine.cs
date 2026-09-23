@@ -89,6 +89,14 @@ public sealed class CarSetupTuningEngine
                     scale,
                     out var styleReason);
 
+            if (CamberSetupValues.IsCamber(parameter.Section) &&
+                (parameter.Range is null || !parameter.Range.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase) ||
+                 !CamberSetupValues.IsLegal(parameter.Range, current)))
+            {
+                parameter.Reason = "Left unchanged because this camber baseline has no verified saved-value mapping or is outside its legal range/step. Reload a valid setup before tuning camber.";
+                continue;
+            }
+
             if (!double.IsFinite(styleDelta))
             {
                 parameter.Reason =
@@ -263,6 +271,9 @@ public sealed class CarSetupTuningEngine
                     behaviorReason) +
                 RangeNote(
                     parameter.Range);
+            if (CamberSetupValues.IsCamber(parameter.Section))
+                parameter.Reason = parameter.Changed ? parameter.Reason + " " + CamberSetupValues.Describe(parameter.Range) + "."
+                    : "Left unchanged: the requested camber adjustment reaches a limit or rounds to the same legal saved step. " + CamberSetupValues.Describe(parameter.Range) + ".";
         }
 
         analysis.BehaviorBlend =
@@ -658,6 +669,8 @@ public sealed class CarSetupTuningEngine
                 "CAMBER_",
                 StringComparison.Ordinal))
         {
+            var camberValue = CamberSetupValues.TrySetupValue(parameter.Range, parameter.CurrentValue.Value, out var decodedCamber)
+                ? decodedCamber : parameter.CurrentValue.Value;
             if (
                 front &&
                 (
@@ -671,7 +684,7 @@ public sealed class CarSetupTuningEngine
                     "Adds a small amount of front negative-camber bias for response; verify tire temperatures and driver feel.";
 
                 return
-                    parameter.CurrentValue.Value <=
+                    camberValue <=
                     0
                         ? -1 *
                           scale
@@ -692,7 +705,7 @@ public sealed class CarSetupTuningEngine
                     "Moves rear camber slightly toward a traction-oriented setting.";
 
                 return
-                    parameter.CurrentValue.Value <
+                    camberValue <
                     0
                         ? 1 *
                           scale
@@ -1014,13 +1027,15 @@ public sealed class CarSetupTuningEngine
                 "CAMBER_",
                 StringComparison.Ordinal))
         {
+            var camberValue = CamberSetupValues.TrySetupValue(parameter.Range, parameter.CurrentValue.Value, out var decodedCamber)
+                ? decodedCamber : parameter.CurrentValue.Value;
             if (
                 front &&
                 behavior.FrontEndBite !=
                 0)
             {
                 var direction =
-                    parameter.CurrentValue.Value <=
+                    camberValue <=
                     0
                         ? -1
                         : 1;
@@ -1040,10 +1055,10 @@ public sealed class CarSetupTuningEngine
                 0)
             {
                 var towardZero =
-                    parameter.CurrentValue.Value <
+                    camberValue <
                     0
                         ? 1
-                        : parameter.CurrentValue.Value >
+                        : camberValue >
                           0
                             ? -1
                             : 0;
@@ -1630,6 +1645,8 @@ public sealed class CarSetupTuningEngine
             return current;
         }
 
+        if (range is not null && CamberSetupValues.IsCamber(range.Section))
+            range = CamberSetupValues.TryRawRange(range, out var camberRange) ? camberRange : null;
         var compatible =
             IsCompatibleNumericRange(
                 range,

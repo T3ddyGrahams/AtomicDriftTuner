@@ -28,13 +28,14 @@ internal static partial class Program
         var directory = Path.Combine(output, "pit-setup-" + Guid.NewGuid().ToString("N"));
         var carPath = Path.Combine(directory, "isolated_pit_setup_fixture");
         var data = Path.Combine(carPath, "data"); Directory.CreateDirectory(data);
-        File.WriteAllText(Path.Combine(data, "setup.ini"), "[DIFF_POWER]\nMIN=0\nMAX=100\nSTEP=1\n");
+        File.WriteAllText(Path.Combine(data, "setup.ini"), "[DIFF_POWER]\nMIN=0\nMAX=100\nSTEP=1\n[CAMBER_LF]\nMIN=-10\nMAX=-2\nSTEP=1\nSHOW_CLICKS=1\n");
         var baseline = Path.Combine(directory, "baseline.ini");
-        const string baselineText = "[CAR]\nMODEL=isolated_pit_setup_fixture\n[DIFF_POWER]\nVALUE=60\n";
+        const string baselineText = "[CAR]\nMODEL=isolated_pit_setup_fixture\n[DIFF_POWER]\nVALUE=60\n[CAMBER_LF]\nVALUE=-55\n";
         File.WriteAllText(baseline, baselineText);
         var originalFiles = Files(directory);
         var input = new TuneInput();
         input.Intent.Name = "Pit fixture drift";
+        input.Intent.Kind = DriftStyleKind.Competition;
         input.Car.Id = "isolated_pit_setup_fixture";
         input.Car.SourceFolderPath = carPath;
         // Avoid saved-setup discovery and its user settings lookup during construction.
@@ -78,6 +79,8 @@ internal static partial class Program
                 "stage did not dispatch the reviewed numeric plan with its car/label");
             Check(status.Text.Contains("Fixture plan staged") && SameFiles(originalFiles, Files(directory)),
                 "staging did not show the result or wrote a setup file");
+            Check(staged[0].Changes.Any(c => c.Section == "CAMBER_LF" && c.Before == -55 && c.After == -56),
+                "the actual Stage button did not preserve camber saved-tenths units");
             var frozen = JsonSerializer.Serialize(staged[0]);
 
             ((Slider)window.FindName("FrontEndBiteSlider")).Value = 1; Flush();

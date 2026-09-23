@@ -288,6 +288,8 @@ public sealed class SetupRangeDefinition
     public string? Units { get; set; }
 
     public bool ShowClicks { get; set; }
+    // Only standard CAMBER_* serialization is verified here. Null keeps it unsupported.
+    public int? CamberValueMode { get; set; }
 
     public string Source { get; set; } =
         "None";
@@ -405,6 +407,7 @@ public sealed class CarSetupParameter
     {
         get
         {
+            if (CamberSetupValues.IsCamber(Section)) return CamberSetupValues.Describe(Range);
             if (Range is null)
             {
                 return "Unknown";

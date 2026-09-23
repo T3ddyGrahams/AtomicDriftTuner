@@ -29,7 +29,7 @@ internal static class PitSetupChecks
             Check(plan.ProtocolVersion == 1 && Guid.TryParseExact(plan.PlanId, "N", out _) && plan.CarId == "test_car", "Invalid protocol identity");
             Check(plan.Label == "Pit test" && plan.Changes.Count == 1 && plan.Changes[0].Section == "PRESSURE_LF" &&
                 plan.Changes[0].Before == 24 && plan.Changes[0].After == 25, "Incorrect approved change");
-            Check(plan.BaselineValues.Count == 3 && plan.BaselineValues["CAMBER_LF"] == -3.5 &&
+            Check(plan.BaselineValues.Count == 3 && plan.BaselineValues["CAMBER_LF"] == -35 &&
                 plan.BaselineValues["FUEL"] == 25, "Unchanged baseline values omitted");
             Check(File.ReadAllBytes(f.Path).SequenceEqual(original) &&
                 Directory.GetFiles(f.Directory, "*", SearchOption.AllDirectories).SequenceEqual(files), "Staging wrote a setup file");
@@ -88,7 +88,7 @@ internal static class PitSetupChecks
         test("pit plan canonicalizes sections and compares values independently of formatting", () =>
         {
             var f = Fixture(root);
-            File.WriteAllText(f.Path, "[car]\nMODEL=TEST_CAR\n[fuel]\nvalue = 2.5e1\n[camber_lf]\nVALUE=-3.50\n[pressure_lf]\nVALUE=24.000\n; different label\n");
+            File.WriteAllText(f.Path, "[car]\nMODEL=TEST_CAR\n[fuel]\nvalue = 2.5e1\n[camber_lf]\nVALUE=-35.00\n[pressure_lf]\nVALUE=24.000\n; different label\n");
             foreach (var parameter in f.Analysis.Parameters)
             {
                 parameter.Section = parameter.Section.ToLowerInvariant();
@@ -182,9 +182,9 @@ internal static class PitSetupChecks
                 var f = Fixture(root); mutate(f.Analysis.Parameters[0]); Reject(() => f.Create());
             }
             var legal = Fixture(root);
-            legal.Analysis.Parameters[1].RecommendedValue = -3.2;
+            legal.Analysis.Parameters[1].RecommendedValue = -32;
             var plan = legal.Create();
-            Check(plan.Changes.Count == 2 && plan.Changes[0].After == -3.2, "A legal fractional step was rejected");
+            Check(plan.Changes.Count == 2 && plan.Changes[0].After == -32, "A legal serialized camber step was rejected");
         });
 
         test("pit plan bounds baseline bytes parameters and change count", () =>
@@ -243,7 +243,7 @@ internal static class PitSetupChecks
         File.WriteAllText(Path.Combine(data, "setup.ini"),
             "[PRESSURE_LF]\nMIN=20\nMAX=40\nSTEP=1\n[CAMBER_LF]\nMIN=-5\nMAX=0\nSTEP=0.1\n");
         var path = Path.Combine(directory, "baseline.ini");
-        File.WriteAllText(path, "[CAR]\nMODEL=test_car\n[PRESSURE_LF]\nVALUE=24\n[CAMBER_LF]\nVALUE=-3.5\n[FUEL]\nVALUE=25\n[METADATA]\nNAME=PRIVATE_LABEL\n");
+        File.WriteAllText(path, "[CAR]\nMODEL=test_car\n[PRESSURE_LF]\nVALUE=24\n[CAMBER_LF]\nVALUE=-35\n[FUEL]\nVALUE=25\n[METADATA]\nNAME=PRIVATE_LABEL\n");
         var analysis = new AssettoCorsaSetupService().LoadBaseline(path,
             new CarProfile { SourceFolderName = "test_car", SourceFolderPath = Path.Combine(directory, "test_car") });
         analysis.Parameters[0].RecommendedValue = 25;

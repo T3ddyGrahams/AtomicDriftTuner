@@ -1,5 +1,7 @@
 # Ordinary packed-data format references
 
+For the preview.31 camera-only packed/unpacked comparison exception, the [CSP SDK seat-parameter declarations](https://github.com/ac-custom-shaders-patch/acc-lua-sdk/blob/main/common/ac_game.lua) were reviewed on 2026-09-23. They identify `GRAPHICS/DRIVEREYES` as driver-eye position and `GRAPHICS/ON_BOARD_PITCH_ANGLE` as seat pitch. The independently written comparison masks only finite numeric values of these two fields, requires all remaining content to match exactly, rejects ambiguous syntax and preserves raw-source fingerprints. It does not change the archive decoder or installed car data.
+
 `PackedCarDataReader` is an independently implemented, bounded, read-only parser. It adds no external runtime dependency and does not embed another project's source or executable. These primary implementation references were reviewed on 2026-09-22 to establish the interoperable file-format arithmetic:
 
 - [Content Manager's AcdReader](https://github.com/gro-ove/actools/blob/master/AcTools/AcdFile/AcdReader.cs) establishes the optional `-1111` marker plus one opaque 32-bit field, repeated name/data records and the four-byte storage stride.

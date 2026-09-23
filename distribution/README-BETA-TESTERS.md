@@ -1,5 +1,7 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
+**Camera compatibility fix in preview.31:** Cockpit driver-eye position/pitch edits no longer cause a false packed/unpacked conflict when all other supported car content matches. Reload the intended baseline and calculate again. Both source copies remain fingerprinted; ADT does not alter your camera, installed car or original saved setup.
+
 **Local preview.31 — clearer setup recommendations:** Open **Tuning Assistant → Your next step → Review one car setup change** after saving a confirmed baseline run. Choose the matching setup file, review exact current → proposed values and the possible tradeoff, then save or stage one adjustment. Load or explicitly apply it in the pits, record again and compare. ADT tracks the exact test without changing the diagnosis or tuning formulas. Unsupported or unverified changes remain unavailable. See `docs/GUIDED_WORKFLOW.md`. Verify desktop version **0.9.0-preview.31**; this package carries Bridge **0.9.0-preview.31** with unchanged bridge logic. Companion **0.4.0-preview.4** remains unchanged. The public release described below is preview.30.
 
 **HUGE UPDATE — public beta preview.30:** This build includes all changes since public preview.17: easier corner-based gearing goals, deeper Gearing & ECU review, readable packed/unpacked car data, recording readiness alerts, and fixes for Pit House SDK crashes, missed telemetry, setup capture and pit staging. Read the [release notes](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/tag/v0.9.0-preview.30).

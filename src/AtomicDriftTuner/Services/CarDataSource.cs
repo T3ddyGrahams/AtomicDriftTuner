@@ -34,6 +34,7 @@ public sealed class CarDataSource
         IReadOnlyDictionary<string, byte[]> files;
         var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var matchingUnpackedCopy = false;
+        var cameraOnlyDifferences = false;
         string kind;
         if (File.Exists(archive))
         {
@@ -57,14 +58,20 @@ public sealed class CarDataSource
             {
                 // CM can leave an exact unpacked copy beside the original archive.
                 // Read both independently and require the complete supported file
-                // sets and bytes to match. Never choose precedence or fill gaps in
+                // sets and bytes to match, apart from two verified seat-camera values.
+                // Never choose precedence or fill gaps in
                 // one source with files from the other. Recheck on every Open, even
                 // if the packed snapshot came from the cache.
                 var unpacked = ReadUnpacked(data, hashes, "data/");
-                var different = files.Keys.Union(unpacked.Keys, StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                    .FirstOrDefault(name => !files.TryGetValue(name, out var packedBytes) ||
-                        !unpacked.TryGetValue(name, out var unpackedBytes) || !packedBytes.AsSpan().SequenceEqual(unpackedBytes));
+                string? different = null;
+                foreach (var name in files.Keys.Union(unpacked.Keys, StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!files.TryGetValue(name, out var packedBytes) || !unpacked.TryGetValue(name, out var unpackedBytes)) { different = name; break; }
+                    if (packedBytes.AsSpan().SequenceEqual(unpackedBytes)) continue;
+                    if (name.Equals("car.ini", StringComparison.OrdinalIgnoreCase) && CarCameraEquivalence.Matches(packedBytes, unpackedBytes))
+                    { cameraOnlyDifferences = true; continue; }
+                    different = name; break;
+                }
                 if (different is not null)
                     throw new InvalidDataException($"Both data.acd and data are present, but their supported physics files differ ({different}). " +
                         "ADT cannot verify which copy is active. Use matching copies or restore the intended car version before calculating again.");
@@ -79,7 +86,7 @@ public sealed class CarDataSource
         else throw new InvalidDataException("No data folder or data.acd was found for this car.");
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("adt/car-data/1\n" + kind + "\n" +
             string.Join("\n", hashes.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key + "=" + x.Value)))));
-        return new(files, new() { CarPath = root, Kind = kind, Fingerprint = fingerprint, MatchingUnpackedCopy = matchingUnpackedCopy,
+        return new(files, new() { CarPath = root, Kind = kind, Fingerprint = fingerprint, MatchingUnpackedCopy = matchingUnpackedCopy, CameraOnlyDifferences = cameraOnlyDifferences,
             Fingerprints = new ReadOnlyDictionary<string, string>(hashes) });
     }
 

@@ -2,6 +2,8 @@
 
 ## Focused saved-run setup tests (local preview.31)
 
+`MatchingCarDataChecks` also verifies the camera-only dual-source exception: only finite driver-eye/pitch values in a valid, otherwise identical `car.ini` can differ. Mass, inertia, steering, FFB, fuel, other graphics fields, unrelated files, duplicate/malformed sections, misplaced keys, nonfinite values and stale fingerprints remain guarded. A read-only RX-7 probe reproduced the real two-field camera difference and verified gearing load/calculation and a workspace-only final-drive export without changing the car or user's baseline.
+
 `dotnet run --project tests/AtomicDriftTuner.RegressionTests -c Release -- --car-test` covers matching recorded baselines, source/identity/confirmation gates, one-setting-family isolation, preserved original files and unrelated values, exact history descriptions, direct-mode/camber mappings, paired controls, no-op limits, stale save/stage rejection, unchanged input/report/goal state, and next-step priority. These checks are also included in the full regression suite.
 
 `dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/car-test-wpf --car-test` exercises the default card and primary action, real review/save/stage handlers, partial-success tracking errors, locked run selection, FFB-only visibility, narrow/portrait/wide scrolling and action reachability. It includes the existing angle/summary checks. All fixture writes are isolated; no live pit or hardware commands are sent. A fresh in-game before/after run remains a manual acceptance check.

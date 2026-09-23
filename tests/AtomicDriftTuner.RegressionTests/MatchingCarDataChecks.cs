@@ -8,6 +8,61 @@ internal static class MatchingCarDataChecks
 {
     internal static void Run(Action<string, Action> test, string root)
     {
+        test("dual sources accept only verified seat-camera value differences without editing either copy", () =>
+        {
+            foreach (var field in new[] { "eyes", "pitch", "both" })
+            {
+                var f = CameraFixture(root); var text = f.Files["car.ini"];
+                if (field is "eyes" or "both") text = text.Replace("-0.36,0.93,-0.60", "-0.36,0.87,-0.17");
+                if (field is "pitch" or "both") text = text.Replace("0.343915", "2.472130");
+                File.WriteAllText(Path.Combine(f.Data, "car.ini"), text);
+                var before = HashFiles(f.Car.SourceFolderPath!); var source = CarDataSource.Open(f.Car);
+                Check(source.Evidence.CameraOnlyDifferences && source.Evidence.MatchingUnpackedCopy && source.Kind == "packed", "Camera difference not explained");
+                Check(source.ReadText("car.ini") == f.Files["car.ini"] && source.Evidence.Fingerprints.Count == f.Files.Count + 1, "Sources mixed or fingerprint omitted");
+                Check(new CarPhysicsService().Read(f.Car).Notes.Any(n => n.Contains("driver-eye")), "Physics review incorrectly claims exact byte match");
+                CarDataSource.EnsureUnchanged(source.Evidence);
+                Check(before.OrderBy(x => x.Key).SequenceEqual(HashFiles(f.Car.SourceFolderPath!).OrderBy(x => x.Key)), "Source was modified");
+            }
+        });
+        test("camera exception retains mass inertia steering fuel and other-file conflict gates", () =>
+        {
+            foreach (var change in new[] { ("TOTALMASS=1200", "TOTALMASS=1201"), ("INERTIA=1,2,3", "INERTIA=1,2,4"),
+                ("STEER_RATIO=9", "STEER_RATIO=10"), ("FFMULT=1.95", "FFMULT=2"), ("MAX_FUEL=55", "MAX_FUEL=60"),
+                ("ONBOARD_EXPOSURE=20", "ONBOARD_EXPOSURE=21"), ("; camera", "; different comment") })
+            {
+                var f = CameraFixture(root);
+                File.WriteAllText(Path.Combine(f.Data, "car.ini"), f.Files["car.ini"].Replace("0.343915", "2.472130").Replace(change.Item1, change.Item2));
+                Refuse(() => CarDataSource.Open(f.Car));
+            }
+            var other = CameraFixture(root);
+            File.WriteAllText(Path.Combine(other.Data, "car.ini"), other.Files["car.ini"].Replace("0.343915", "2.472130"));
+            File.AppendAllText(Path.Combine(other.Data, "power.lut"), "9000|350\n");
+            Check(Refuse(() => CarDataSource.Open(other.Car)).Contains("power.lut"), "Camera difference masked another file conflict");
+        });
+        test("camera exception rejects malformed ambiguous nonfinite or misplaced camera fields", () =>
+        {
+            foreach (var transform in new Func<string, string>[] {
+                s => s.Replace("[GRAPHICS]", "[OTHER]"), s => s.Replace("[GRAPHICS]", "[GRAPHICS]garbage"),
+                s => s + "[GRAPHICS]\nDRIVEREYES=1,2,3\n", s => s.Replace("ONBOARD_EXPOSURE=20", "DRIVEREYES=1,2,3"),
+                s => s.Replace("0.343915", "NaN"), s => s.Replace("0.343915", "Infinity"), s => s.Replace("-0.36,0.93,-0.60", "1,2"),
+                s => s.Replace("ON_BOARD_PITCH_ANGLE", "BONNET_CAMERA_PITCH"), s => s.Replace("[CONTROLS]", "[CONTROLS\n"),
+                s => s + "\0" })
+            {
+                var f = CameraFixture(root); f.Files["car.ini"] = transform(f.Files["car.ini"]);
+                PackedArchiveChecks.WriteArchive(f.Car.SourceFolderPath!, f.Files);
+                File.WriteAllText(Path.Combine(f.Data, "car.ini"), f.Files["car.ini"].Replace("-0.36,0.93,-0.60", "-0.36,0.87,-0.17").Replace("0.343915", "2.472130"));
+                Refuse(() => CarDataSource.Open(f.Car));
+            }
+        });
+        test("camera changes still invalidate old fingerprints and cached export plans", () =>
+        {
+            var f = CameraFixture(root); var original = CarDataSource.Open(f.Car);
+            File.WriteAllText(Path.Combine(f.Data, "car.ini"), f.Files["car.ini"].Replace("0.343915", "2.472130"));
+            var modified = CarDataSource.Open(f.Car);
+            Check(modified.Evidence.CameraOnlyDifferences && modified.Evidence.Fingerprint != original.Evidence.Fingerprint, "Camera edit erased raw fingerprint change");
+            Refuse(() => CarDataSource.EnsureUnchanged(original.Evidence));
+            CarDataSource.EnsureUnchanged(modified.Evidence);
+        });
         test("identical packed and unpacked physics use one snapshot and fingerprint both", () =>
         {
             var f = Fixture(root);
@@ -104,6 +159,14 @@ internal static class MatchingCarDataChecks
         foreach (var file in files) File.WriteAllText(Path.Combine(data, file.Key), file.Value);
         PackedArchiveChecks.WriteArchive(carRoot, files);
         return (new() { SourceFolderName = "physics_car", SourceFolderPath = carRoot }, data, files);
+    }
+    private static (CarProfile Car, string Data, Dictionary<string, string> Files) CameraFixture(string root)
+    {
+        var f = Fixture(root);
+        f.Files["car.ini"] = "[BASIC]\nTOTALMASS=1200\nINERTIA=1,2,3\n[GRAPHICS]\nDRIVEREYES=-0.36,0.93,-0.60 ; camera\nON_BOARD_PITCH_ANGLE=0.343915\nONBOARD_EXPOSURE=20\n[CONTROLS]\nSTEER_RATIO=9\nFFMULT=1.95\n[FUEL]\nMAX_FUEL=55\n";
+        File.WriteAllText(Path.Combine(f.Data, "car.ini"), f.Files["car.ini"]);
+        PackedArchiveChecks.WriteArchive(f.Car.SourceFolderPath!, f.Files);
+        return f;
     }
     private static Dictionary<string, string> HashFiles(string root) => Directory.GetFiles(root, "*", SearchOption.AllDirectories).ToDictionary(p => p, Hash);
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));

@@ -4,6 +4,8 @@ This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly ma
 
 ## Local v0.9.0-preview.31 — Clearer saved-run setup tests
 
+- Fix a false packed/unpacked conflict after adjusting the cockpit viewpoint. Permit only finite `[GRAPHICS] DRIVEREYES` and `ON_BOARD_PITCH_ANGLE` value differences in otherwise matching `car.ini` files. All other supported content must still match; both raw sources remain fingerprinted and source changes require recalculation. Car and camera files are never modified.
+
 - Show **Your next car setup change** in normal saved-run review, with **Review one car setup change** as the primary action for eligible car findings. Technical evidence remains expandable; Advanced telemetry is optional.
 - Match an explicitly chosen baseline against the recorded car, full numeric setup and car-data fingerprint. Show exact current → proposed values for one supported adjustment, with a plain-language aim, possible tradeoff and save → apply → record → compare instructions.
 - Reuse existing tuner output for supported front/rear response, initiation and transition findings. Each option isolates a setting family (paired left/right controls count as one axle adjustment), preserves other values and checks legal steps before saving a separate file or staging an explicit pit action. No new diagnostic thresholds, tuning formulas, FFB writes or improvement scores.

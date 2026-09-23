@@ -96,6 +96,8 @@ public sealed class CarPhysicsService
             var hasDefinition = ini.TryGetValue("setup.ini", out var definition);
             var decoded = new CarSetupDecoder().Decode(baseline ?? [], source.ReadText);
             notes.Add(source.Kind == "packed" ? "Ordinary data.acd decoded in a private, bounded memory cache. Installed files were not changed; cache is cleared when ADT exits." : "Read from the existing unpacked data folder.");
+            if (source.Evidence.MatchingUnpackedCopy)
+                notes.Add("Both data.acd and data are present. Their supported physics files match exactly. ADT uses the complete packed snapshot and checks both copies for changes before saving or staging.");
             notes.Add("File evidence covers supported INI/LUT/RTO/Lua data (the entire archive for packed cars), not external CSP overrides or proof of active in-game settings. Scripts are never executed.");
             if (source.FileNames.Any(x => x.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)))
                 notes.Add("This car includes Lua scripts. Decoded selections describe file mappings only; custom scripted effects are not evaluated.");

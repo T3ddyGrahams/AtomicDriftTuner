@@ -61,13 +61,15 @@ Fingerprints describe files at snapshot time. They do not continuously monitor a
 
 ## Availability and limits
 
-- Ordinary packed data and an unambiguous unpacked `data` folder are supported. If both `data.acd` and `data` are present, ADT does not guess which is active or mix their contents. It falls back with an explanation.
+- Ordinary packed data and an unambiguous unpacked `data` folder are supported. From local preview.24, both may be present if their complete supported INI/LUT/RTO/Lua file sets and bytes match exactly. ADT reads the packed snapshot, records fingerprints for both copies and explains the match. It does not infer which source is active. Missing, extra, differing or unreadable supported files keep this case unavailable with an explanation; files are never merged or modified.
 - Protected, corrupt or unsupported archives are not forced open. A failed read does not prove protection: a renamed car folder, unsupported encoding or damaged data can produce a similar failure. Existing saved-setup and telemetry workflows remain available when import is unavailable.
 - The packed reader supports safe, flat ASCII file names and car identifiers, with UTF-8/ASCII text content. Legacy ANSI text inside a packed archive is currently unsupported. Nested references, inline expressions and custom script-based settings are not decoded.
 - Reads are bounded: up to 64 MiB per archive, 1 MiB per file, 16 MiB of decoded data and 1,024 entries. Unsafe names, duplicates, malformed records and linked source files are refused. Other unsupported settings can still leave useful partial context; missing values and tyre compounds stay unknown.
 - The same saved baseline actually used in game is still needed. Base definitions and a verified file mapping do not prove what is loaded in the pits. A fresh companion capture can provide supported in-game values, but it does not guarantee readback for every custom control.
 - This is not a full physics simulation or an optimal-tune solver. ADT does not derive caster from geometry, evaluate tyre curves/effective grip, resolve spring motion ratios or simulate arbitrary CSP overrides.
 - Existing Desired Behavior, telemetry evidence thresholds and FFB providers remain available. The PitHouse crash-containment and wheel-slip/initiation fixes remain included.
+
+Matching-copy verification runs again before saving or staging, including when the archive is cached. A change to either copy requires reloading and recalculating. Existing packed-only and unpacked-only fingerprints keep their format; introducing or removing a second source changes its evidence. If physics was previously unavailable because both copies were present, record a fresh baseline before judging improvement with the new physics evidence.
 
 ## First tester check
 

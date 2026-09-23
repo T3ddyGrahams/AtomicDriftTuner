@@ -31,10 +31,9 @@ public sealed class CarDataSource
         if (!Directory.Exists(root)) throw new InvalidDataException("The selected car folder is unavailable.");
         RejectLink(root);
         var data = Path.Combine(root, "data"); var archive = Path.Combine(root, "data.acd");
-        if (Directory.Exists(data) && File.Exists(archive))
-            throw new InvalidDataException("Both data.acd and data are present. ADT cannot verify the active source; packed and unpacked files are never mixed.");
         IReadOnlyDictionary<string, byte[]> files;
         var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var matchingUnpackedCopy = false;
         string kind;
         if (File.Exists(archive))
         {
@@ -54,31 +53,54 @@ public sealed class CarDataSource
                     Cache.Add(key, files);
                 }
             }
+            if (Directory.Exists(data))
+            {
+                // CM can leave an exact unpacked copy beside the original archive.
+                // Read both independently and require the complete supported file
+                // sets and bytes to match. Never choose precedence or fill gaps in
+                // one source with files from the other. Recheck on every Open, even
+                // if the packed snapshot came from the cache.
+                var unpacked = ReadUnpacked(data, hashes, "data/");
+                var different = files.Keys.Union(unpacked.Keys, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault(name => !files.TryGetValue(name, out var packedBytes) ||
+                        !unpacked.TryGetValue(name, out var unpackedBytes) || !packedBytes.AsSpan().SequenceEqual(unpackedBytes));
+                if (different is not null)
+                    throw new InvalidDataException($"Both data.acd and data are present, but their supported physics files differ ({different}). " +
+                        "ADT cannot verify which copy is active. Use matching copies or restore the intended car version before calculating again.");
+                matchingUnpackedCopy = true;
+            }
         }
         else if (Directory.Exists(data))
         {
-            kind = "unpacked"; RejectLink(data);
-            var loaded = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-            long total = 0; var count = 0;
-            foreach (var path in Directory.EnumerateFiles(data))
-            {
-                if (++count > 1024) throw new InvalidDataException("This car data folder has too many files for bounded analysis.");
-                var name = Path.GetFileName(path);
-                if (!Extensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)) continue;
-                ValidateName(name);
-                var bytes = ReadBounded(path, MaxFileBytes);
-                total += bytes.Length;
-                if (total > MaxTotalBytes) throw new InvalidDataException("This car has too much physics text for bounded analysis.");
-                if (!loaded.TryAdd(name, bytes)) throw new InvalidDataException("Duplicate car-data filenames cannot be interpreted reliably.");
-                hashes.Add(name.ToLowerInvariant(), Convert.ToHexString(SHA256.HashData(bytes)));
-            }
-            files = new ReadOnlyDictionary<string, byte[]>(loaded);
+            kind = "unpacked";
+            files = ReadUnpacked(data, hashes);
         }
         else throw new InvalidDataException("No data folder or data.acd was found for this car.");
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("adt/car-data/1\n" + kind + "\n" +
             string.Join("\n", hashes.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key + "=" + x.Value)))));
-        return new(files, new() { CarPath = root, Kind = kind, Fingerprint = fingerprint,
+        return new(files, new() { CarPath = root, Kind = kind, Fingerprint = fingerprint, MatchingUnpackedCopy = matchingUnpackedCopy,
             Fingerprints = new ReadOnlyDictionary<string, string>(hashes) });
+    }
+
+    private static IReadOnlyDictionary<string, byte[]> ReadUnpacked(string data, Dictionary<string, string> hashes, string prefix = "")
+    {
+        RejectLink(data);
+        var loaded = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        long total = 0; var count = 0;
+        foreach (var path in Directory.EnumerateFiles(data))
+        {
+            if (++count > 1024) throw new InvalidDataException("This car data folder has too many files for bounded analysis.");
+            var name = Path.GetFileName(path);
+            if (!Extensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)) continue;
+            ValidateName(name);
+            var bytes = ReadBounded(path, MaxFileBytes);
+            total += bytes.Length;
+            if (total > MaxTotalBytes) throw new InvalidDataException("This car has too much physics text for bounded analysis.");
+            if (!loaded.TryAdd(name, bytes)) throw new InvalidDataException("Duplicate car-data filenames cannot be interpreted reliably.");
+            hashes.Add(prefix + name.ToLowerInvariant(), Convert.ToHexString(SHA256.HashData(bytes)));
+        }
+        return new ReadOnlyDictionary<string, byte[]>(loaded);
     }
 
     public string? ReadText(string name)

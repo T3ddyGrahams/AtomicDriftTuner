@@ -8,6 +8,37 @@ internal static class PackedGearingChecks
 {
     public static void Run(Action<string, Action> test, string root)
     {
+        test("gearing loads and exports matching packed and unpacked copies without changing physics", () =>
+        {
+            var f = Fixture(root);
+            UnpackFixture(f);
+            var paths = Directory.GetFiles(f.Car.SourceFolderPath!, "*", SearchOption.AllDirectories);
+            var hashes = paths.ToDictionary(p => p, Hash);
+            var baseline = File.ReadAllText(f.Baseline);
+            var plan = GearingPlanner.Plan(f.Load(), Target());
+            Check(plan.Data.CarDataEvidence?.MatchingUnpackedCopy == true && plan.Recommended.FinalDrive.Ratio == 4,
+                "Matching copies changed gearing calculation or lost provenance");
+            var output = Path.Combine(f.Root, "matching-gearing.ini");
+            f.Service.Save(plan, output);
+            Check(File.ReadAllText(output).Replace("\r\n", "\n").TrimEnd() == baseline.Replace("[FINAL_RATIO]\nVALUE=1", "[FINAL_RATIO]\nVALUE=2").TrimEnd(),
+                "Matching-source export changed unrelated controls");
+            Check(File.ReadAllText(f.Baseline) == baseline && paths.All(p => Hash(p) == hashes[p]), "Export modified baseline or installed physics");
+        });
+        test("gearing refuses stale export after either matching source changes", () =>
+        {
+            foreach (var change in new[] { "unpacked", "packed", "both" })
+            {
+                var f = Fixture(root); UnpackFixture(f);
+                var plan = GearingPlanner.Plan(f.Load(), Target());
+                f.Entries["suspensions.ini"] += "; changed\n";
+                if (change is "unpacked" or "both")
+                    File.WriteAllText(Path.Combine(f.Car.SourceFolderPath!, "data", "suspensions.ini"), f.Entries["suspensions.ini"]);
+                if (change is "packed" or "both") f.Repack();
+                var output = Path.Combine(f.Root, "stale-matching.ini");
+                Refuse(() => f.Service.Save(plan, output));
+                Check(!File.Exists(output), "Changed dual source produced a stale gearing file");
+            }
+        });
         test("packed gearing decodes saved indexes in file order with source evidence", () =>
         {
             var f = Fixture(root);
@@ -111,6 +142,12 @@ internal static class PackedGearingChecks
     }
 
     private static GearingTarget Target() => new() { MinimumSpeedKmh = 60, MaximumSpeedKmh = 100, MinimumRpm = 3100, MaximumRpm = 5400 };
+    private static void UnpackFixture(PackedFixture fixture)
+    {
+        var data = Path.Combine(fixture.Car.SourceFolderPath!, "data");
+        Directory.CreateDirectory(data);
+        foreach (var file in fixture.Entries) File.WriteAllText(Path.Combine(data, file.Key), file.Value);
+    }
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
     private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static void Near(double actual, double expected, double tolerance) => Check(Math.Abs(actual - expected) <= tolerance, $"Expected {expected}, got {actual}");

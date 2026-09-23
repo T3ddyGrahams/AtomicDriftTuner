@@ -1,5 +1,9 @@
 # ADT regression checks
 
+## Matching car-data copies (local preview.24)
+
+`MatchingCarDataChecks` verifies exact supported file-set/byte equality, independent source fingerprints, unchanged single-source fingerprint formats, differing/missing/extra files, cache revalidation, changes to either or both copies, source removal and resource limits. `PackedGearingChecks` loads, calculates and exports a matching-copy fixture, verifies that only the output final-drive selection changes, and refuses stale export after either source changes. All writes use isolated fixture cars; actual installed-car validation is read-only.
+
 ## Pit setup application (local preview.15)
 
 The regression runner passes 165 scenarios, including strict immutable setup plans, stale/range/step validation, at-most-once admission, matching and idempotent completion, restore authorization, unknown-result recovery, and real paired HTTP checks. Existing tuning calculations and the 8,000-combination range sweep remain covered. The Lua 5.1 suites pass 388 assertions, including 196 simulated pit-operation and 32 pit-transport assertions; no game APIs or user setup files are changed by these tests.

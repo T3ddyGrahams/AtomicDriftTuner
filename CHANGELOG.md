@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.24 — Allow verified matching car-data copies
+
+- Read cars with both `data.acd` and an unpacked `data` folder when their complete supported INI/LUT/RTO/Lua file sets and bytes match exactly. Read one complete packed snapshot and fingerprint both copies; never combine files or assume source precedence.
+- Keep conflicting, incomplete and unreadable copies blocked with an explanation. Recheck the unpacked copy even when the archive is cached, and invalidate saving/staging if either source changes.
+- Explain verified matching copies in gearing and car-physics review. Preserve the preview.23 recording fix, existing tuning calculations, and all installed car files. Existing single-source fingerprints retain their format.
+- Local test build only; public preview.17 is unchanged. Record a fresh baseline when previously unavailable car physics becomes readable.
+
 ## Local v0.9.0-preview.23 — Preserve telemetry while the interface is busy
 
 - Retain each fresh physics sample in a background recording buffer. Desktop, companion and touchscreen status updates no longer limit recording to the latest frame available when the desktop interface refreshes.

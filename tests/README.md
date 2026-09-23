@@ -39,6 +39,8 @@ The WPF runner exercises actual recorder start/stop/save handlers with an anonym
 
 Run just these checks with `dotnet run --project tests/AtomicDriftTuner.LayoutTests -c Release -- . artifacts/recording-recovery --recorder-recovery`. They also run in the full WPF suite. Live driving is still required to confirm the cause of the user-reported second-run stop.
 
+Preview.23 adds recording-buffer checks: an anonymous shared-memory producer and the real background sampler run while the WPF thread stalls for 350 ms four times. The recorder must retain the acquired frames without quarter-second gaps. Deterministic cases cover batched catch-up, pending frames on stop/save, source timestamps, real gaps, timely recovery before a delayed UI tick, resets hidden inside a batch, stop-time context changes, bounded overflow and new-run isolation. `TelemetryBufferChecks` also verifies duplicate polls, independent snapshot/recording copies and buffer detachment. No real game mapping, wheelbase or user-history writes are used.
+
 The guided-workflow preview brings the suite to **50 scenarios** and layout coverage to **252 geometry assertions**. New checks cover workflow ordering, generated-versus-ready state, changed goals/settings, optional integration guidance, installed/offline distinctions, driver/car/intent isolation, reopening, reset/corruption preservation and incomplete recordings. See [guided test steps](../docs/GUIDED_WORKFLOW.md). Historical counts below describe the earlier intelligence milestone.
 
 Responsive layout checks (Windows, run from repository root):

@@ -23,6 +23,7 @@ public partial class TelemetryWindow : Window
     private double? _recordingSourceStart;
     private double? _telemetryUnavailableSince;
     private readonly TelemetryHubService _telemetry;
+    private TelemetryRecordingCapture? _recordingCapture;
 
     private readonly TelemetryAnalyzer _analyzer =
         new();
@@ -320,7 +321,7 @@ public partial class TelemetryWindow : Window
         _suggestionApplied =
             false;
 
-        _telemetry.ResetDerivativeState();
+        _recordingCapture = _telemetry.StartRecordingCapture();
 
         _clock.Restart();
 
@@ -370,7 +371,9 @@ public partial class TelemetryWindow : Window
             return;
         }
 
-        var waitingForTelemetry = _telemetryUnavailableSince is not null || !_telemetry.GetSnapshot().Connected;
+        // Fresh background data can arrive before the next UI tick. The final
+        // batch still validates genuine long outages and stream resets below.
+        var waitingForTelemetry = !_telemetry.GetSnapshot().Connected;
         FinalizeRecording(
             interrupted: waitingForTelemetry,
             waitingForTelemetry
@@ -398,11 +401,7 @@ public partial class TelemetryWindow : Window
             if (_recording && _clock.Elapsed.TotalSeconds - _lastIdentityCheck >= 1)
             {
                 _lastIdentityCheck = _clock.Elapsed.TotalSeconds;
-                var identity = _readSessionIdentity();
-                if (identity is not null && _session.Context?.CarIdentityVerified == true &&
-                    (!string.Equals(identity.CarModel, _session.CarFolder, StringComparison.OrdinalIgnoreCase) ||
-                     !string.Equals(identity.Track, _session.Context.TrackId, StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException("Active car or track changed. This recording was stopped to preserve its original context.");
+                if (RecordingIdentityIssue() is { } issue) throw new InvalidOperationException(issue);
             }
             ProcessTelemetrySnapshot(_telemetry.GetSnapshot(), _clock.Elapsed.TotalSeconds);
         }
@@ -415,12 +414,25 @@ public partial class TelemetryWindow : Window
 
     private void ProcessTelemetrySnapshot(TelemetryHubSnapshot hub, double elapsedSeconds)
     {
+        var pending = _recording ? _recordingCapture?.Drain() : null;
         if (_recording && _telemetryUnavailableSince is double unavailableSince &&
-            elapsedSeconds - unavailableSince >= TelemetryRecoverySeconds)
+            elapsedSeconds - unavailableSince >= TelemetryRecoverySeconds &&
+            (_session.Samples.Count == 0 || pending?.Samples.Count is not > 0))
         {
             HandleTelemetryDisconnect(new InvalidOperationException(
                 $"No fresh AC telemetry for {TelemetryRecoverySeconds:0} seconds. " +
                 (hub.Error ?? "The recording's recovery window expired. Return to driving and start a new run.")));
+            return;
+        }
+
+        // The background hub acquires frames even while the dispatcher is busy.
+        // Consume the entire batch before rendering, including the last good
+        // frames before an outage. Never manufacture frames from the cached view.
+        // If telemetry recovered while the UI was blocked, the acquisition times
+        // below determine whether it met the deadline, not the delayed UI tick.
+        if (pending is not null && AppendCapturedFrames(pending) is { } captureIssue)
+        {
+            HandleTelemetryDisconnect(new InvalidOperationException(captureIssue));
             return;
         }
 
@@ -454,30 +466,47 @@ public partial class TelemetryWindow : Window
             return;
         }
 
-        // Never combine a restarted AC physics stream with the previous driving episode.
-        if ((_lastPacketId is int packet && sample.PacketId < packet) ||
-            (_recordingSourceStart is double start && _session.Samples.Count > 0 &&
-             sample.TimeSeconds - start < _session.Samples[^1].TimeSeconds))
-        {
-            HandleTelemetryDisconnect(new InvalidOperationException(
-                "The AC physics stream restarted. Save this partial run, then start a new recording for the current session."));
-            return;
-        }
-
         if (recovered)
             StatusText.Text = "Fresh AC telemetry recovered; recording resumed. Missing time remains a gap in the analysis.";
 
-        if (_lastPacketId == sample.PacketId) return;
-        _recordingSourceStart ??= sample.TimeSeconds;
-        var captured = sample.Copy();
-        captured.TimeSeconds -= _recordingSourceStart.Value;
-        _session.Samples.Add(captured);
-        _lastPacketId = sample.PacketId;
         UpdateLiveEvidence(elapsedSeconds);
         RecordingText.Text = $"Elapsed             {elapsedSeconds,7:0.0} s\n" +
             $"Samples             {_session.Samples.Count,7}\n" +
             $"Current packet      {sample.PacketId,7}\n" +
             $"Current drift       {(IsCurrentDrift(sample) ? "YES" : "no")}";
+    }
+
+    private string? RecordingIdentityIssue()
+    {
+        var identity = _readSessionIdentity();
+        return identity is not null && _session.Context?.CarIdentityVerified == true &&
+            (!string.Equals(identity.CarModel, _session.CarFolder, StringComparison.OrdinalIgnoreCase) ||
+             !string.Equals(identity.Track, _session.Context.TrackId, StringComparison.OrdinalIgnoreCase))
+            ? "Active car or track changed. This recording was stopped to preserve its original context." : null;
+    }
+
+    private string? AppendCapturedFrames(TelemetryRecordingBatch batch)
+    {
+        foreach (var sample in batch.Samples)
+        {
+            var previousTime = _recordingSourceStart is double start && _session.Samples.Count > 0
+                ? start + _session.Samples[^1].TimeSeconds : (double?)null;
+            // Examine every buffered frame: a reset followed by increasing packets
+            // must not be hidden by only checking the latest displayed packet.
+            if ((_lastPacketId is int packet && sample.PacketId < packet) || sample.TimeSeconds < previousTime)
+                return "The AC physics stream restarted. Save this partial run, then start a new recording for the current session.";
+            if (sample.TimeSeconds - previousTime >= TelemetryRecoverySeconds)
+                return $"No fresh AC telemetry for {TelemetryRecoverySeconds:0} seconds. Save this partial run and start a new recording.";
+            if (_lastPacketId == sample.PacketId) continue;
+            _recordingSourceStart ??= sample.TimeSeconds;
+            // The mailbox gives the recorder its own copy, independent of the live display.
+            sample.TimeSeconds -= _recordingSourceStart.Value;
+            _session.Samples.Add(sample);
+            _lastPacketId = sample.PacketId;
+        }
+        return batch.Overflowed
+            ? "ADT could not keep up with the recording buffer. The captured portion is preserved; save it and start a new run."
+            : null;
     }
 
     private void RenderLiveTelemetry(
@@ -513,6 +542,10 @@ public partial class TelemetryWindow : Window
 
         if (_recording)
         {
+            // Do not import a pending batch after a context change or expired
+            // recovery. Frames already accepted remain available as a partial run.
+            if (_recordingCapture is not null) _telemetry.StopRecordingCapture(_recordingCapture);
+            _recordingCapture = null;
             FinalizeRecording(
                 interrupted: true,
                 "Recording interrupted: " +
@@ -541,6 +574,15 @@ public partial class TelemetryWindow : Window
         bool interrupted,
         string statusPrefix)
     {
+        if (_recordingCapture is not null)
+        {
+            var pending = _telemetry.StopRecordingCapture(_recordingCapture);
+            _recordingCapture = null;
+            string? issue;
+            try { issue = RecordingIdentityIssue() ?? AppendCapturedFrames(pending); }
+            catch (Exception ex) { issue = ex.Message; }
+            if (issue is not null) { interrupted = true; statusPrefix = "Recording interrupted: " + issue; }
+        }
         RefreshSetupCapture();
         _recording =
             false;
@@ -924,6 +966,8 @@ public partial class TelemetryWindow : Window
         object? sender,
         EventArgs e)
     {
+        if (_recordingCapture is not null) _telemetry.StopRecordingCapture(_recordingCapture);
+        _recordingCapture = null;
         _recording =
             false;
 

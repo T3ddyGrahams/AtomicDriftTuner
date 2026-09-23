@@ -73,6 +73,7 @@ internal static partial class Program
             for (var i = 0; i < 100; i++)
             {
                 FreshHub(firstPacket + i, start + i * .02);
+                Call(hub, "PublishSampleLocked", Get(hub, "_latest"));
                 Call(window, "ProcessTelemetrySnapshot", hub.GetSnapshot(), i * .02);
             }
         }

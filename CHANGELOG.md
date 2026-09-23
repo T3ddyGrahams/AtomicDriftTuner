@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.23 — Preserve telemetry while the interface is busy
+
+- Retain each fresh physics sample in a background recording buffer. Desktop, companion and touchscreen status updates no longer limit recording to the latest frame available when the desktop interface refreshes.
+- Flush pending frames when stopping and saving. Keep original acquisition timestamps, genuine signal gaps and game-restart/context checks; never interpolate missing data. A bounded buffer preserves the captured prefix and explicitly interrupts the run if ADT cannot keep up.
+- Preserve readiness notifications, goal-specific evidence requirements, setup capture and all tuning/diagnosis calculations. Existing recordings cannot regain missing samples; use a fresh run to verify this correction in game.
+- This is a local test build. Public preview.17 is unchanged. See the [local test notes](docs/releases/v0.9.0-preview.23.md).
+
 ## Local v0.9.0-preview.22 — Recording readiness notifications
 
 - Add prominent recording guidance and Ready to Review banners to desktop, in-game companion and touchscreen. Show every missing goal-specific requirement. Diagnosis thresholds and tuning calculations are unchanged.

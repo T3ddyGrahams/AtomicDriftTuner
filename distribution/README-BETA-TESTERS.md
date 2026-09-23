@@ -1,5 +1,7 @@
 # Atomic Drift Tuner (ADT) — Beta Tester Guide
 
+**Local preview.23 — recording continuity:** ADT now buffers telemetry in the background so busy desktop/status updates do not discard samples. Stop and save include the pending frames. Run a fresh 60–120 second test with the companion or touchscreen connected and check Recording evidence details, then save and record a second run. Genuine outages still count as gaps; the readiness requirements and tuning calculations are unchanged. Companion **0.4.0-preview.3** is unchanged, so this correction only needs the desktop update.
+
 **Local preview.22 — recording guidance:** Desktop, companion and touchscreen now show a prominent evidence banner, missing-goal instructions and **Ready to review**. Stop and save when convenient; recording continues. Optionally enable **Play a ready-to-review chime on this PC** in Telemetry Recorder, or **Play ready chime on this device** on the touchscreen before driving. Disable PC sound if you want only the touchscreen chime. Each sounds once per recording. Ready means useful evidence for review, not proof of improvement.
 
 Supported unnamed numeric setup values are now captured and monitored without guessing their meaning. Their notice limits before/after attribution and pit staging; ordinary run review remains available. Both packages include companion **0.4.0-preview.3**. Update the companion with the game closed, then start a fresh session. Tuning calculations and outstanding audit fixes are unchanged.

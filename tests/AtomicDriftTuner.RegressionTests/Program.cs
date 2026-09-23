@@ -286,6 +286,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         GuidedChecks.Run(Run, root);
         CompanionChecks.Run(Run);
         RecordingEvidenceChecks.Run(Run);
+        TelemetryBufferChecks.Run(Run);
         LiveSetupChecks.Run(Run);
         PitSetupChecks.Run(Run, root);
         PitSetupProtocolChecks.Run(Run, root);

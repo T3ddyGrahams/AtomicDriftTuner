@@ -7,8 +7,8 @@ namespace AtomicDriftTuner.Services;
 /// Process-wide Assetto Corsa telemetry source.
 ///
 /// Only this service owns the AC shared-memory reader. The desktop telemetry
-/// window and ADT Remote consume the same cached physics frames so they cannot
-/// disagree about whether telemetry is available.
+/// window and ADT Remote share its live snapshot. Recordings additionally retain
+/// each acquired frame in a bounded mailbox, independent of display refreshes.
 /// </summary>
 public sealed class TelemetryHubService : IDisposable
 {
@@ -33,6 +33,7 @@ public sealed class TelemetryHubService : IDisposable
     private readonly System.Threading.Timer _pollTimer;
 
     private TelemetrySample? _latest;
+    private readonly HashSet<TelemetryRecordingCapture> _recordings = new();
     private int? _lastObservedPacketId;
     private string? _error;
     private DateTimeOffset? _updatedUtc;
@@ -144,6 +145,31 @@ public sealed class TelemetryHubService : IDisposable
             }
 
             _reader.ResetDerivativeState();
+        }
+    }
+
+    public TelemetryRecordingCapture StartRecordingCapture()
+    {
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            if (!IsSnapshotHealthyLocked())
+                throw new InvalidOperationException("Live AC telemetry is unavailable. Enter an on-track session and try again.");
+            _reader.ResetDerivativeState();
+            var capture = new TelemetryRecordingCapture();
+            _recordings.Add(capture);
+            // No cached frame from before the recording belongs to the new run.
+            return capture;
+        }
+    }
+
+    public TelemetryRecordingBatch StopRecordingCapture(TelemetryRecordingCapture capture)
+    {
+        lock (_gate)
+        {
+            _recordings.Remove(capture);
+            // Detach and take the final batch atomically with respect to sampling.
+            return capture.Drain();
         }
     }
 
@@ -285,15 +311,7 @@ public sealed class TelemetryHubService : IDisposable
                 return true;
             }
 
-            _lastObservedPacketId = sample.PacketId;
-            _latest =
-                sample;
-
-            _updatedUtc =
-                DateTimeOffset.UtcNow;
-
-            _error =
-                null;
+            PublishSampleLocked(sample);
 
             return true;
         }
@@ -304,6 +322,16 @@ public sealed class TelemetryHubService : IDisposable
 
             return false;
         }
+    }
+
+    private void PublishSampleLocked(TelemetrySample sample)
+    {
+        if (_lastObservedPacketId == sample.PacketId) return;
+        _lastObservedPacketId = sample.PacketId;
+        _latest = sample;
+        _updatedUtc = DateTimeOffset.UtcNow;
+        _error = null;
+        foreach (var capture in _recordings) capture.Append(sample);
     }
 
     private void HandleReadFailureLocked(
@@ -404,6 +432,8 @@ public sealed class TelemetryHubService : IDisposable
             }
 
             ClearCurrentSampleLocked();
+
+            _recordings.Clear();
 
             _error =
                 "ADT telemetry service is stopped.";

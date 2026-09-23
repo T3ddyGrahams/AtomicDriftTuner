@@ -8,6 +8,8 @@ Correct setup-value semantics and recommendation attribution before expanding ph
 
 Eight concrete correctness issues were reproduced against the existing preview.21 assemblies. None were fixed in this audit. Production source, installed cars, user setups, calibration and history were unchanged. No release was built or published.
 
+Follow-up, September 23: local preview.27 addresses **A6** while adding a separate descriptive Gearing & ECU review. Regressions cover packed/unpacked sources, saved-only and definition-only ENGINE_LIMITER, fixed-limiter controls and changed limiter evidence at export. Other seven findings below remain open; the new review does not expand automatic tuning or improvement attribution. Its own forward-RPM filter excludes known backward travel without claiming to resolve A8 in the existing handling metrics.
+
 Priority definitions: **P1** should be addressed before relying on the affected generated output or attributing learning to recommendations; **P2** is a demonstrated conditional correctness issue to include in the same corrective phase. These priorities do not assert hardware damage or successful in-game application of an invalid value.
 
 | ID | Priority | Confirmed issue | Main effect |

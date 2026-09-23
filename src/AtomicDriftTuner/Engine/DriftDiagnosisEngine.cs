@@ -12,7 +12,7 @@ public sealed class DriftDiagnosisEngine
     public const double FrontResponseMinimumSteeringDeg = 12;
     public const double FrontResponseMaximumSteeringDeg = 120;
     internal sealed record Frame(TelemetrySample Sample, double Dt);
-    public TelemetryAnalysis Analyze(TelemetrySession session)
+    public TelemetryAnalysis Analyze(TelemetrySession session, bool includePowertrain = true)
     {
         ArgumentNullException.ThrowIfNull(session);
         var r = new TelemetryAnalysis();
@@ -178,6 +178,7 @@ public sealed class DriftDiagnosisEngine
             d.QualityNotes.Add(session.Context.SetupCaptureIssue + " Record a fresh run with a fixed setup before testing a recommendation.");
         if (d.TimelineReset) d.QualityNotes.Add("Recording time or packet sequence restarted. Later frames were ignored; record a fresh uninterrupted run.");
         d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events, driftLimit);
+        if (includePowertrain) d.Powertrain = PowertrainDiagnosisEngine.Analyze(blocks, d.Events, driftLimit, session, r);
         if (d.AngleGoal.Enabled) d.QualityNotes.Add(d.AngleGoal.Summary);
         r.Findings.Add(d.Pedals.Summary);
         r.Findings.AddRange(d.QualityNotes);

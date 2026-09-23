@@ -57,6 +57,12 @@ internal static partial class Program
             if (!app.Resources.Contains("AppBackgroundBrush"))
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
+            if (args.Contains("--powertrain"))
+            {
+                CheckPowertrain(output);
+                CheckAngleSummary(output);
+                return 0;
+            }
             if (args.Contains("--evidence"))
             {
                 CheckEvidenceNotifications(output);
@@ -95,6 +101,7 @@ internal static partial class Program
             }
             CheckCarPhysics(output);
             CheckEvidenceNotifications(output);
+            CheckPowertrain(output);
             CheckFfbProvider(output);
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);

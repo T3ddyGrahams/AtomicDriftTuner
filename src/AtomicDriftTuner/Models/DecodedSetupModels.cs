@@ -10,6 +10,7 @@ public sealed record DecodedSetupSetting(
     string Explanation,
     double? NumericValue = null)
 {
+    public EngineMapDefinition? EngineMap { get; init; }
     public const string Verified = "Verified mapping";
     public const string Partial = "Partial understanding";
     public const string Unsupported = "Unsupported";

@@ -57,7 +57,7 @@ internal static partial class Program
         {
             var tabs = (TabControl)assistant.FindName("AssistantTabs"); var toggle = (CheckBox)assistant.FindName("AdvancedTelemetryToggle");
             assistant.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
-            Check(toggle.IsChecked != true && tabs.Items.OfType<TabItem>().Count(t => t.Visibility == Visibility.Visible) == 3, "Expert tables visible by default");
+            Check(toggle.IsChecked != true && tabs.Items.OfType<TabItem>().Count(t => t.Visibility == Visibility.Visible) == 4, "Expert tables visible by default or powertrain review hidden");
             Check(((TabItem)tabs.SelectedItem).Header.ToString() == "Your next step", "Assistant does not open at the next step");
             var next = new AssistantNextStep { Goal = "Sustain more extreme angle (65–80°)", Noticed = "Synthetic example: your longest controlled hold was 4.0s.",
                 Confidence = "Useful pattern; verify with another run", Instruction = "Keep this setup and record the same section again.", Why = "Synthetic UI test, not a driver's run.", Action = "Evidence", ActionLabel = "Review the attempts" };

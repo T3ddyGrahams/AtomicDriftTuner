@@ -70,7 +70,7 @@ public sealed class GearingDataService
         var axle = traction == "RWD" ? "REAR" : "FRONT";
         var tyreSection = compound == 0 ? axle : $"{axle}_{compound}";
         var radius = Number(tyres.Required(tyreSection, "RADIUS"), 0.1, 1, "driven tyre radius");
-        if (setup.Sections.ContainsKey("LIMITER") || saved.Sections.ContainsKey("LIMITER"))
+        if (new[] { "ENGINE_LIMITER", "LIMITER" }.Any(key => setup.Sections.ContainsKey(key) || saved.Sections.ContainsKey(key)))
             throw new InvalidDataException("This car has an adjustable RPM limiter. Version 1 cannot verify its active value yet.");
         var limiter = Number(engine.Required("ENGINE_DATA", "LIMITER"), 1000, 30000, "engine limiter");
         return new GearingData(baselineFull, carPath, ratios.AsReadOnly(), current, gear, gearRatio, radius, limiter,

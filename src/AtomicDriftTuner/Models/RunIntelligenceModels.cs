@@ -24,6 +24,9 @@ public sealed class TuneVersion
     public string BasePhysicsFingerprint { get; set; } = "";
     public string BasePhysicsStatus { get; set; } = "Not captured in this recording.";
     public List<DecodedSetupSetting> DecodedSetup { get; set; } = [];
+    public PowertrainContext? Powertrain { get; set; }
+    public GearingTarget? GearingTarget { get; set; }
+    public string GearingTargetStatus { get; set; } = "Not captured in this recording.";
     public bool HasUnassignedSetupValues { get; set; }
     public string SetupSource { get; set; } = "";
     public string SetupTrackLayout { get; set; } = "";
@@ -77,6 +80,7 @@ public sealed class DriftDiagnosis
 {
     public string AnalyzerVersion { get; set; } = "drift-diagnosis/3";
     public PedalDiagnosis Pedals { get; set; } = new();
+    public PowertrainDiagnosis Powertrain { get; set; } = new();
     public DriftAngleDiagnosis AngleGoal { get; set; } = new();
     public int InvalidSamples { get; set; }
     public int InvalidWheelSlipSamples { get; set; }

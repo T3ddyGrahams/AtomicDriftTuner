@@ -111,6 +111,8 @@ public sealed class CarPhysicsService
             }
             var hasDefinition = ini.TryGetValue("setup.ini", out var definition);
             var decoded = new CarSetupDecoder().Decode(baseline ?? [], source.ReadText);
+            var powertrain = new CarSetupDecoder().ReadPowertrain(baseline ?? [], source.ReadText);
+            powertrain.PhysicsFingerprint = source.Evidence.Fingerprint;
             notes.Add(source.Kind == "packed" ? "Ordinary data.acd decoded in a private, bounded memory cache. Installed files were not changed; cache is cleared when ADT exits." : "Read from the existing unpacked data folder.");
             if (source.Evidence.MatchingUnpackedCopy)
                 notes.Add("Both data.acd and data are present. Their supported physics files match exactly. ADT uses the complete packed snapshot and checks both copies for changes before saving or staging.");
@@ -118,7 +120,7 @@ public sealed class CarPhysicsService
             if (source.FileNames.Any(x => x.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)))
                 notes.Add("This car includes Lua scripts. Decoded selections describe file mappings only; custom scripted effects are not evaluated.");
             return new() { CarPath = root, CarId = car.SourceFolderName ?? Path.GetFileName(root), Available = facts.Count > 0,
-                SourceEvidence = source.Evidence, DecodedSettings = decoded,
+                SourceEvidence = source.Evidence, DecodedSettings = decoded, Powertrain = powertrain,
                 Fingerprint = source.Evidence.Fingerprint,
                 Status = facts.Count > 0 ? $"Imported {facts.Count} base physics values from {source.Kind} car data. No car files were changed." : $"Read {source.Kind} car data; no supported base values found. Saved-setting decoding is shown below when available.",
                 Facts = facts.AsReadOnly(), Notes = notes.AsReadOnly(), DriveType = drive, HasSetupDefinition = hasDefinition,

@@ -125,6 +125,90 @@
                             <Button x:Name="ShowEvidenceButton" Content="View supporting events" Click="ShowEvidence_Click" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Expander>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Gearing &amp; ECU" FontWeight="Bold" Margin="0,16,0,4"/>
+                    <TextBlock x:Name="PowertrainQuickText" Foreground="{DynamicResource FieldLabelBrush}" Text="Select a run to review RPM and recorded setup evidence." TextWrapping="Wrap"/>
+                    <Button Content="Review gearing &amp; ECU" Click="ShowPowertrain_Click" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                </StackPanel>
+            </TabItem>
+            <TabItem x:Name="PowertrainTab" Header="Gearing &amp; ECU">
+                <StackPanel Margin="12">
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="What the run shows" FontWeight="Bold" FontSize="18"/>
+                    <TextBlock x:Name="PowertrainSummaryText" Foreground="{DynamicResource FieldLabelBrush}" Text="Select a saved run." TextWrapping="Wrap" Margin="0,6,0,8"/>
+                    <TextBlock x:Name="PowertrainTargetText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Next gearing test" FontWeight="Bold"/>
+                    <TextBlock x:Name="PowertrainNextTestText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+                    <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="ECU selection recorded with this run" FontWeight="Bold"/>
+                    <TextBlock x:Name="PowertrainEcuText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="To test ECU: keep gearing fixed, choose one different ECU setting in the pits, confirm the new setup, then record the same section again. Compare RPM, speed retained and control; a map name alone does not show whether it is better." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" Text="Use AC Setup → Gearing to calculate and save a separate test setup. Load or explicitly apply it in the pits before recording again. This review does not change the tune." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Expander x:Name="PowertrainMeasurementsExpander" Header="RPM by gear, driving phase and input events" HorizontalContentAlignment="Stretch">
+                        <StackPanel Margin="8">
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Typical RPM and speed: time-weighted 10th–90th percentiles. Near limiter means near the recorded base definition; actual limiter contact is unverified." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <DataGrid x:Name="PowertrainGearGrid" AutomationProperties.Name="Recorded gearing evidence" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinColumnWidth="80" MinHeight="140" MaxHeight="300" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Gear" Binding="{Binding Gear}" Width="65"/>
+                                    <DataGridTextColumn Header="Drift (s)" Binding="{Binding Seconds, StringFormat=F1}" Width="95"/>
+                                    <DataGridTextColumn Header="Typical RPM" Binding="{Binding RpmBand}" Width="130"/>
+                                    <DataGridTextColumn Header="Median RPM" Binding="{Binding MedianRpm, StringFormat=F0}" Width="115"/>
+                                    <DataGridTextColumn Header="Typical km/h" Binding="{Binding SpeedBand}" Width="130"/>
+                                    <DataGridTextColumn Header="High throttle (s)" Binding="{Binding HighThrottleSeconds, StringFormat=F1}" Width="135"/>
+                                    <DataGridTextColumn Header="Chosen RPM band" Binding="{Binding TargetExposure}" ElementStyle="{StaticResource AssistantTableText}" Width="230"/>
+                                    <DataGridTextColumn Header="Near base limiter" Binding="{Binding LimiterExposure}" Width="150"/>
+                                    <DataGridTextColumn Header="Recorded gear ratio" Binding="{Binding RecordedRatio, StringFormat=F3, TargetNullValue=Unknown}" Width="160"/>
+                                    <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="100"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Where the RPM occurs" FontWeight="Bold" Margin="0,12,0,6"/>
+                            <DataGrid x:Name="PowertrainPhaseGrid" AutomationProperties.Name="RPM by drift phase" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinColumnWidth="80" MinHeight="130" MaxHeight="260" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Gear" Binding="{Binding Gear}" Width="65"/>
+                                    <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="235"/>
+                                    <DataGridTextColumn Header="Seconds" Binding="{Binding Seconds, StringFormat=F1}" Width="100"/>
+                                    <DataGridTextColumn Header="Median RPM" Binding="{Binding MedianRpm, StringFormat=F0}" Width="120"/>
+                                    <DataGridTextColumn Header="Typical RPM" Binding="{Binding RpmBand}" Width="140"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="Repeated periods — select for full input context" FontWeight="Bold" TextWrapping="Wrap" Margin="0,12,0,6"/>
+                            <DataGrid x:Name="PowertrainEventGrid" AutomationProperties.Name="Gearing input events" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinColumnWidth="80" MinHeight="130" MaxHeight="280" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Observation" Binding="{Binding Kind}" Width="230"/>
+                                    <DataGridTextColumn Header="Gear" Binding="{Binding Gear}" Width="65"/>
+                                    <DataGridTextColumn Header="Start (s)" Binding="{Binding StartSeconds, StringFormat=F1}" Width="100"/>
+                                    <DataGridTextColumn Header="Duration (s)" Binding="{Binding DurationSeconds, StringFormat=F1}" Width="110"/>
+                                    <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="235"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock x:Name="PowertrainEventDetailText" Foreground="{DynamicResource FieldLabelBrush}" Text="{Binding SelectedItem.Evidence, ElementName=PowertrainEventGrid, TargetNullValue='Select an event to inspect throttle, brake, clutch and RPM context.'}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Expander>
+                    <Expander x:Name="PowertrainSourceExpander" Header="Recorded definitions, ECU curve and limitations" HorizontalContentAlignment="Stretch" Margin="0,10,0,0">
+                        <StackPanel Margin="8">
+                            <TextBlock x:Name="PowertrainSetupText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Selected ECU curve: configured torque multiplier, not measured horsepower. Points are retained with new run snapshots." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <DataGrid x:Name="PowertrainMapGrid" AutomationProperties.Name="Recorded ECU curve points" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="120" MaxHeight="230" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="RPM" Binding="{Binding Rpm, StringFormat=F0}" Width="130"/>
+                                    <DataGridTextColumn Header="Configured multiplier" Binding="{Binding Multiplier, StringFormat=F3}" Width="210"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock x:Name="PowertrainLimitationsText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Expander>
+                    <Expander x:Name="PowertrainComparisonExpander" Header="Compare gearing and ECU evidence with the selected baseline" HorizontalContentAlignment="Stretch" Margin="0,10,0,0">
+                        <StackPanel Margin="8">
+                            <Button x:Name="PowertrainBaselineButton" Content="Choose baseline in Before / After" HorizontalAlignment="Left" Click="PowertrainBaseline_Click" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="PowertrainComparisonText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <DataGrid x:Name="PowertrainComparisonGrid" AutomationProperties.Name="Gearing and ECU run differences" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinColumnWidth="100" MinHeight="140" MaxHeight="320" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Observation" Binding="{Binding Metric}" Width="200"/>
+                                    <DataGridTextColumn Header="Baseline" Binding="{Binding Previous}" ElementStyle="{StaticResource AssistantTableText}" Width="230"/>
+                                    <DataGridTextColumn Header="Selected run" Binding="{Binding Current}" ElementStyle="{StaticResource AssistantTableText}" Width="230"/>
+                                    <DataGridTextColumn Header="Change" Binding="{Binding Change}" Width="130"/>
+                                    <DataGridTextColumn Header="Meaning" Binding="{Binding Interpretation}" ElementStyle="{StaticResource AssistantTableText}" Width="360"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Assessment" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">

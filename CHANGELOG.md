@@ -2,6 +2,15 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.27 — Gearing and ECU run review
+
+- Add a **Gearing & ECU** tab to the Tuning Assistant: time-weighted RPM/speed ranges by forward gear, RPM through drift phases, high-throttle exposure, and repeated input events. Detailed tables stay collapsed until requested; all text uses customizable theme colors.
+- Snapshot the car's saved gearing target, verified final/gear ratio mappings, base limiter and supported selected ECU curve with new tune/run history. Target mismatches apply only to the requested gear and speed range. Later car-file/target edits do not reinterpret historical context. Older runs retain observed RPM without inventing missing definitions.
+- Offer cautious one-change gearing tests only with reliable repeated evidence, recorded target/ratios, known extended/direction signals and confirmed setup/car identity. Explain how to test ECU separately; an unnamed selection, custom script or Race Fuel label does not establish power. Configured torque multipliers are file context, not measured horsepower.
+- Add descriptive before/after gearing and ECU differences, including a warning when both selections changed. This review does not change handling/FFB formulas, assign recommendation credit, auto-apply a tune or claim an improvement.
+- Resolve audit A6: recognize **ENGINE_LIMITER** in definitions and saved setups, so unsupported adjustable limiters cannot pass fixed-limiter gearing estimates. Base-RPM proximity is explicitly not confirmed limiter contact. Seven other audit findings remain pending.
+- Local desktop test build only; public preview.17 and companion 0.4.0-preview.4 are unchanged. Detailed powertrain analysis runs on saved-run review, outside the live readiness loop.
+
 ## Local v0.9.0-preview.26 — Explain recording progress and allow partial review
 
 - Separate the front-response cornering requirement from axle-slip evidence. Show seconds collected and explain ordinary cornering at 30+ km/h. Counters accumulate across shorter sections; no single ten-second drift or corner is required.

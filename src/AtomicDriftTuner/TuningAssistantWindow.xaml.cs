@@ -450,6 +450,7 @@ public partial class TuningAssistantWindow : Window
         PedalContextGrid.ItemsSource = pedals.ContextMetrics;
         PedalSummaryText.Text = pedals.Summary;
         PedalLimitationsText.Text = pedals.Limitations;
+        RenderPowertrain(selected, previous, report.Outcome);
         QualityText.Text = string.Join("\n", selected.Analysis.Diagnosis.QualityNotes) +
             $"\nDrift exposure: left {selected.Analysis.Diagnosis.LeftDriftSeconds:0.0}s / right {selected.Analysis.Diagnosis.RightDriftSeconds:0.0}s; " +
             $"below 50 km/h {selected.Analysis.Diagnosis.LowSpeedSeconds:0.0}s / 50–90 {selected.Analysis.Diagnosis.MediumSpeedSeconds:0.0}s / above 90 {selected.Analysis.Diagnosis.HighSpeedSeconds:0.0}s.";
@@ -562,6 +563,7 @@ public partial class TuningAssistantWindow : Window
         PedalContextGrid.ItemsSource = null;
         PedalSummaryText.Text = "Select a saved run to inspect pedal inputs and the surrounding response.";
         PedalLimitationsText.Text = "";
+        RenderPowertrain(null, null, null);
         TuneChangesGrid.ItemsSource = null;
         TuneHistoryBox.ItemsSource = null;
         ReviewHistoryBox.ItemsSource = null;

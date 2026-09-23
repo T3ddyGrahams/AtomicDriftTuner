@@ -7,7 +7,7 @@ namespace AtomicDriftTuner.Services;
 /// Interprets only documented, explicit mappings. The supplied reader owns source selection,
 /// immutable reads and fingerprints. This class neither accesses disk nor runs mod code.
 /// </summary>
-public sealed class CarSetupDecoder
+public sealed partial class CarSetupDecoder
 {
     private const int MaxText = 1024 * 1024;
     private const int MaxRows = 4096;
@@ -196,7 +196,8 @@ public sealed class CarSetupDecoder
             var range = min == max ? $"{F(min)}×" : $"{F(min)}–{F(max)}×";
             return new(p.Section, p.CurrentRaw, DecodedSetupSetting.Verified,
                 $"{name} (map {mapIndex}; configured torque multiplier {range}, {F(points[0].Rpm)}–{F(points[^1].Rpm)} RPM)",
-                $"{selectedSource} → {mapFile}", MapLimit);
+                $"{selectedSource} → {mapFile}", MapLimit)
+            { EngineMap = new(mapIndex, name, points.Select(p => new EngineMapPoint(p.Rpm, p.Multiplier)).ToArray()) };
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
@@ -271,6 +272,8 @@ public sealed class CarSetupDecoder
     {
         private readonly Dictionary<string, Dictionary<string, string>> _sections = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _invalid = new(StringComparer.OrdinalIgnoreCase);
+        public bool Contains(string section) => _sections.ContainsKey(section) || _invalid.Contains(section);
+        public bool ContainsPrefix(string prefix) => _sections.Keys.Concat(_invalid).Any(s => s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         public Ini(string text)
         {
             string? current = null;

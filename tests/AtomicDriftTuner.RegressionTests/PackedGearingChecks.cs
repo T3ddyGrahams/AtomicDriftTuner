@@ -8,6 +8,18 @@ internal static class PackedGearingChecks
 {
     public static void Run(Action<string, Action> test, string root)
     {
+        test("packed gearing refuses real adjustable limiter controls and changed limiter evidence on export", () =>
+        {
+            foreach (var savedOnly in new[] { true, false })
+            {
+                var f = Fixture(root); var plan = GearingPlanner.Plan(f.Load(), Target());
+                if (savedOnly) File.AppendAllText(f.Baseline, "\n[ENGINE_LIMITER]\nVALUE=80\n");
+                else { f.Entries["setup.ini"] += "\n[ENGINE_LIMITER]\nMIN=70\nMAX=100\n"; f.Repack(); }
+                Refuse(() => f.Load());
+                var output = Path.Combine(f.Root, "changed-limiter.ini"); Refuse(() => f.Service.Save(plan, output));
+                Check(!File.Exists(output), "Changed limiter created a stale packed setup");
+            }
+        });
         test("gearing loads and exports matching packed and unpacked copies without changing physics", () =>
         {
             var f = Fixture(root);

@@ -40,6 +40,22 @@ Reading is bounded: at most 1 MiB per car-data file, 16 MiB of decoded data, 64 
 
 Saving separately rechecks the baseline fingerprint and the source snapshot, reloads the definitions, recomputes the recommendation, and uses the existing guarded setup writer. Packed evidence covers the entire archive. Unpacked evidence covers the supported INI/LUT/RTO/Lua files, including ratio lists. Verified matching copies fingerprint and recheck both sources, even when the archive is cached. Changed files, a missing source or newly conflicting copies require recalculation. Fingerprints do not monitor external CSP files or prove active in-game physics. Targets persist under `%LOCALAPPDATA%/AtomicDriftTuner/gearing-targets/`, keyed by the same car/pack identity used for behavior profiles.
 
+## Gearing & ECU run review (local preview.27)
+
+1. Open **AC Setup → Gearing**. Choose your actual drift gear, speed range and preferred RPM range, then **Save target for this car**. The example RPM range is not a detected power band.
+2. Prepare a fresh recording with the correct car and setup. Confirm the setup in use, record the same section with normal inputs, stop and save. The run retains its target, readable gear definitions and supported ECU curve; later changes do not rewrite it.
+3. Open **Tuning Assistant → Gearing & ECU**. The first view explains what the run shows and the next test. Expand the measurements for typical RPM/speed by gear, drifting portions of initiation/transition, and individual input episodes.
+4. For a gearing test, keep ECU fixed. Use the existing final-drive planner to review an option and save a separate test setup. Load or explicitly apply that setup in the pits, confirm it in the recorder, then drive the same section again. The evidence review itself never changes a tune.
+5. For an ECU test, return to the same gearing and change only the ECU selection in the pits. Confirm the new setup, record again and choose the original run in **Before / After**. Return to **Gearing & ECU** and expand its comparison. Compare speed retained and control alongside RPM, and repeat before drawing conclusions.
+
+Typical ranges are the time-weighted 10th–90th percentiles, not single peaks. Below/above-target seconds use only the saved gear and speed window. A concrete gearing test needs reliable telemetry, at least 20s of usable forward RPM evidence, at least 10s in the target gear, verified recorded final/gear ratios, known extended and travel-direction signals, and confirmed car/setup identity. Repeated patterns require at least three same-gear episodes totaling 3s; an episode lasts at least 0.5s without a large raw clutch change. Low-RPM and near-limiter hypotheses require high throttle and little braking. These provisional thresholds identify a test, not insufficient engine power or actual limiter activation.
+
+The near-limiter column means RPM at or above 97% of the recorded **base** limiter definition. Adjustable `ENGINE_LIMITER`/`LIMITER` controls make this reference unavailable for that measurement; the planner also refuses their unsupported active value. ECU, turbo, controllers or scripts can alter behavior beyond the base definition.
+
+Supported ECU mappings retain their ordered RPM/torque-multiplier curve. The review looks up configured values only inside its recorded range, using linear interpolation and no extrapolation. It does not measure horsepower, reconstruct delivered torque or verify that a map was active. Unnamed VALUE fields, nonmatching LUT indexes and unsupported scripts remain unknown. In particular, older S13 test files with unnamed ECU values cannot establish which map caused a change. No new ECU writer is included.
+
+Old recordings can show raw RPM but lack these new snapshots. Today's physics and targets are never backfilled into them. The new comparison is descriptive and does not enter the existing improvement scoring or recommendation-credit logic; those separate audit findings remain open. Existing handling, pedal, angle and FFB calculations are preserved. The new detailed analysis is skipped during live recording-readiness checks.
+
 ## Verification
 
 - Synthetic regressions cover non-monotonic ratio lists, gearsets, adjustable gears, tyre compound/drive axle, invalid inputs, limiter exclusion, partial/no-op results, stale data, wrong-car baselines, source preservation, single-parameter exports and per-car persistence.

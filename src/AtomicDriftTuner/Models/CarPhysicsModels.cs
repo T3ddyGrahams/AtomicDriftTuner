@@ -14,6 +14,7 @@ public sealed record CarPhysicsSnapshot
     public CarDataEvidence? SourceEvidence { get; init; }
     public IReadOnlyList<DecodedSetupSetting> DecodedSettings { get; init; } = Array.Empty<DecodedSetupSetting>();
     public string Fingerprint { get; init; } = "";
+    public PowertrainContext? Powertrain { get; init; }
     public string DriveType { get; init; } = "";
     public bool HasSetupDefinition { get; init; }
     public IReadOnlyList<string> AdjustableSections { get; init; } = Array.Empty<string>();

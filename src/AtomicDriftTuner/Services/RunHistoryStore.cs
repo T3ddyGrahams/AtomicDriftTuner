@@ -61,7 +61,7 @@ public sealed class RunHistoryStore
 
     public TuneVersion CaptureTune(TuneInput input, DriverIdentity driver, string label, CarBehaviorTarget behavior,
         CalibrationProfile? calibration, string? setupPath = null, AzomUserPreferences? preferences = null, TuningFocus focus = TuningFocus.Both,
-        CapturedCarSetup? capturedSetup = null, FfbProvider ffbProvider = FfbProvider.SimHubAzom)
+        CapturedCarSetup? capturedSetup = null, FfbProvider ffbProvider = FfbProvider.SimHubAzom, GearingTargetStore? gearingTargets = null)
     {
         Id(driver.Id);
         var version = new TuneVersion { DriverId = driver.Id, ContextKey = ContextKey(input), Label = Text(label, "Tune version name"), DesiredBehavior = Clone(behavior), Focus = focus, FfbProvider = ffbProvider };
@@ -127,6 +127,14 @@ public sealed class RunHistoryStore
         version.BasePhysicsFingerprint = physics.Fingerprint;
         version.BasePhysicsStatus = physics.Status;
         version.DecodedSetup = physics.DecodedSettings.ToList();
+        version.Powertrain = physics.Powertrain;
+        try
+        {
+            version.GearingTarget = (gearingTargets ?? new GearingTargetStore()).Load(input);
+            version.GearingTargetStatus = version.GearingTarget is null ? "No saved gearing target when this run was prepared." : "Using the gearing target saved for this car when the run was prepared.";
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
+        { version.GearingTargetStatus = "The saved gearing target could not be read. No example or inferred RPM band was substituted."; }
         SaveTune(version);
         return Clone(version);
     }
@@ -173,7 +181,8 @@ public sealed class RunHistoryStore
         v.DecodedSetup is not null && v.DecodedSetup.Count <= 2000 && v.DecodedSetup.All(d => d is not null &&
             d.Status is DecodedSetupSetting.Verified or DecodedSetupSetting.Partial or DecodedSetupSetting.Unsupported &&
             new[] { d.Section, d.SavedValue, d.Value, d.Source, d.Explanation }.All(t => t is not null && t.Length <= 8000) &&
-            (d.NumericValue is null || double.IsFinite(d.NumericValue.Value))) &&
+            (d.NumericValue is null || double.IsFinite(d.NumericValue.Value)) && PowertrainValidation.Valid(d)) &&
+        PowertrainValidation.Valid(v) &&
         Enum.IsDefined(v.Focus) && Enum.IsDefined(v.FfbProvider) &&
         Guid.TryParseExact(v.DriverId, "N", out _) && !string.IsNullOrWhiteSpace(v.ContextKey) && v.Label is not null && v.SetupFileName is not null &&
         v.SetupSha256 is not null && v.SetupSource is not null && v.SetupTrackLayout is not null && v.Settings is not null && v.DesiredBehavior is not null && v.DesiredBehavior.ValidAngleGoal && v.Settings.Count <= 2000 && v.Settings.Values.All(double.IsFinite) &&

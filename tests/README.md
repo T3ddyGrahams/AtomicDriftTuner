@@ -1,5 +1,13 @@
 # ADT regression checks
 
+## Gearing and ECU review (local preview.27)
+
+`PowertrainChecks` covers saved/fixed/individual/gearset decoding, missing and ambiguous selections, forward-gear numbering, backward/invalid/frozen/excluded frames, 15–100 Hz and uneven time weighting, saved target gear/speed windows, gaps/shifts/clutch/brake episode boundaries, confirmed context, base-versus-adjustable limiter evidence, bounded ECU lookup, unknown selections, descriptive comparison, packed/unpacked immutable snapshots, invalid metadata, legacy recordings and unchanged handling/FFB analysis. Gearing checks cover real `ENGINE_LIMITER` in both definition-only and saved-only cases and stale export after its introduction. The suite passes 311 regression groups, including the existing 8,000-combination tuning sweep.
+
+`dotnet run --project tests/AtomicDriftTuner.LayoutTests -- . artifacts/powertrain-wpf --powertrain` checks the always-visible review tab, collapsed details, full selected-event text, baseline navigation, custom colors, narrow/portrait/wide reachability and clearing stale results. It also runs the existing angle/next-step UI checks. Live readiness skips the extra powertrain work; the detailed review never writes a car tune or attributes an improvement.
+
+Read-only replay of five recent S14/350Z runs matched all pre-existing analysis fields from the preview.26 release assembly exactly. Old runs acquired no target or ECU curves. Separate current-file inspection resolved saved gearing without rewriting history or installed physics. A 162,430-sample stress replay completed in roughly 0.5 seconds on the development PC; timing is not a hardware guarantee. Synthetic and saved-run checks do not replace a fresh in-game before/after test.
+
 ## Recording progress and partial review (local preview.26)
 
 `RecordingEvidenceChecks` covers short-section accumulation, separate front-response and axle-slip counters, normal-cornering eligibility, the 60-second usable-drift threshold, unchanged measured evidence and goal snapshots, missing angle recovery, interrupted/poor-quality/lost-setup guards and once-only notifications through partial-to-full readiness. WPF `--evidence`, companion UI fixtures and the touchscreen browser suite exercise the explicit partial-review heading and visible limitations with the existing recording controls. These tests do not establish driving quality or resolve the separate tuning-engine audit findings.

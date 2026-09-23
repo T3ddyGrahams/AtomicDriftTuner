@@ -55,7 +55,7 @@ public sealed class RecordingEvidenceService
             return Current;
         // Only the lightweight run diagnosis is used: no tune generation, file IO or history scans.
         var snapshot = new TelemetrySession { Context = _capturedContext, Samples = session.Samples };
-        _analysis = _diagnosis.Analyze(snapshot);
+        _analysis = _diagnosis.Analyze(snapshot, includePowertrain: false);
         _analyzedCount = session.Samples.Count; _lastUpdateSeconds = elapsedSeconds;
         return Current = FromAnalysis(snapshot, _analysis);
     }

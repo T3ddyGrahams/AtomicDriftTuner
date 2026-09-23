@@ -92,6 +92,20 @@ internal static class GearingChecks
             f = Fixture(root); File.Delete(Path.Combine(f.DataPath, "engine.ini")); Refuse(() => f.Load());
             f = Fixture(root); f.Car.SourceFolderPath = Path.Combine(f.Root, "missing"); Refuse(() => f.Load());
         });
+        test("gearing recognizes ENGINE_LIMITER in saved and definition-only setups", () =>
+        {
+            foreach (var savedOnly in new[] { true, false })
+            {
+                var f = Fixture(root);
+                File.AppendAllText(savedOnly ? f.Baseline : Path.Combine(f.DataPath, "setup.ini"),
+                    "\n[ENGINE_LIMITER]\n" + (savedOnly ? "VALUE=80\n" : "MIN=70\nMAX=100\nSTEP=1\n"));
+                Refuse(() => f.Load());
+                f = Fixture(root); var plan = GearingPlanner.Plan(f.Load(), Target());
+                File.AppendAllText(savedOnly ? f.Baseline : Path.Combine(f.DataPath, "setup.ini"), "\n[ENGINE_LIMITER]\nVALUE=80\n");
+                var output = Path.Combine(f.Root, "changed-limiter.ini"); Refuse(() => f.Service.Save(plan, output));
+                Check(!File.Exists(output), "Changed limiter created a stale setup");
+            }
+        });
         test("gearing rejects malformed indexes ratios paths and duplicate setup values", () =>
         {
             foreach (var bad in new[] { "-1", "1.5", "NaN", "Infinity", "3" })

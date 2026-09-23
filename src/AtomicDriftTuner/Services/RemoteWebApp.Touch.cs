@@ -142,7 +142,7 @@ function notifyEvidenceReady(r){
   if(evidenceNotified.has(key))return;
   evidenceNotified.add(key);if(evidenceNotified.size>64)evidenceNotified.delete(evidenceNotified.values().next().value);
   try{sessionStorage.setItem('adt.evidence.notified',JSON.stringify([...evidenceNotified]));}catch{}
-  toast('Enough evidence to review. Stop and save when ready.');
+  toast(r.evidence.hasGoalLimitations===true?'Partial review is available. Some goal measurements are still missing. Stop and save when ready.':'Enough evidence to review. Stop and save when ready.');
   if(!$('evidenceSound').checked)return;
   if(evidenceAudio?.state!=='running'){$('evidenceSoundStatus').textContent='Tap the sound checkbox to enable audio for the next run. Visual guidance remains active.';return;}
   try{
@@ -216,7 +216,7 @@ function renderControl(){
   $('controlEvidence').textContent=r?.evidence?.message||'';
   const ready=r?.state==='recording'&&r?.evidence?.state==='ready'&&r?.evidence?.readyToReview===true;
   $('evidenceBanner').classList.toggle('ready',ready);
-  $('evidenceHeading').textContent=ready?'READY TO REVIEW':r?.state==='recording'?(r?.evidence?.heading||'COLLECTING EVIDENCE'):r?.state==='unsaved'?'SAVE YOUR RUN':r?.state==='saved'?'RUN SAVED':'RECORDING GUIDANCE';
+  $('evidenceHeading').textContent=ready?(r.evidence.heading||'READY TO REVIEW'):r?.state==='recording'?(r?.evidence?.heading||'COLLECTING EVIDENCE'):r?.state==='unsaved'?'SAVE YOUR RUN':r?.state==='saved'?'RUN SAVED':'RECORDING GUIDANCE';
   $('evidenceNeeded').textContent=Array.isArray(r?.evidence?.neededEvidence)?r.evidence.neededEvidence.slice(1).map(x=>'• '+x).join('\n'):'';
   notifyEvidenceReady(r);
   $('controlEvidenceDetails').textContent=r?.evidence?.details||'';

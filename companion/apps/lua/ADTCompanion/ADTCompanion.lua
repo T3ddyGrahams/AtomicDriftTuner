@@ -20,7 +20,9 @@ function script.update(dt)
     if preferences.lastReadyRun ~= key then
       preferences.lastReadyRun = key
       if type(ui.toast) == 'function' and ui.Icons then
-        pcall(ui.toast, ui.Icons.Confirm, 'ADT: Enough evidence to review. Stop and save when ready.')
+        pcall(ui.toast, ui.Icons.Confirm, e.hasGoalLimitations == true
+          and 'ADT: Partial review is available. Some goal measurements are still missing. Stop and save when ready.'
+          or 'ADT: Enough evidence to review. Stop and save when ready.')
       end
     end
   end
@@ -286,8 +288,10 @@ function script.windowMain(dt)
   local evidence = status.recorder and status.recorder.evidence
   if status.recorder and status.recorder.state == 'recording' and type(evidence) == 'table'
     and evidence.readyToReview == true and evidence.state == 'ready' then
-    ui.textColored('READY TO REVIEW', good)
-    ui.textWrapped('Enough evidence collected. Stop and save when ready. Recording continues.')
+    ui.textColored(value(evidence.heading, 'READY TO REVIEW'), good)
+    ui.textWrapped(evidence.hasGoalLimitations == true
+      and 'Some goal measurements are still missing. Stop and save for a partial review, or open Record for collection instructions. Recording continues.'
+      or 'Enough evidence collected. Stop and save when ready. Recording continues.')
   end
   local w = client:workflowState()
   ui.tabBar('adtTabs', function()

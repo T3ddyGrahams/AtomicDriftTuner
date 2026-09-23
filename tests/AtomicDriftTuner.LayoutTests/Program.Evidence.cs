@@ -31,11 +31,21 @@ internal static partial class Program
             Set(window, "_telemetryUnavailableSince", null); RenderEvidence(window);
             if (sounds != 1) throw new Exception("Reconnection replayed readiness chime.");
             var session = (TelemetrySession)Get(window, "_session");
-            session.Id = Guid.NewGuid().ToString("N"); RenderEvidence(window);
+            var partial = ready with { HasGoalLimitations = true,
+                Message = "Useful drift is ready for partial review. Stop and save, or continue for the missing goals. Front response: 3.0 / 10 s total. Drive normal corners at 30+ km/h without drifting.",
+                NeededEvidence = new[] { "Front response: 3.0 / 10 s total. Drive normal corners at 30+ km/h without drifting.", "Axle-slip evidence: 2.0 / 10 s total. Include sustained drift with usable front and rear wheel-slip readings." } };
+            session.Id = Guid.NewGuid().ToString("N"); Set(window, "_evidence", partial); RenderEvidence(window);
             if (sounds != 2) throw new Exception("New recording did not notify.");
+            if (((TextBlock)window.FindName("EvidenceHeadingText")).Text != "READY FOR PARTIAL REVIEW" ||
+                !((TextBlock)window.FindName("EvidenceMessageText")).Text.Contains("normal corners") ||
+                !((TextBlock)window.FindName("EvidenceNeededText")).Text.Contains("Axle-slip"))
+                throw new Exception("Partial review hides its remaining evidence requirements.");
+            Set(window, "_evidence", ready); RenderEvidence(window);
+            if (sounds != 2) throw new Exception("Completing all goals repeated the partial-review notification.");
             Set(window, "_evidence", ready with { State = "more-evidence", ReadyToReview = false, Message = "Record more clean entries.", NeededEvidence = new[] { "Record more clean entries.", "Include clean transitions.", "Hold the requested angle, then recover." } });
             RenderEvidence(window);
             if (((TextBlock)window.FindName("EvidenceNeededText")).Visibility != Visibility.Visible) throw new Exception("Missing-goal checklist is hidden.");
+            Set(window, "_evidence", partial); RenderEvidence(window);
             var root = (FrameworkElement)window.Content;
             window.Content = null;
             root.Resources.MergedDictionaries.Add(window.Resources);
@@ -43,7 +53,7 @@ internal static partial class Program
             foreach (var size in new[] { new Size(430, 700), new Size(800, 480), new Size(1500, 800) })
             {
                 Layout(root, size);
-                foreach (var name in new[] { "EvidenceHeadingText", "EvidenceNeededText", "ReadyChimeCheck", "EvidenceBanner" })
+                foreach (var name in new[] { "EvidenceHeadingText", "EvidenceMessageText", "EvidenceNeededText", "ReadyChimeCheck", "EvidenceBanner" })
                     AssertReachableByScrolling(root, "TelemetryBodyScroll", name, size);
                 Render(root, size, Path.Combine(output, $"Evidence-{size.Width}-{size.Height}.png"));
             }

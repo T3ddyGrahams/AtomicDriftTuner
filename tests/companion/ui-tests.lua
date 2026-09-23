@@ -158,8 +158,16 @@ check(not joined:find('READY TO REVIEW') and joined:find('Need transitions'),'re
 readyRun.recorder.evidence={state='ready',readyToReview=true,heading='READY TO REVIEW',message='Ready'}
 poll(readyRun); script.update(0)
 check(readyToasts==1,'readiness fluctuation repeated a toast')
+readyRun.recorder.evidence={state='ready',readyToReview=true,hasGoalLimitations=true,heading='READY FOR PARTIAL REVIEW',message='Stop and save. Front response: 3.0 / 10 s total. Drive normal corners.',neededEvidence={'Front response: 3.0 / 10 s total.','Axle-slip evidence: 2.0 / 10 s total.'}}
 readyRun.recorder.sessionId='new-run';poll(readyRun);script.update(0)
 check(readyToasts==2,'new recording did not notify')
+joined=draw(nil,'Record')
+check(joined:find('READY FOR PARTIAL REVIEW') and joined:find('normal corners') and joined:find('Axle%-slip'),'partial review hides missing measurements')
+joined=draw(nil,'Findings')
+check(joined:find('READY FOR PARTIAL REVIEW'),'partial review missing outside Record tab')
+readyRun.recorder.evidence={state='ready',readyToReview=true,heading='READY TO REVIEW',message='Ready'}
+poll(readyRun);script.update(0)
+check(readyToasts==2,'full evidence repeated partial-review notification')
 script.update(4);joined=draw()
 check(not joined:find('READY TO REVIEW') and readyToasts==2,'stale connection kept readiness')
 reply(readyRun);script.update(0)

@@ -12,10 +12,13 @@ public sealed record RecordingEvidenceProgress
     public int Transitions { get; init; }
     public int CompletedAngleAttempts { get; init; }
     public bool ReadyToReview { get; init; }
+    /// <summary>Review is useful, but the listed goals still lack sufficient measured evidence.</summary>
+    public bool HasGoalLimitations { get; init; }
     public bool IsProvisional { get; init; } = true;
     public IReadOnlyList<string> NeededEvidence { get; init; } = Array.Empty<string>();
     public string Heading => State switch
     {
+        "ready" when ReadyToReview && HasGoalLimitations => "READY FOR PARTIAL REVIEW",
         "ready" when ReadyToReview => "READY TO REVIEW",
         "more-evidence" => "KEEP COLLECTING",
         "interrupted" or "setup-unverified" => "RUN NEEDS ATTENTION",

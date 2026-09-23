@@ -8,6 +8,101 @@ internal static class RecordingEvidenceChecks
 {
     internal static void Run(Action<string, Action> test)
     {
+        test("front guidance separates normal cornering from axle slip and shows measurable progress", () =>
+        {
+            var session = Continuous(40, goal: new() { FrontEndBite = 1 });
+            foreach (var sample in session.Samples.Where(s => s.TimeSeconds >= 37)) sample.SlipAngleDeg = 5;
+            var analysis = new DriftDiagnosisEngine().Analyze(session);
+            var progress = RecordingEvidenceService.FromAnalysis(session, analysis);
+            Check(!progress.ReadyToReview && progress.NeededEvidence.Count == 1 && progress.Message.Contains("/ 10 s") &&
+                progress.Message.Contains("normal corners") && progress.Message.Contains("30"), "Front requirement hid its progress or driving task");
+            Check(progress.Details.Contains("12–120") && progress.Details.Contains("8°"), "Front acceptance conditions are missing");
+            foreach (var sample in session.Samples.Where(s => s.TimeSeconds >= 28)) sample.SlipAngleDeg = 5;
+            Check(new RecordingEvidenceService().Update(session, 40).ReadyToReview, "Normal cornering did not complete the front requirement");
+            foreach (var sample in session.Samples) sample.InvalidWheelSlipSignals = true;
+            progress = new RecordingEvidenceService().Update(session, 40);
+            Check(!progress.ReadyToReview && progress.NeededEvidence.Count == 1 && progress.Message.Contains("Axle-slip") &&
+                !progress.Message.Contains("normal corners"), "Missing wheel-slip evidence was mislabeled as missing normal cornering");
+        });
+        test("a long useful run allows partial review without inventing front-response evidence", () =>
+        {
+            var session = Continuous(121, goal: new() { FrontEndBite = 1 });
+            var original = JsonSerializer.Serialize(session);
+            var analysis = new DriftDiagnosisEngine().Analyze(session);
+            var originalAnalysis = JsonSerializer.Serialize(analysis);
+            var progress = RecordingEvidenceService.FromAnalysis(session, analysis);
+            Check(progress.ReadyToReview && progress.State == "ready" && progress.Heading == "READY FOR PARTIAL REVIEW" && progress.NeededEvidence.Count == 1,
+                "Useful drift remained stuck behind missing normal cornering");
+            Check(progress.Message.Contains("Stop and save") && progress.Message.Contains(progress.NeededEvidence[0]) &&
+                progress.Details.Contains("remain insufficient"), "Partial review hid its limitation or next step");
+            Check(analysis.Diagnosis.Metric("front-response") is { Value: null, Confidence: "LOW" } &&
+                originalAnalysis == JsonSerializer.Serialize(analysis) && original == JsonSerializer.Serialize(session),
+                "Partial readiness altered measured evidence or the saved goal");
+        });
+        test("front and drift evidence accumulates across several short corners", () =>
+        {
+            var session = Continuous(60, goal: new() { FrontEndBite = 1 });
+            foreach (var sample in session.Samples)
+                sample.SlipAngleDeg = sample.TimeSeconds % 6 < 3 ? 5 : 30;
+            var analysis = new DriftDiagnosisEngine().Analyze(session);
+            var progress = RecordingEvidenceService.FromAnalysis(session, analysis);
+            Check(analysis.Diagnosis.Metric("front-response")?.EvidenceSeconds > 29 && analysis.DriftTimeSeconds > 29,
+                "Short sections did not accumulate useful time");
+            Check(progress.ReadyToReview && !progress.HasGoalLimitations && progress.NeededEvidence.Count == 0 &&
+                progress.Details.Contains("shorter sections"), "Readiness required an uninterrupted ten-second section");
+        });
+        test("front response does not count straight slow or high-slip driving as normal cornering", () =>
+        {
+            foreach (var kind in new[] { "slow", "straight", "large-steer", "sliding" })
+            {
+                var session = Continuous(40, goal: new() { FrontEndBite = 1 });
+                foreach (var sample in session.Samples.Where(s => s.TimeSeconds >= 25))
+                {
+                    sample.SlipAngleDeg = kind == "sliding" ? 9 : 5;
+                    sample.SpeedKmh = kind == "slow" ? 29 : 40;
+                    sample.SteeringAngleDeg = kind == "straight" ? 11 : kind == "large-steer" ? 121 : 30;
+                }
+                var progress = new RecordingEvidenceService().Update(session, 40);
+                Check(!progress.ReadyToReview && progress.Message.Contains("0.0 / 10 s total"), "Wrong normal-cornering eligibility: " + kind);
+            }
+        });
+        test("partial review requires sixty usable drift seconds rather than wall-clock time", () =>
+        {
+            var session = Continuous(60, goal: new() { FrontEndBite = 1 });
+            var service = new RecordingEvidenceService();
+            Check(!service.Update(session, 500).ReadyToReview, "Elapsed time bypassed the useful drift threshold");
+            Add(session, 60, 60.04);
+            Check(service.Update(session, 501, force: true).Heading == "READY FOR PARTIAL REVIEW", "Enough usable drift did not permit limited review");
+            var mostlyIdle = Continuous(120, goal: new() { FrontEndBite = 1 });
+            foreach (var sample in mostlyIdle.Samples.Where(s => s.TimeSeconds >= 30)) sample.SpeedKmh = 0;
+            Check(!new RecordingEvidenceService().Update(mostlyIdle, 120).ReadyToReview, "Idle time counted toward partial review");
+        });
+        test("partial review never bypasses poor telemetry or interruption", () =>
+        {
+            var sparse = Continuous(120, hz: 5, goal: new() { FrontEndBite = 1 });
+            Check(!new RecordingEvidenceService().Update(sparse, 120).ReadyToReview, "Low sample rate became ready for partial review");
+            var interrupted = Continuous(120, goal: new() { FrontEndBite = 1 });
+            interrupted.Context!.Interrupted = true;
+            Check(!new RecordingEvidenceService().Update(interrupted, 120).ReadyToReview, "Interrupted run became ready");
+            var reset = Continuous(120, goal: new() { FrontEndBite = 1 });
+            reset.Samples.Add(new TelemetrySample { TimeSeconds = 0, PacketId = 1, SpeedKmh = 60, SlipAngleDeg = 30 });
+            Check(!new RecordingEvidenceService().Update(reset, 121).ReadyToReview, "Reset timeline became ready");
+            var changedSetup = Continuous(120, goal: new() { FrontEndBite = 1 });
+            changedSetup.Context!.SetupCaptureIssue = "Setup changed";
+            Check(!new RecordingEvidenceService().Update(changedSetup, 120).ReadyToReview, "Lost setup evidence became ready");
+        });
+        test("partial review keeps every missing goal and notifies once before full coverage", () =>
+        {
+            var session = Continuous(70, goal: new() { FrontEndBite = 1, InitiationSharpness = 1, TransitionSpeed = 1 });
+            var limited = new RecordingEvidenceService().Update(session, 70);
+            Check(limited.ReadyToReview && limited.Heading == "READY FOR PARTIAL REVIEW" && limited.NeededEvidence.Count == 3,
+                "Partial review dropped a missing goal");
+            var gate = new RecordingReadyNotification();
+            Check(gate.Observe(session.Id, true, limited, true), "Partial review did not notify");
+            var full = new RecordingEvidenceProgress { State = "ready", ReadyToReview = true };
+            Check(!gate.Observe(session.Id, true, full, true), "Full coverage replayed this run's notification");
+            Check(gate.Observe("next", true, full, true), "Next run notification was lost");
+        });
         test("ready notification sounds once per recording, never for stale stopped or muted evidence", () =>
         {
             var gate = new RecordingReadyNotification();
@@ -121,7 +216,11 @@ internal static class RecordingEvidenceChecks
             foreach (var s in angle.Samples) s.LongitudinalVelocityMs = null;
             var missing = new RecordingEvidenceService().Update(angle, 60);
             Check(!missing.ReadyToReview && missing.CompletedAngleAttempts == 0 && missing.Message.Contains("complete holds"),
-                "Missing recovery evidence was called ready");
+                "Missing recovery evidence was called ready before the partial-review threshold");
+            Add(angle, 60, 61);
+            missing = new RecordingEvidenceService().Update(angle, 61);
+            Check(missing.ReadyToReview && missing.HasGoalLimitations && missing.CompletedAngleAttempts == 0 && missing.Message.Contains("complete holds"),
+                "Partial review invented completed attempts or hid missing angle evidence");
         });
         test("long-recording live guidance has a bounded workload and preserves raw samples", () =>
         {

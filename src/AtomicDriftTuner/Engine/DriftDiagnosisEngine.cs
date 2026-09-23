@@ -6,6 +6,11 @@ namespace AtomicDriftTuner.Engine;
 /// <summary>Time-weighted phase observations; not tire-force or hands-off measurements.</summary>
 public sealed class DriftDiagnosisEngine
 {
+    public const double MinimumMetricConfidenceSeconds = 10;
+    public const double FrontResponseMinimumSpeedKmh = 30;
+    public const double FrontResponseMaximumSlipDeg = 8;
+    public const double FrontResponseMinimumSteeringDeg = 12;
+    public const double FrontResponseMaximumSteeringDeg = 120;
     internal sealed record Frame(TelemetrySample Sample, double Dt);
     public TelemetryAnalysis Analyze(TelemetrySession session)
     {
@@ -119,7 +124,8 @@ public sealed class DriftDiagnosisEngine
         d.Events = d.Events.OrderBy(e => e.StartSeconds).ToList();
         r.OscillationEvents = d.Events.Count(e => e.Phase == "Steering oscillation proxy");
         var slip = steady.Where(f => ValidWheelSlip(f.Sample) && Math.Abs(f.Sample.FrontWheelSlipAvg) + Math.Abs(f.Sample.RearWheelSlipAvg) > .01).ToList();
-        var front = frames.Where(f => f.Sample.SpeedKmh >= 30 && Math.Abs(f.Sample.SlipAngleDeg) <= 8 && Math.Abs(f.Sample.SteeringAngleDeg) is >= 12 and <= 120).ToList();
+        var front = frames.Where(f => f.Sample.SpeedKmh >= FrontResponseMinimumSpeedKmh && Math.Abs(f.Sample.SlipAngleDeg) <= FrontResponseMaximumSlipDeg &&
+            Math.Abs(f.Sample.SteeringAngleDeg) is >= FrontResponseMinimumSteeringDeg and <= FrontResponseMaximumSteeringDeg).ToList();
         var response = new List<Frame>();
         foreach (var continuous in blocks)
         {
@@ -134,7 +140,7 @@ public sealed class DriftDiagnosisEngine
         void Metric(string key, string name, double? value, string unit, double seconds, int events, string evidence, bool proxy = true)
         {
             d.Metrics.Add(new RunMetric { Key = key, Name = name, Value = value, Unit = unit, EvidenceSeconds = seconds, Events = events, Evidence = evidence,
-                Confidence = value is null || seconds < 10 || (events >= 0 && events < 3) ? "LOW" : !proxy && seconds >= 40 && (events < 0 || events >= 8) ? "HIGH" : "MEDIUM" });
+                Confidence = value is null || seconds < MinimumMetricConfidenceSeconds || (events >= 0 && events < 3) ? "LOW" : !proxy && seconds >= 40 && (events < 0 || events >= 8) ? "HIGH" : "MEDIUM" });
         }
         Metric("initiation", "Initiation rise time", entries.Count >= 3 ? Median(entries.Select(e => e.DurationSeconds)) : null, "s", r.DriftTimeSeconds, entries.Count,
             "Median 5° to sustained 20° body-slip rise; technique clues do not prove clutch-kick or handbrake use.", false);

@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.26 — Explain recording progress and allow partial review
+
+- Separate the front-response cornering requirement from axle-slip evidence. Show seconds collected and explain ordinary cornering at 30+ km/h. Counters accumulate across shorter sections; no single ten-second drift or corner is required.
+- After 60 seconds of usable drift with reliable telemetry, offer **READY FOR PARTIAL REVIEW** when a goal still lacks measurements. Keep every missing requirement visible. Full readiness remains available as soon as the existing goal checks pass. Stop/save stays manual; the existing optional notification sounds once for either review state.
+- Preserve all measured values, confidence thresholds, comparison rules and tuning calculations. Partial review never invents front response, completed angle attempts or improvement. Interrupted, poor-quality and lost-setup recordings do not gain readiness. Companion 0.4.0-preview.4 and touchscreen distinguish partial review in banners and notifications; update the companion with the game closed.
+- Includes the earlier local fixes. Local test build only; the eight separate tuning-engine audit findings remain pending and public preview.17 is unchanged.
+
 ## Local v0.9.0-preview.25 — Preserve readable physics sections
 
 - Keep independently readable physics sections when an auxiliary section contains malformed text. Explain the excluded section; duplicate fields/sections and uncertain section boundaries remain unknown. This recovers readable suspension values in cars whose damage section contains un-commented notes.

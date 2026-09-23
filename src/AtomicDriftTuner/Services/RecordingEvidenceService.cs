@@ -12,6 +12,8 @@ public sealed class RecordingEvidenceService
 {
     public const int MaximumLiveSamples = 100_000;
     public const int LongRecordingSamples = 15_000;
+    // A review opportunity, not a replacement for any diagnosis or comparison threshold.
+    public const double PartialReviewDriftSeconds = 60;
     private readonly DriftDiagnosisEngine _diagnosis = new();
     private TelemetrySession? _session;
     private string _sessionId = "";
@@ -78,6 +80,7 @@ public sealed class RecordingEvidenceService
         var summary = $"{progress.UsableDriftSeconds:0.0}s useful drift; {progress.Entries} entries; {progress.Transitions} transitions.";
         var quality = analysis.Diagnosis;
         var details = summary + " Only valid, continuous driving counts; gaps, pit/AI driving, off-track frames and impact windows are excluded when the signals are available. " +
+            "Drift and cornering time add up across shorter sections; they do not need one uninterrupted ten-second corner or drift. Individual entries, transitions and angle attempts still need complete clean windows. " +
             "This guide updates periodically. Enough to review means evidence is available, not that the tune is better; the full analysis may still request another run.";
         if (quality.TimelineReset)
             return progress with { State = "interrupted", Message = "The telemetry session restarted. Save it, then record a fresh run.", Details = details };
@@ -91,6 +94,7 @@ public sealed class RecordingEvidenceService
         var goal = session.Context?.Tune?.DesiredBehavior;
         var needed = new List<string>();
         bool Missing(string key) => quality.Metric(key) is not { Value: not null, Confidence: "MEDIUM" or "HIGH" };
+        string Seconds(string key) => (Math.Floor(Math.Max(0, quality.Metric(key)?.EvidenceSeconds ?? 0) * 10) / 10).ToString("0.0");
         if (goal is not null && TuningFocusOptions.IncludesCar(session.Context!.Focus))
         {
             if (goal.HasAngleGoal && Missing("angle-recovery"))
@@ -100,18 +104,38 @@ public sealed class RecordingEvidenceService
             if (goal.TransitionSpeed != 0 && Missing("transition"))
                 needed.Add($"For your transition goal, include clean direction changes ({analysis.TransitionCount} / 3 recorded).");
             if (goal.SelfSteerSpeed != 0 && Missing("self-steer"))
-                needed.Add("For your steering-response goal, include more clean transition time. At least three transitions and ten seconds of transition evidence are needed.");
+                needed.Add("For your steering-response goal, include more clean transition time. At least three transitions and ten seconds total across transitions are needed.");
             if (goal.AngleStability != 0 && Missing("stability"))
                 needed.Add("For your stability goal, include more sustained drift between entries and transitions.");
             if (goal.RearGrip != 0 && Missing("rear-slip-share"))
                 needed.Add("For your rear-grip goal, include more sustained drift with useful wheel-slip readings.");
-            if (goal.FrontEndBite != 0 && (Missing("front-response") || Missing("front-slip-share")))
-                needed.Add("For your front-response goal, include steady cornering as well as sustained drift.");
+            if (goal.FrontEndBite != 0)
+            {
+                if (Missing("front-response"))
+                {
+                    needed.Add($"Front response: {Seconds("front-response")} / {DriftDiagnosisEngine.MinimumMetricConfidenceSeconds:0} s total. Drive normal corners at {DriftDiagnosisEngine.FrontResponseMinimumSpeedKmh:0}+ km/h without drifting.");
+                    details += $" Front-response time counts valid samples at {DriftDiagnosisEngine.FrontResponseMinimumSpeedKmh:0}+ km/h, body slip at most {DriftDiagnosisEngine.FrontResponseMaximumSlipDeg:0}°, and absolute recorded steering angle {DriftDiagnosisEngine.FrontResponseMinimumSteeringDeg:0}–{DriftDiagnosisEngine.FrontResponseMaximumSteeringDeg:0}°. Collect {DriftDiagnosisEngine.MinimumMetricConfidenceSeconds:0} seconds total; drifting alone does not complete this measurement.";
+                }
+                if (Missing("front-slip-share"))
+                {
+                    needed.Add($"Axle-slip evidence: {Seconds("front-slip-share")} / {DriftDiagnosisEngine.MinimumMetricConfidenceSeconds:0} s total. Include sustained drift with usable front and rear wheel-slip readings.");
+                    if (quality.InvalidWheelSlipSamples > 0)
+                        details += " Some wheel-slip readings are unusable; extra driving cannot guarantee this measurement will become available for this car.";
+                }
+            }
             if (goal.ThrottleSteering != 0 && Missing("throttle-rotation"))
                 needed.Add("For your throttle-response goal, include more sustained drift on power.");
         }
         if (needed.Count > 0)
-            return progress with { State = "more-evidence", Message = needed[0], NeededEvidence = needed.AsReadOnly(), Details = string.Join("\n", needed) + "\n" + details };
+        {
+            if (analysis.DriftTimeSeconds >= PartialReviewDriftSeconds)
+                return progress with { State = "ready", ReadyToReview = true, HasGoalLimitations = true,
+                    Message = "Useful drift is ready for partial review. Stop and save, or continue for the missing goals. " + needed[0],
+                    NeededEvidence = needed.AsReadOnly(),
+                    Details = "The listed goals remain insufficient. Saving lets you review the available evidence; it does not fill missing measurements or prove improvement.\n" + string.Join("\n", needed) + "\n" + details };
+            return progress with { State = "more-evidence", Message = needed[0], NeededEvidence = needed.AsReadOnly(),
+                Details = string.Join("\n", needed) + "\n" + details + $" You may stop and save at any time. With reliable telemetry, partial-review guidance appears after {PartialReviewDriftSeconds:0} seconds of useful drift even if some goals remain incomplete." };
+        }
         return progress with { State = "ready", ReadyToReview = true, Message = "Enough evidence to review. Stop and save when ready.", Details = details };
     }
 }

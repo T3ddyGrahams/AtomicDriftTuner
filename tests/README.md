@@ -1,5 +1,9 @@
 # ADT regression checks
 
+## Recording progress and partial review (local preview.26)
+
+`RecordingEvidenceChecks` covers short-section accumulation, separate front-response and axle-slip counters, normal-cornering eligibility, the 60-second usable-drift threshold, unchanged measured evidence and goal snapshots, missing angle recovery, interrupted/poor-quality/lost-setup guards and once-only notifications through partial-to-full readiness. WPF `--evidence`, companion UI fixtures and the touchscreen browser suite exercise the explicit partial-review heading and visible limitations with the existing recording controls. These tests do not establish driving quality or resolve the separate tuning-engine audit findings.
+
 ## Partial physics import (local preview.25)
 
 `PartialPhysicsChecks` covers malformed auxiliary text with packed/unpacked/matching sources, whole-section exclusion for duplicate fields/sections, malformed-header boundaries, unassigned values, unchanged valid differential scaling, explicit unsupported differential values and resource limits. The WPF car-physics fixture verifies recovered suspension context and uncertainty messages, including first/last-line reachability of the expanded details at small, portrait and wide sizes. Real-car inspection uses read-only hashes and does not save or apply settings.

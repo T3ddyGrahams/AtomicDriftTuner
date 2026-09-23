@@ -2,6 +2,13 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.22 — Recording readiness notifications
+
+- Add prominent recording guidance and Ready to Review banners to desktop, in-game companion and touchscreen. Show every missing goal-specific requirement. Diagnosis thresholds and tuning calculations are unchanged.
+- Add an optional once-per-recording PC chime in Telemetry Recorder and a separate opt-in touchscreen device chime. Reconnects, readiness fluctuations and repeated polls do not replay a notification. Recording continues until the driver stops it. Companion 0.4.0-preview.3 also shows a one-time in-game toast.
+- Accept a bounded numeric unnamed setup value at the root or under an empty section for read-only live capture when named controls are present. Preserve it in the fingerprint/history and flag its unidentified meaning. Do not guess an ECU mapping; before/after attribution and guarded pit staging remain restricted. Malformed, duplicate and nonnumeric data remain rejected.
+- Include the companion CSP compatibility correction in both desktop bundles and the game package. Live-game acceptance and the separate tuning-engine audit fixes remain pending.
+
 ## Local companion 0.4.0-preview.2 — CSP setup capture compatibility
 
 - Accept CSP's callable car-reader API in current-setup capture and guarded pit preflight. The old function-only check incorrectly reported a supported CSP API as unavailable.

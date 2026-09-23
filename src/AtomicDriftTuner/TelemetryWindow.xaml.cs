@@ -83,6 +83,9 @@ public partial class TelemetryWindow : Window
         _session =
             NewSession();
 
+        ReadyChimeCheck.IsChecked = new AppSettingsStore().Load().RecordingReadyChime;
+        _evidencePreferencesReady = true;
+
         try
         {
             DriverBox.ItemsSource = _history.ListDrivers();

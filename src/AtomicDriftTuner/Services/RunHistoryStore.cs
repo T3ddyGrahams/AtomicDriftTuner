@@ -95,6 +95,8 @@ public sealed class RunHistoryStore
             if (!string.Equals(capturedSetup.CarId, input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("The live setup belongs to another car.");
             foreach (var value in capturedSetup.Values) version.Settings[value.Key] = value.Value;
+            version.HasUnassignedSetupValues = capturedSetup.UnassignedValue.HasValue;
+            if (capturedSetup.UnassignedValue is double unnamed) version.Settings["ACUnassigned.VALUE"] = unnamed;
             version.SetupFileName = "Current CSP setup";
             version.SetupSha256 = capturedSetup.Sha256;
             version.SetupSource = capturedSetup.Source;

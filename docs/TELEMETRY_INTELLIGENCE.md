@@ -1,5 +1,9 @@
 # Telemetry intelligence preview
 
+Preview.22 adds prominent evidence banners on desktop, companion and touchscreen. All missing goal-specific requirements are visible. Ready to Review uses the existing usable-drift, reliability and goal checks. The optional desktop PC chime and touchscreen device chime each sound once per recording; browser audio requires a touch/keyboard gesture after loading. Reconnects and readiness fluctuations do not repeat them. Missing telemetry, interrupted recordings and stopped/saved runs withdraw live readiness. Recording continues until explicitly stopped. Readiness means useful evidence for review, not proof of improvement; tuning calculations and thresholds are unchanged.
+
+Live capture accepts one unnamed numeric VALUE at the root or under `[]` when named controls are also present. Its number is preserved separately in the fingerprint/history, with no inferred ECU/control identity. Changes invalidate confirmation and mixed-run attribution. History flags the unidentified control and keeps before/after attribution inconclusive; guarded pit staging still refuses these baselines. Duplicate, malformed, nonnumeric and unbounded data remain rejected.
+
 Local preview.19 separates unusable wheel-slip readings from core motion evidence. A wheel-slip spike no longer erases an otherwise valid entry or transition. Bad readings are excluded from axle-slip metrics and affected pedal-slip comparisons; analysis reports their count separately. Invalid motion, gaps and excluded driving still break phase evidence. Initiation rise time still requires three complete entries; linked transitions are not fresh initiations. Saved recordings are reanalyzed when loaded, without rewriting their raw samples.
 
 Introduced in development preview 1 and included in public beta **0.9.0-preview.3**. Driving validation with real cars and drivers is still required. See the [release notes](releases/v0.9.0-preview.3.md).

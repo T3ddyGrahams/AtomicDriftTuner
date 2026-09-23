@@ -111,7 +111,7 @@ public sealed class RecordingEvidenceService
                 needed.Add("For your throttle-response goal, include more sustained drift on power.");
         }
         if (needed.Count > 0)
-            return progress with { State = "more-evidence", Message = needed[0], Details = string.Join("\n", needed) + "\n" + details };
+            return progress with { State = "more-evidence", Message = needed[0], NeededEvidence = needed.AsReadOnly(), Details = string.Join("\n", needed) + "\n" + details };
         return progress with { State = "ready", ReadyToReview = true, Message = "Enough evidence to review. Stop and save when ready.", Details = details };
     }
 }

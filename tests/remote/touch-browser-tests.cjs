@@ -13,9 +13,9 @@ const launcher=fs.readFileSync(path.join(output,'launch.html'),'utf8');
 new vm.Script(dash.match(/<script>([\s\S]*?)<\/script>/)[1]);
 let calls=[],offline=false,token='fixture-token',version=0,current=40,writeAllowed=true;
 let state='ready',canStart=true,canStop=false,canSave=false;
-let commandDelay=0;
+let commandDelay=0,evidenceReady=true,runId='fixture-run';
 let dropCommandReply=false,carName='Example drift car';
-const recorder=()=>({evidence:{message:'Enough evidence to review. Stop and save when ready.',details:'Useful drift: 25 seconds; final analysis remains authoritative.'},setupMessage:'Current setup captured from CSP: 8 numeric values.',windowId:'a'.repeat(32),sessionId:'fixture-run',controlVersion:version.toString(16).padStart(64,'0'),car:'Example drift car',driver:'Test driver',state,canStart,canStop,canSave,samples:state==='ready'?0:3000,elapsedSeconds:state==='ready'?0:75,message:state==='ready'?'Ready to record.':state==='recording'?'Recording in ADT.':state==='unsaved'?'Stop complete. Save your run.':'Session saved.'});
+const recorder=()=>({evidence:{state:evidenceReady?'ready':'more-evidence',readyToReview:evidenceReady,heading:evidenceReady?'READY TO REVIEW':'KEEP COLLECTING',neededEvidence:evidenceReady?[]:['Need clean entries','Need clean transitions'],message:evidenceReady?'Enough evidence to review. Stop and save when ready.':'Need clean entries',details:'Useful drift: 25 seconds; final analysis remains authoritative.'},setupMessage:'Current setup captured from CSP: 8 numeric values.',windowId:'a'.repeat(32),sessionId:runId,controlVersion:version.toString(16).padStart(64,'0'),car:'Example drift car',driver:'Test driver',state,canStart,canStop,canSave,samples:state==='ready'?0:3000,elapsedSeconds:state==='ready'?0:75,message:state==='ready'?'Ready to record.':state==='recording'?'Recording in ADT.':state==='unsaved'?'Stop complete. Save your run.':'Session saved.'});
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
   const send=(status,value,type='application/json',headers={})=>{res.writeHead(status,{'Content-Type':type,...headers});res.end(type==='application/json'?JSON.stringify(value):value);};
@@ -65,6 +65,15 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   const simhubBase='http://127.0.0.1:'+simhub.address().port;
   browser=await chromium.launch({headless:true,channel:'msedge'});
   const context=await browser.newContext({viewport:{width:1280,height:720},hasTouch:true});
+  await context.addInitScript(()=>{
+    window.testReadyChimes=0;
+    window.AudioContext=class {
+      constructor(){this.state='suspended';this.currentTime=0;this.destination={};}
+      resume(){this.state='running';return Promise.resolve();}
+      createGain(){return {connect(){},disconnect(){},gain:{setValueAtTime(){},linearRampToValueAtTime(){}}};}
+      createOscillator(){return {connect(){},disconnect(){},frequency:{setValueAtTime(){}},start(){window.testReadyChimes++;},stop(){this.onended?.();}};}
+    };
+  });
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   for(const [width,height] of [[800,480],[320,568],[1024,600]]){
@@ -114,6 +123,30 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   check(await page.locator('#recordStart').isDisabled(),'Double tap not blocked');
   await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
   check(calls.filter(x=>x==='start').length===1,'Start sent more than once');
+  await page.waitForFunction(()=>document.getElementById('evidenceBanner').classList.contains('ready'));
+  check(await page.locator('#evidenceHeading').innerText()==='READY TO REVIEW'&&await page.evaluate(()=>testReadyChimes)===0,'Ready banner missing or muted audio played');
+  await page.locator('#evidenceSound').check();
+  await page.evaluate(()=>renderControl());
+  check(await page.evaluate(()=>testReadyChimes)===0,'Enabling sound replayed an old event');
+  evidenceReady=false;
+  await page.waitForFunction(()=>document.getElementById('evidenceHeading').textContent==='KEEP COLLECTING');
+  check((await page.locator('#evidenceNeeded').innerText()).includes('Need clean transitions'),'Missing goal instructions hidden');
+  evidenceReady=true;
+  await page.waitForFunction(()=>document.getElementById('evidenceBanner').classList.contains('ready'));
+  check(await page.evaluate(()=>testReadyChimes)===0,'Readiness fluctuation replayed audio');
+  runId='next-recording';
+  await page.waitForFunction(()=>testReadyChimes===1);
+  await page.evaluate(()=>{renderControl();renderControl();});
+  check(await page.evaluate(()=>testReadyChimes)===1&&calls.join(',')==='start','Chime repeated or readiness stopped recording');
+  offline=true;
+  await page.waitForFunction(()=>document.getElementById('evidenceHeading').textContent==='WAITING FOR CONNECTION');
+  check(!await page.locator('#evidenceBanner').evaluate(el=>el.classList.contains('ready')),'Offline banner retained readiness');
+  offline=false;
+  await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
+  check(await page.evaluate(()=>testReadyChimes)===1,'Reconnect replayed chime');
+  await page.reload();
+  await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
+  check(await page.evaluate(()=>testReadyChimes)===0&&await page.locator('#evidenceSound').isChecked(),'Reload replayed notification or lost sound preference');
   for(const [width,height] of [[800,480],[480,800],[1920,1080]]){
     await page.setViewportSize({width,height});
     await page.waitForFunction(()=>!document.getElementById('recordStop').disabled);
@@ -132,7 +165,7 @@ const check=(value,message)=>{assert.ok(value,message);checks++;};
   offline=true;
   await page.waitForFunction(()=>document.getElementById('recordStart').disabled&&document.getElementById('connection').textContent.includes('Disconnected'));
   check(await page.locator('#recordStop').isDisabled()&&await page.locator('#recordSave').isDisabled(),'Offline recording actions remained active');
-  check((await page.locator('#controlEvidence').textContent())===''&&(await page.locator('#controlSetup').textContent())==='','Offline UI retained stale ready/setup evidence');
+  check((await page.locator('#controlEvidence').textContent()).includes('Waiting for fresh evidence')&&(await page.locator('#controlSetup').textContent())===''&&!await page.locator('#evidenceBanner').evaluate(el=>el.classList.contains('ready')),'Offline UI retained stale ready/setup evidence');
   offline=false;
   await page.waitForFunction(()=>!document.getElementById('recordStart').disabled);
   check(calls.length===3,'Reconnect repeated a command');

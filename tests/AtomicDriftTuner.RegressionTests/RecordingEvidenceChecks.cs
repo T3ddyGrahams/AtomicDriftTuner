@@ -8,6 +8,27 @@ internal static class RecordingEvidenceChecks
 {
     internal static void Run(Action<string, Action> test)
     {
+        test("ready notification sounds once per recording, never for stale stopped or muted evidence", () =>
+        {
+            var gate = new RecordingReadyNotification();
+            var ready = new RecordingEvidenceProgress { State = "ready", ReadyToReview = true };
+            Check(!gate.Observe("one", false, ready, true), "Stopped recording sounded ready");
+            Check(!gate.Observe("one", true, ready with { State = "waiting" }, true), "Stale evidence sounded ready");
+            Check(gate.Observe("one", true, ready, true), "First readiness did not notify");
+            Check(!gate.Observe("one", true, ready, true), "Repeated status replayed sound");
+            gate.Observe("one", true, ready with { State = "more-evidence", ReadyToReview = false }, true);
+            Check(!gate.Observe("one", true, ready, true), "Readiness fluctuation replayed sound");
+            Check(!gate.Observe("two", true, ready, false) && !gate.Observe("two", true, ready, true), "Muted event replayed after enabling sound");
+            Check(gate.Observe("three", true, ready, true), "New recording did not reset notification");
+        });
+        test("live guidance exposes every missing goal without changing readiness thresholds", () =>
+        {
+            var session = Continuous(30, goal: new() { InitiationSharpness = 1, TransitionSpeed = 1, SelfSteerSpeed = 1 });
+            var result = new RecordingEvidenceService().Update(session, 30);
+            Check(!result.ReadyToReview && result.Heading == "KEEP COLLECTING" && result.NeededEvidence.Count == 3,
+                "Goal checklist lost missing measurements or falsely declared readiness");
+            Check(result.NeededEvidence[0] == result.Message && result.NeededEvidence.Any(x => x.Contains("direction changes")), "Goal checklist disagrees with guidance");
+        });
         test("live evidence uses saved-analysis drift and phase counts without changing the run", () =>
         {
             var session = IntelligenceChecks.Session();

@@ -30,6 +30,8 @@ public sealed record CapturedCarSetup
     public IReadOnlyDictionary<string, double> Values { get; init; } =
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, double>(new Dictionary<string, double>());
     public string Sha256 { get; init; } = "";
+    // Some mods serialize one unnamed VALUE at the root or under []. Its control is unknown.
+    public double? UnassignedValue { get; init; }
     public string CarId { get; init; } = "";
     public string TrackId { get; init; } = "";
     public string TrackLayout { get; init; } = "";

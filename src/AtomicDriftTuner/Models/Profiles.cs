@@ -538,6 +538,7 @@ public sealed class AppSettings
         new();
 
     public bool FirstRunCompleted { get; set; }
+    public bool RecordingReadyChime { get; set; }
 
     public SessionSelection? LastSessionSelection { get; set; }
 

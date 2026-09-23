@@ -37,6 +37,8 @@ public sealed class PitSetupPlanService
         };
         if (!LiveSetupCaptureService.TryParse(request, out var source, out var error) || source is null)
             throw Invalid("The baseline cannot be staged for the pits: " + error);
+        if (source.UnassignedValue.HasValue)
+            throw Invalid("The baseline contains an unnamed setup value. Save and load this car's setup manually; ADT cannot safely target its unidentified control in the pits.");
         if (source.Values.Count != analysis.Parameters.Count)
             throw Invalid("The baseline has changed since it was analyzed. Load it again before staging a plan.");
 

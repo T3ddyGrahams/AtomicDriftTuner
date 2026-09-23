@@ -3,6 +3,7 @@ local pending, text, pressed, disabled = nil, {}, nil, 0
 local activeTab, childDepth, requests, children, count = 'Record', 0, {}, {}, 0
 local enabled, notesInput = {}, nil
 local preferences
+local readyToasts=0
 local function check(value, message) assert(value, message); count=count+1 end
 require = function(name)
   if name=='setup_capture' then return assert(loadfile(arg[3]))() end
@@ -17,6 +18,7 @@ web = {timeouts=function() end, request=function(method,url,headers,body,callbac
   pending={method=method,url=url,body=body,callback=callback}; requests[#requests+1]=pending
 end}
 ui = {
+  Icons={Confirm='confirm'}, toast=function(icon,message) readyToasts=readyToasts+1 end,
   text=function(t) text[#text+1]=t end, textWrapped=function(t) text[#text+1]=t end,
   textColored=function(t) text[#text+1]=t end, separator=function() end,
   setNextItemWidth=function() end,
@@ -140,6 +142,28 @@ poll(staged);local previousRequests=#requests
 joined=draw('Save & Apply Tune','Pit setup')
 check(joined:find('Test tune') and joined:find('CAMBER_LF: %-30') and joined:find('stored setup VALUE units'),'pit preview omits reviewed changes/units')
 check(not enabled['Save & Apply Tune'] and #requests==previousRequests,'pit UI initiated mutation without supported CSP/valid lease guard')
+local readyRun=state(true)
+readyRun.recorder.state='recording'
+readyRun.recorder.evidence={state='ready',readyToReview=true,heading='READY TO REVIEW',message='Enough evidence to review.',neededEvidence={}}
+readyRun.recorder.readyChimeEnabled=true
+poll(readyRun); script.update(0)
+joined=draw(nil,'Findings')
+check(joined:find('READY TO REVIEW') and joined:find('Recording continues'),'readiness banner missing outside Record tab')
+check(readyToasts==1,'readiness toast missing')
+script.update(0); draw(nil,'Record')
+check(readyToasts==1 and draw():find('Ready chime: on'),'readiness repeats or PC sound preference is missing')
+readyRun.recorder.evidence={state='more-evidence',readyToReview=false,heading='KEEP COLLECTING',message='Need entries',neededEvidence={'Need entries','Need transitions'}}
+poll(readyRun); script.update(0); joined=draw()
+check(not joined:find('READY TO REVIEW') and joined:find('Need transitions'),'readiness withdrawal or additional goal guidance missing')
+readyRun.recorder.evidence={state='ready',readyToReview=true,heading='READY TO REVIEW',message='Ready'}
+poll(readyRun); script.update(0)
+check(readyToasts==1,'readiness fluctuation repeated a toast')
+readyRun.recorder.sessionId='new-run';poll(readyRun);script.update(0)
+check(readyToasts==2,'new recording did not notify')
+script.update(4);joined=draw()
+check(not joined:find('READY TO REVIEW') and readyToasts==2,'stale connection kept readiness')
+reply(readyRun);script.update(0)
+check(readyToasts==2,'reconnection repeated notification')
 draw('Disconnect / pair again','Help')
 check(preferences.port=='5190' and preferences.token==nil and preferences.code==nil,'pairing secret persisted')
 check(children.adtWaiting,'disconnected/waiting controls lack scroll access')

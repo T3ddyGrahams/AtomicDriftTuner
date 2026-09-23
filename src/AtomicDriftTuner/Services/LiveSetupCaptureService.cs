@@ -54,6 +54,7 @@ public static class LiveSetupCaptureService
         var section = "";
         var hasValue = false;
         var hasCarModel = false;
+        double? unassignedValue = null;
         using var reader = new StringReader(request.SetupIni.TrimStart('\uFEFF'));
         string? raw;
         while ((raw = reader.ReadLine()) is not null)
@@ -63,7 +64,8 @@ public static class LiveSetupCaptureService
             if (line.Length == 0 || line[0] is ';' or '#' || line.StartsWith("//", StringComparison.Ordinal)) continue;
             if (line[0] == '[')
             {
-                if (line.Length < 3 || line[^1] != ']' || !Identifier(line[1..^1].Trim()))
+                if (line.Length < 2 || line[^1] != ']' ||
+                    line[1..^1].Trim() is { Length: > 0 } header && !Identifier(header))
                     return Fail("The setup contains a malformed section header.", out error);
                 section = line[1..^1].Trim().ToUpperInvariant();
                 if (!sections.Add(section)) return Fail("The setup contains duplicate sections.", out error);
@@ -72,7 +74,7 @@ public static class LiveSetupCaptureService
                 continue;
             }
             var equals = line.IndexOf('=');
-            if (section.Length == 0 || equals <= 0 || !Identifier(line[..equals].Trim()))
+            if (equals <= 0 || !Identifier(line[..equals].Trim()))
                 return Fail("The setup contains a malformed entry.", out error);
             var key = line[..equals].Trim();
             var text = line[(equals + 1)..].Trim();
@@ -92,8 +94,13 @@ public static class LiveSetupCaptureService
             // Do not turn an underflowed nonzero value into a false zero snapshot.
             if (numeric == 0 && text.Split('e', 'E')[0].Any(c => c is >= '1' and <= '9'))
                 return Fail("A setup VALUE is too small to capture reliably.", out error);
-            values.Add("ACSetup." + section, numeric == 0 ? 0 : numeric);
-            if (values.Count > MaximumNumericSections)
+            if (section.Length == 0)
+            {
+                sections.Add(""); // A later explicit [] would be a duplicate root section.
+                unassignedValue = numeric == 0 ? 0 : numeric;
+            }
+            else values.Add("ACSetup." + section, numeric == 0 ? 0 : numeric);
+            if (values.Count + (unassignedValue.HasValue ? 1 : 0) > MaximumNumericSections)
                 return Fail("The setup exceeds the 512 numeric-section capture limit.", out error);
         }
         if (values.Count == 0) return Fail("The current setup contains no numeric VALUE sections.", out error);
@@ -102,9 +109,12 @@ public static class LiveSetupCaptureService
         var canonical = new StringBuilder("adt/captured-setup/1\n");
         foreach (var pair in values)
             canonical.Append(pair.Key).Append('=').Append(pair.Value.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
+        if (unassignedValue is double unnamed)
+            canonical.Append("ACUnassigned.VALUE=").Append(unnamed.ToString("R", CultureInfo.InvariantCulture)).Append('\n');
         snapshot = new CapturedCarSetup
         {
             Source = CaptureSource,
+            UnassignedValue = unassignedValue,
             Values = new ReadOnlyDictionary<string, double>(values),
             Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()))).ToLowerInvariant(),
             CarId = request.CarId, TrackId = request.TrackId, TrackLayout = request.TrackLayout,

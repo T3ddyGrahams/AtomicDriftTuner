@@ -100,6 +100,14 @@ internal static partial class Program
             Capture(-29);
             Check(confirmation.IsChecked == false && Captured()!.Sha256 != initial!.Sha256, "changed setup kept old confirmation");
 
+            request = Request(); request.SetupIni = "[]\nVALUE=2\n" + request.SetupIni;
+            Check(Receive(request).Ok && Captured()?.UnassignedValue == 2 &&
+                ((TextBlock)window.FindName("SetupSnapshotText")).Text.Contains("unidentified"), "unnamed capture rejected or limitation hidden");
+            confirmation.IsChecked = true;
+            request = Request(); request.SetupIni = "VALUE=3\n" + request.SetupIni;
+            Check(Receive(request).Ok && Captured()?.UnassignedValue == 3 && confirmation.IsChecked == false,
+                "unnamed value change retained confirmation");
+
             offer = Offer(); request = Request(offer); request.WindowId = Guid.NewGuid().ToString("N");
             Check(!Receive(request).Ok && Offer().Nonce == offer.Nonce, "another window used or consumed this recorder's challenge");
             request = Request(offer); Set(window, "_setupChallengeUtc", DateTime.UtcNow.AddSeconds(-6));

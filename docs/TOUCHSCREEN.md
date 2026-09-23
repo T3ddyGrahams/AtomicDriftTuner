@@ -1,5 +1,7 @@
 # ADT adaptive touchscreen / SimHub Control Center — local preview.9
 
+Preview.22 adds a recording evidence banner and visible missing-goal guidance. Ready to Review means enough reliable evidence for review; stop and save when convenient. Enable **Play ready chime on this device** before driving if wanted. Browser audio needs a touch or keyboard gesture after loading; blocked sound never prevents visual guidance or recording. Sound plays once per run on that screen, including after reconnects. The desktop recorder has a separate PC sound option; disable it if you want only touchscreen sound. Device preferences are saved locally.
+
 ADT's touchscreen page is available at `/dash`. It fills the available browser width and rearranges its cards for different screen sizes and orientations. Short screens scroll to keep every action reachable. Resizing or rotating the device keeps the same pairing, current view, edited values and desktop recording. It uses the same recording, telemetry and tuning services. Keep ADT running.
 
 ## Raspberry Pi, tablet or another computer

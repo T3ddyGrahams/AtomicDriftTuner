@@ -78,6 +78,8 @@ public partial class TelemetryWindow
             _companionRevision++;
         }
         _setupCaptureMessage = $"Current setup captured from CSP: {captured.Values.Count} numeric values. Unsaved pit edits are included by supported CSP versions.";
+        if (captured.UnassignedValue.HasValue)
+            _setupCaptureMessage += " One unnamed value is also monitored. Its control is unidentified, so ADT can review this run but cannot attribute improvement to a specific setup change.";
         RefreshSetupCapture();
         return new() { Ok = true, Message = _setupCaptureMessage,
             RefreshStatus = beforeRevision != _companionRevision || beforeFingerprint != _liveSetup?.Sha256 };

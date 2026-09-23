@@ -22,7 +22,7 @@ internal static class IntelligenceChecks
             var original = System.Text.Json.JsonSerializer.Serialize(before);
             var good = new RunComparisonEngine().Compare(before, after);
             Check(good.Comparable && good.Verdict == "Closer to goals", "Matching automatic snapshots changed valid scoring");
-            foreach (var failure in new[] { "lost", "layout", "coverage", "method" })
+            foreach (var failure in new[] { "lost", "layout", "coverage", "method", "unnamed" })
             {
                 var changed = RunHistoryStore.Clone(after);
                 switch (failure)
@@ -31,6 +31,7 @@ internal static class IntelligenceChecks
                     case "layout": changed.Session.Context!.Tune!.SetupTrackLayout = "other"; break;
                     case "coverage": changed.Session.Context!.Tune!.Settings["ACSetup.NEW_FIELD"] = 1; break;
                     case "method": changed.Session.Context!.Tune!.SetupSource = "manual-file"; break;
+                    case "unnamed": changed.Session.Context!.Tune!.HasUnassignedSetupValues = true; break;
                 }
                 var outcome = new RunComparisonEngine().Compare(before, changed);
                 Check(!outcome.Comparable && !outcome.RecommendationTestTracked && outcome.Verdict == "Inconclusive" && outcome.Metrics.Count == good.Metrics.Count,
@@ -46,10 +47,12 @@ internal static class IntelligenceChecks
             var request = new LiveSetupCaptureRequest { Available = true, ProtocolVersion = 1, Source = "csp-current-setup",
                 CarId = input.Car.SourceFolderName!, TrackId = "track", TrackLayout = "layout", SessionIndex = 0, SessionType = 1,
                 SessionGeneration = 1, SetupRevision = 0, CaptureSequence = 1, SimTimeMs = 1, Frame = 1,
-                SetupIni = "[CAMBER_LF]\nVALUE=-30\n[PRIVATE_METADATA]\nPATH=C:\\private\\personal.ini\n" };
+                SetupIni = "[]\nVALUE=2\n[CAMBER_LF]\nVALUE=-30\n[PRIVATE_METADATA]\nPATH=C:\\private\\personal.ini\n" };
             Check(LiveSetupCaptureService.TryParse(request, out var capture, out var error), "Capture fixture rejected: " + error);
             var tune = store.CaptureTune(input, driver, "Current setup", new(), null, capturedSetup: capture);
             var persisted = store.ListTunes(input, driver.Id).Single();
+            Check(persisted.HasUnassignedSetupValues && persisted.Settings["ACUnassigned.VALUE"] == 2 &&
+                !persisted.DecodedSetup.Any(x => x.Section == "ACUnassigned.VALUE"), "Unnamed capture lost its attribution limitation or became a decoded control");
             Check(persisted.Settings["ACSetup.CAMBER_LF"] == -30 && persisted.SetupSha256 == capture!.Sha256 &&
                 persisted.SetupSource == "csp-current-setup" && persisted.SetupCapturedUtc is not null && persisted.SetupTrackLayout == "layout",
                 "Capture provenance or numeric values were lost");

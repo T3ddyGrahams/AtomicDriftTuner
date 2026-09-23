@@ -32,6 +32,7 @@ public sealed class CompanionRecorderState
     public bool CanStop { get; set; }
     public bool CanSave { get; set; }
     public RecordingEvidenceProgress? Evidence { get; set; }
+    public bool ReadyChimeEnabled { get; set; }
     public string SetupMessage { get; set; } = "";
 }
 

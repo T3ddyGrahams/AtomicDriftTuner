@@ -9,6 +9,17 @@ internal static class PitSetupChecks
 {
     public static void Run(Action<string, Action> test, string root)
     {
+        test("pit staging continues to refuse unidentified root controls accepted for read-only capture", () =>
+        {
+            foreach (var prefix in new[] { "VALUE=2\n", "[]\nVALUE=2\n" })
+            {
+                var f = Fixture(root);
+                File.WriteAllText(f.Path, prefix + File.ReadAllText(f.Path));
+                var original = File.ReadAllBytes(f.Path);
+                Reject(() => f.Create());
+                Check(File.ReadAllBytes(f.Path).SequenceEqual(original), "Unnamed-value refusal modified setup");
+            }
+        });
         test("pit plan snapshots only approved numeric changes without writing files", () =>
         {
             var f = Fixture(root);

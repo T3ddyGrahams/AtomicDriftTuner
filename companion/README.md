@@ -1,5 +1,7 @@
 # ADT Companion — workflow preview
 
+Companion **0.4.0-preview.3** adds a Ready to Review banner across tabs, a once-per-run toast and missing-goal guidance with desktop **0.9.0-preview.22**. Enable the optional chime in desktop Telemetry Recorder to hear it through PC audio. Recording continues until you stop and save. This version includes the CSP compatibility correction described below.
+
 Record runs, read findings, explicitly apply a staged car setup in the pits and save comparison feedback inside Assetto Corsa.
 
 Companion **0.4.0-preview.2** fixes automatic setup capture and pit preflight rejecting CSP's callable car-reader API. It retains **Pit setup** alongside the scrollable **Record**, **Findings**, **Compare** and **Help** tabs. After installing or updating, exit the current driving session and launch a new session so CSP reloads the app.

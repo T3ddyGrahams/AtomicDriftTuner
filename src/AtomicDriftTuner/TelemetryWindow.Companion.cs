@@ -47,6 +47,7 @@ public partial class TelemetryWindow
             CanStart = blocked is null && !_recording && !unsaved && ready && connected && contextMatches,
             CanStop = _recording, CanSave = !_recording && unsaved && _analysis is not null,
             Evidence = _recording || _session.Samples.Count > 0 ? CurrentEvidence() : null,
+            ReadyChimeEnabled = ReadyChimeCheck.IsChecked == true,
             SetupMessage = _session.Context?.SetupCaptureIssue.Length > 0 ? _session.Context.SetupCaptureIssue : SetupSnapshotText.Text
         };
     }

@@ -2,14 +2,29 @@ local createClient = require('companion_client')
 local setupCapture = require('setup_capture')(ac)
 local pitSetup = require('pit_setup')(ac)
 local client = createClient(web.request, JSON.stringify, JSON.parse, function() return setupCapture:capture() end, pitSetup)
-local preferences = ac.storage({ port = '5190' })
+local preferences = ac.storage({ port = '5190', lastReadyRun = '' })
 local port, code = preferences.port, ''
 local accent, good, warning = rgbm(0.1, 0.85, 0.95, 1), rgbm(0.4, 0.9, 0.55, 1), rgbm(1, 0.75, 0.3, 1)
 local confirm, confirmVersion = false, ''
 local rating, nextAction, notes, reviewKey = '', 'Undecided', '', ''
 web.timeouts(1000, 1500, 2000, 4000)
 
-function script.update(dt) client:update(dt) end
+function script.update(dt)
+  client:update(dt)
+  local status = client:fresh() and client.status or nil
+  local r = status and status.recorder
+  local e = r and r.evidence
+  if r and r.state == 'recording' and type(e) == 'table' and e.state == 'ready' and e.readyToReview == true
+    and type(r.windowId) == 'string' and #r.windowId > 0 and type(r.sessionId) == 'string' and #r.sessionId > 0 then
+    local key = r.windowId .. ':' .. r.sessionId
+    if preferences.lastReadyRun ~= key then
+      preferences.lastReadyRun = key
+      if type(ui.toast) == 'function' and ui.Icons then
+        pcall(ui.toast, ui.Icons.Confirm, 'ADT: Enough evidence to review. Stop and save when ready.')
+      end
+    end
+  end
+end
 
 local function value(v, fallback)
   return type(v) == 'string' and v ~= '' and v or fallback or ''
@@ -61,8 +76,16 @@ local function recordTab(status, w)
   ui.text(string.format('%.1f s  |  %d samples', tonumber(r.elapsedSeconds) or 0, tonumber(r.samples) or 0))
   paragraph('', r.message)
   if type(r.evidence) == 'table' then
+    ui.separator()
+    ui.textColored(value(r.evidence.heading, 'RECORDING GUIDANCE'), r.evidence.readyToReview == true and good or warning)
     paragraph('', r.evidence.message)
+    if type(r.evidence.neededEvidence) == 'table' then
+      for i, item in ipairs(r.evidence.neededEvidence) do if i > 1 then paragraph('• ', item) end end
+    end
     ui.treeNode('Recording evidence details', function() paragraph('', r.evidence.details) end)
+    ui.textWrapped(r.readyChimeEnabled == true and 'Ready chime: on (PC audio).'
+      or 'Optional ready chime: enable it in the desktop Telemetry Recorder (PC audio).')
+    ui.separator()
   end
   paragraph('', r.setupMessage)
   button('Start recording', client:fresh() and r.canStart == true, function() client:command('start') end)
@@ -260,6 +283,12 @@ function script.windowMain(dt)
     return
   end
   ui.textColored(status.telemetryConnected and 'AC TELEMETRY: LIVE' or status.telemetryStale and 'AC TELEMETRY: STALE' or 'AC TELEMETRY: WAITING', status.telemetryConnected and good or warning)
+  local evidence = status.recorder and status.recorder.evidence
+  if status.recorder and status.recorder.state == 'recording' and type(evidence) == 'table'
+    and evidence.readyToReview == true and evidence.state == 'ready' then
+    ui.textColored('READY TO REVIEW', good)
+    ui.textWrapped('Enough evidence collected. Stop and save when ready. Recording continues.')
+  end
   local w = client:workflowState()
   ui.tabBar('adtTabs', function()
     local function pane(label, content)

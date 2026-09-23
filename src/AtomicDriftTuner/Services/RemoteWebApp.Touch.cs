@@ -31,6 +31,12 @@ header .brandline>div,.row>div,.selectrow>*{min-width:0}
 .control-help summary{padding:12px 0;cursor:pointer;color:var(--heading)}
 .control-help p{white-space:pre-line;line-height:1.55}
 .control-notice{border-left:3px solid var(--accent);padding-left:12px}
+.evidence-banner{border:2px solid var(--border);border-left-width:6px;background:var(--surface);border-radius:10px;padding:14px;margin:12px 0}
+.evidence-banner.ready{border-color:var(--accent)}
+.evidence-banner strong{display:block;font-size:20px;color:var(--heading)}
+.evidence-banner p{margin:8px 0 0}
+.evidence-sound{display:flex;gap:10px;align-items:center;min-height:48px}
+.evidence-sound input{width:24px;flex:0 0 24px}
 .setting{grid-template-columns:minmax(0,1fr) auto}
 .setting-label{grid-column:1/-1}
 .stepper{display:grid;grid-template-columns:48px minmax(64px,1fr) 48px;gap:6px}
@@ -67,7 +73,13 @@ dialog h2{margin-top:0}dialog p{line-height:1.5}dialog .recorder-actions{grid-te
             <button id="recordSave" onclick="recordCommand('save')" disabled>Save run</button>
           </div>
           <div id="controlMessage" class="notice control-message">Connecting to the desktop recorder…</div>
-          <p id="controlEvidence" class="control-message"></p>
+          <div id="evidenceBanner" class="evidence-banner" role="status" aria-live="polite" aria-atomic="true">
+            <strong id="evidenceHeading">RECORDING GUIDANCE</strong>
+            <p id="controlEvidence" class="control-message">Start a run to collect evidence.</p>
+            <p id="evidenceNeeded" class="control-message"></p>
+          </div>
+          <label class="evidence-sound"><input type="checkbox" id="evidenceSound" onchange="setEvidenceSound(this.checked)">Play ready chime on this device</label>
+          <p id="evidenceSoundStatus" class="notice">Optional; enable sound here before driving. Recording continues until you stop.</p>
           <details class="control-help"><summary>Recording evidence and setup</summary><p id="controlEvidenceDetails"></p><p id="controlSetup"></p></details>
           <div id="controlReply" class="notice" role="status" aria-live="polite"></div>
           <details class="control-help"><summary>First time using the touchscreen?</summary><p>In desktop ADT, select your car and driver. Open Telemetry Recorder, enter your conditions/driving task and confirm the setup you will use. Keep ADT running. Once AC telemetry is connected, use Start run here. Tap Stop run after driving, then Save run. Saving keeps the complete recording and analysis in ADT; it does not apply a tune.</p></details>
@@ -107,6 +119,40 @@ function confirmAction(message){
 function storageGet(key){try{return localStorage.getItem(key);}catch{return null;}}
 function storageSet(key,value){try{localStorage.setItem(key,value);}catch{}}
 function storageRemove(key){try{localStorage.removeItem(key);}catch{}}
+let evidenceAudio=null;
+const evidenceNotified=new Set();
+try{for(const key of JSON.parse(sessionStorage.getItem('adt.evidence.notified')||'[]').slice(-64))evidenceNotified.add(key);}catch{}
+$('evidenceSound').checked=storageGet('adt.evidence.sound')==='true';
+async function armEvidenceSound(){
+  if(!$('evidenceSound').checked)return;
+  try{
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)throw new Error('unsupported');
+    evidenceAudio??=new Audio();
+    await evidenceAudio.resume();
+    $('evidenceSoundStatus').textContent=evidenceAudio.state==='running'?'Sound ready on this device. Turn off the PC chime if you only want sound here.':'Tap the sound checkbox to enable audio. Visual guidance remains active.';
+  }catch{$('evidenceSoundStatus').textContent='Audio is unavailable on this device. Visual guidance remains active.';}
+}
+function setEvidenceSound(enabled){storageSet('adt.evidence.sound',String(enabled));if(enabled)armEvidenceSound();else $('evidenceSoundStatus').textContent='Sound off on this device. Visual guidance remains active.';}
+document.addEventListener('pointerdown',()=>{if($('evidenceSound').checked&&evidenceAudio?.state!=='running')armEvidenceSound();});
+document.addEventListener('keydown',()=>{if($('evidenceSound').checked&&evidenceAudio?.state!=='running')armEvidenceSound();});
+function notifyEvidenceReady(r){
+  if(r?.state!=='recording'||r.evidence?.readyToReview!==true||r.evidence?.state!=='ready'||!r.windowId||!r.sessionId)return;
+  const key=r.windowId+':'+r.sessionId;
+  if(evidenceNotified.has(key))return;
+  evidenceNotified.add(key);if(evidenceNotified.size>64)evidenceNotified.delete(evidenceNotified.values().next().value);
+  try{sessionStorage.setItem('adt.evidence.notified',JSON.stringify([...evidenceNotified]));}catch{}
+  toast('Enough evidence to review. Stop and save when ready.');
+  if(!$('evidenceSound').checked)return;
+  if(evidenceAudio?.state!=='running'){$('evidenceSoundStatus').textContent='Tap the sound checkbox to enable audio for the next run. Visual guidance remains active.';return;}
+  try{
+    const oscillator=evidenceAudio.createOscillator(),gain=evidenceAudio.createGain(),start=evidenceAudio.currentTime;
+    oscillator.connect(gain);gain.connect(evidenceAudio.destination);oscillator.frequency.setValueAtTime(660,start);
+    oscillator.frequency.setValueAtTime(880,start+.14);gain.gain.setValueAtTime(0,start);
+    gain.gain.linearRampToValueAtTime(.12,start+.02);gain.gain.setValueAtTime(.12,start+.25);gain.gain.linearRampToValueAtTime(0,start+.38);
+    oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};oscillator.start(start);oscillator.stop(start+.4);
+  }catch{$('evidenceSoundStatus').textContent='Audio is unavailable. Visual guidance remains active.';}
+}
 async function fetchRemote(path,options={}){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),options.method==='POST'?20000:6000);
@@ -153,7 +199,8 @@ function renderControl(){
   $('recordStop').disabled=!fresh||controlCommandBusy||!r?.canStop;
   $('recordSave').disabled=!fresh||controlCommandBusy||!r?.canSave;
   if(!fresh){
-    $('controlEvidence').textContent='';$('controlEvidenceDetails').textContent='';$('controlSetup').textContent='';
+    $('evidenceBanner').classList.remove('ready');$('evidenceHeading').textContent='WAITING FOR CONNECTION';
+    $('controlEvidence').textContent='Waiting for fresh evidence from ADT.';$('evidenceNeeded').textContent='';$('controlEvidenceDetails').textContent='';$('controlSetup').textContent='';
     $('controlState').textContent=token?'OFFLINE':'NOT PAIRED';$('controlState').className='pill bad';
     $('controlMessage').textContent=controlCache?.protocolVersion&&controlCache.protocolVersion!==1?'Update desktop ADT to use these recording controls.':'Waiting for current recorder status. Controls return when ADT reconnects. A running recording stays in desktop ADT.';
     return;
@@ -167,6 +214,11 @@ function renderControl(){
   $('controlSamples').textContent=String(r?.samples||0);
   $('controlMessage').textContent=r?.message||'Open Telemetry Recorder in desktop ADT to prepare a run.';
   $('controlEvidence').textContent=r?.evidence?.message||'';
+  const ready=r?.state==='recording'&&r?.evidence?.state==='ready'&&r?.evidence?.readyToReview===true;
+  $('evidenceBanner').classList.toggle('ready',ready);
+  $('evidenceHeading').textContent=ready?'READY TO REVIEW':r?.state==='recording'?(r?.evidence?.heading||'COLLECTING EVIDENCE'):r?.state==='unsaved'?'SAVE YOUR RUN':r?.state==='saved'?'RUN SAVED':'RECORDING GUIDANCE';
+  $('evidenceNeeded').textContent=Array.isArray(r?.evidence?.neededEvidence)?r.evidence.neededEvidence.slice(1).map(x=>'• '+x).join('\n'):'';
+  notifyEvidenceReady(r);
   $('controlEvidenceDetails').textContent=r?.evidence?.details||'';
   $('controlSetup').textContent=r?.setupMessage||'';
   $('controlNext').textContent=controlCache.nextStep||'Follow the workflow in ADT.';

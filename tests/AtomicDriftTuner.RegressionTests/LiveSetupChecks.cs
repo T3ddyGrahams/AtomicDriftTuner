@@ -8,6 +8,18 @@ internal static class LiveSetupChecks
 {
     public static void Run(Action<string, Action> test)
     {
+        test("live setup preserves root and empty-section values as unidentified monitored evidence", () =>
+        {
+            var root = Parse(Request("VALUE=2\n[FUEL]\nVALUE=15\n"));
+            var empty = Parse(Request("[FUEL]\nVALUE=15\n[]\nVALUE=2\n"));
+            Check(root.UnassignedValue == 2 && empty.UnassignedValue == 2 && root.Sha256 == empty.Sha256,
+                "Equivalent unnamed serialization lost its value or changed fingerprint");
+            Check(root.Values.Count == 1 && root.Values.ContainsKey("ACSetup.FUEL"), "Unnamed value was invented as a named tuning control");
+            Check(Parse(Request("[]\nVALUE=3\n[FUEL]\nVALUE=15")).Sha256 != root.Sha256, "Unnamed change escaped monitoring");
+            Check(Parse(Request("[FUEL]\nVALUE=15")).Sha256 != root.Sha256, "Unnamed field removal escaped monitoring");
+            foreach (var ini in new[] { "VALUE=2\n[]\nVALUE=2\n[FUEL]\nVALUE=15", "[]\nVALUE=2\nVALUE=3\n[FUEL]\nVALUE=15",
+                "[]\nVALUE=NaN\n[FUEL]\nVALUE=15", "[]\nVALUE=2\n[]\nNOTE=duplicate\n[FUEL]\nVALUE=15" }) Reject(Request(ini));
+        });
         test("live setup captures numeric AC values and server receipt identity without files", () =>
         {
             var request = Request();

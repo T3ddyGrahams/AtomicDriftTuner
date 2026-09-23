@@ -1,8 +1,12 @@
 # Atomic Drift Tuner — Changelog
 
-This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
+This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
-## Local v0.9.0-preview.30 — Isolate conflicting car setup definitions
+## v0.9.0-preview.30 — HUGE UPDATE
+
+Public update from preview.17: corner-based gearing goals and recorded-speed assistance, Gearing & ECU run review, packed/unpacked car-data context, recording readiness notifications and partial review, background telemetry buffering, Pit House crash containment, CSP setup-capture fixes, camber staging and conflicting-definition isolation. Includes Companion 0.4.0-preview.4 and SimHub Bridge 0.9.0-preview.30. The tested desktop application binary is unchanged from local preview.30; public distribution guides are refreshed. See the [full release notes](docs/releases/v0.9.0-preview.30.md) and [testing checklist](docs/testing/v0.9.0-preview.30-checklist.md).
+
+### Final preview.30 correction
 
 - Fix valid pit settings losing their ranges when another control has duplicate definitions in the car's setup.ini. A conflicting control is held unchanged and explained; independent valid controls retain their own limits and steps. Generation, staging and export refuse changes to the conflicting control.
 - Allow gearing to read a car with unrelated duplicate definitions, such as conflicting FRONT_BIAS sections. Warn about the unused section while retaining strict checks for the final drive, selected gears/gearbox, limiter, saved baseline identity and changed source files. Gearing export still changes only the final-drive selection.

@@ -57,6 +57,11 @@ internal static partial class Program
             if (!app.Resources.Contains("AppBackgroundBrush"))
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
+            if (args.Contains("--gearing"))
+            {
+                CheckGearingWorkflow(output);
+                return 0;
+            }
             if (args.Contains("--powertrain"))
             {
                 CheckPowertrain(output);

@@ -15,6 +15,8 @@ internal static class PowertrainDiagnosisEngine
         var tune = context?.Tune;
         var recorded = tune?.Powertrain;
         var target = tune?.GearingTarget;
+        var goals = target?.Goals().ToArray() ?? [];
+        bool staleRpmEstimate = target?.RpmSourceFingerprint is { } rpmFingerprint && rpmFingerprint != tune?.BasePhysicsFingerprint;
         if (target is null && tune is not null) result.TargetContext = tune.GearingTargetStatus + " " + result.TargetContext;
         var reliable = DriftDiagnosisEngine.Reliable(session, analysis);
         bool Useful(Frame f) => f.Dt > 0 && f.Sample.Rpm is > 0 and <= 30000 && f.Sample.Gear is >= 2 and <= 11 &&
@@ -23,7 +25,7 @@ internal static class PowertrainDiagnosisEngine
         var frames = blocks.SelectMany(b => b).Where(Useful).ToList();
         var seconds = frames.Sum(f => f.Dt);
         bool completeSignals = frames.Count > 0 && frames.All(f => f.Sample.HasExtendedSignals && f.Sample.LongitudinalVelocityMs is not null);
-        bool InTargetSpeed(Frame f) => target is not null && f.Sample.SpeedKmh >= target.MinimumSpeedKmh && f.Sample.SpeedKmh <= target.MaximumSpeedKmh;
+        bool InTargetSpeed(Frame f) => goals.Any(g => f.Sample.Gear - 1 == g.Target.Gear && f.Sample.SpeedKmh >= g.Target.MinimumSpeedKmh && f.Sample.SpeedKmh <= g.Target.MaximumSpeedKmh);
         var episodeTotals = new Dictionary<(string Kind, int Gear), (int Count, double Seconds)>();
         double? limiter = recorded is { AdjustableLimiter: false } ? recorded.BaseLimiterRpm : null;
         var phaseWindows = phases.Where(p => p.Phase is "Initiation" or "Transition").OrderBy(p => p.StartSeconds).ToArray();
@@ -41,7 +43,7 @@ internal static class PowertrainDiagnosisEngine
         foreach (var group in frames.GroupBy(f => f.Sample.Gear - 1).OrderBy(g => g.Key))
         {
             var values = group.ToList(); var time = values.Sum(f => f.Dt);
-            bool hasTarget = target?.Gear == group.Key;
+            bool hasTarget = goals.Any(g => g.Target.Gear == group.Key);
             result.Gears.Add(new() { Gear = group.Key, Seconds = time, LowRpm = Quantile(values, s => s.Rpm, .1),
                 MedianRpm = Quantile(values, s => s.Rpm, .5), HighRpm = Quantile(values, s => s.Rpm, .9),
                 LowSpeedKmh = Quantile(values, s => s.SpeedKmh, .1), HighSpeedKmh = Quantile(values, s => s.SpeedKmh, .9),
@@ -59,9 +61,12 @@ internal static class PowertrainDiagnosisEngine
 
         if (target is not null)
         {
-            result.TargetContext = $"Recorded target: gear {target.Gear}, {target.MinimumSpeedKmh:0.#}–{target.MaximumSpeedKmh:0.#} km/h, {target.MinimumRpm:0}–{target.MaximumRpm:0} RPM. Target exposure is counted only within that gear and speed range. This is your chosen band, not measured engine power. Later target edits do not reinterpret this run.";
-            Episodes("High throttle below target", f => f.Sample.Gear - 1 == target.Gear && InTargetSpeed(f) && f.Sample.Rpm < target.MinimumRpm && f.Sample.Throttle >= .7 && f.Sample.Brake <= .05);
-            Episodes("Above chosen RPM target", f => f.Sample.Gear - 1 == target.Gear && InTargetSpeed(f) && f.Sample.Rpm > target.MaximumRpm);
+            double displaySpeed(double kmh) => kmh / (target.DisplayMph ? GearingPlanner.KmhPerMph : 1);
+            result.TargetContext = "Recorded targets: " + string.Join("; ", goals.Select(g => $"{g.Label}: gear {g.Target.Gear}, {displaySpeed(g.Target.MinimumSpeedKmh):0.#}–{displaySpeed(g.Target.MaximumSpeedKmh):0.#} {(target.DisplayMph ? "mph" : "km/h")}")) +
+                $". {target.MinimumRpm:0}–{target.MaximumRpm:0} RPM ({target.RpmSource}). Exposure counts only the requested gear and speed windows; overlapping same-gear windows are counted once. Corner names are driver goals, not detected track geometry. This is a target, not measured engine power. Later edits do not reinterpret this run.";
+            if (staleRpmEstimate) result.TargetContext += " The engine-curve estimate came from different car data. Refresh it before drawing a gearing-test conclusion.";
+            Episodes("High throttle below target", f => InTargetSpeed(f) && f.Sample.Rpm < target.MinimumRpm && f.Sample.Throttle >= .7 && f.Sample.Brake <= .05);
+            Episodes("Above chosen RPM target", f => InTargetSpeed(f) && f.Sample.Rpm > target.MaximumRpm);
         }
         if (limiter is double limitRpm)
             Episodes("Near recorded base limiter", f => f.Sample.Rpm >= limitRpm * .97 && f.Sample.Throttle >= .7 && f.Sample.Brake <= .05);
@@ -84,7 +89,7 @@ internal static class PowertrainDiagnosisEngine
             result.Limitations += " Some extended or travel-direction signals were not recorded; those limitations remain unknown.";
         result.NextTest = target is null ? "Save your preferred gear, speed range and RPM range in AC Setup → Gearing → Save target for this car, then record a fresh baseline. The example RPM band is not a detected power band." :
             "Keep this setup and repeat the same section. A target mismatch alone does not show whether gearing, wheelspin, clutch use, line or engine behavior caused it.";
-        if (reliable && completeSignals && seconds >= 20 && context is { TuneConfirmedInUse: true, CarIdentityVerified: true } && recorded?.FinalDrive is not null && target is not null &&
+        if (!staleRpmEstimate && target?.Sweeper is null && reliable && completeSignals && seconds >= 20 && context is { TuneConfirmedInUse: true, CarIdentityVerified: true } && recorded?.FinalDrive is not null && target is not null &&
             recorded.Gears.Any(g => g.Gear == target.Gear) && result.Gears.Any(g => g.Gear == target.Gear && g.Seconds >= 10))
         {
             var low = episodeTotals.GetValueOrDefault(("High throttle below target", target.Gear));
@@ -95,6 +100,22 @@ internal static class PowertrainDiagnosisEngine
                 result.NextTest = $"Gear {target.Gear} repeatedly approached the recorded base limiter. Confirm actual limiter contact in game; if it recurs, compare one taller final-drive option in the gearing planner. Keep ECU and other settings fixed, then repeat the same section.";
             else if (low.Count >= 3 && low.Seconds >= 3)
                 result.NextTest = $"Gear {target.Gear} repeatedly stayed below your chosen RPM band at high throttle without a large recorded clutch change. Review the input events; if the pattern repeats, compare one shorter final-drive option in the planner. Keep ECU fixed. This is a test hypothesis, not proof of insufficient engine power.";
+        }
+        if (target?.Sweeper is not null)
+        {
+            result.NextTest = "Review both corner targets together in the gearing planner. One final drive affects both gears; observed speeds and gears do not identify corner shape or prove a power deficit.";
+            if (!staleRpmEstimate && reliable && completeSignals && seconds >= 20 && context is { TuneConfirmedInUse: true, CarIdentityVerified: true } && recorded?.FinalDrive is not null &&
+                goals.All(g => recorded.Gears.Any(r => r.Gear == g.Target.Gear) && frames.Where(f => f.Sample.Gear - 1 == g.Target.Gear && f.Sample.SpeedKmh >= g.Target.MinimumSpeedKmh && f.Sample.SpeedKmh <= g.Target.MaximumSpeedKmh).Sum(f => f.Dt) >= 10))
+            {
+                if (limiter is double cornerLimit) Episodes("Near base limiter within corner targets", f => InTargetSpeed(f) && f.Sample.Rpm >= cornerLimit * .97 && f.Sample.Throttle >= .7 && f.Sample.Brake <= .05);
+                bool low = goals.Any(g => episodeTotals.GetValueOrDefault(("High throttle below target", g.Target.Gear)) is { Count: >= 3, Seconds: >= 3 });
+                bool high = goals.Any(g => episodeTotals.GetValueOrDefault(("Near base limiter within corner targets", g.Target.Gear)) is { Count: >= 3, Seconds: >= 3 });
+                result.NextTest = low && high ? "The requested sections include repeated low-RPM and near-base-limiter periods. Compare both targets together; shortening for one section can worsen the other. Review inputs and consider a different gear for the affected section."
+                    : high ? "A requested section repeatedly approached the base limiter. Confirm actual limiter contact in game, then compare one taller final-drive preset against BOTH corner targets. Keep ECU fixed and repeat both sections."
+                    : low ? "A requested section repeatedly stayed below the target RPM band at high throttle. Review pedal use, then compare one shorter final-drive preset against BOTH corner targets. Keep ECU fixed; this does not prove insufficient engine power."
+                    : result.NextTest;
+                result.Events = result.Events.OrderBy(e => e.StartSeconds).Take(500).ToList();
+            }
         }
         return result;
 

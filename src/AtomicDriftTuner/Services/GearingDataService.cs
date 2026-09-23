@@ -7,7 +7,7 @@ using AtomicDriftTuner.Models;
 namespace AtomicDriftTuner.Services;
 
 /// <summary>Reads supported AC data without changing car physics. Saved ratios are list indexes.</summary>
-public sealed class GearingDataService
+public sealed partial class GearingDataService
 {
     private const int MaxBytes = 4 * 1024 * 1024;
     private readonly Dictionary<string, string> _fingerprints = new(StringComparer.OrdinalIgnoreCase);
@@ -28,13 +28,19 @@ public sealed class GearingDataService
         var drive = ReadDataIni(source, "drivetrain.ini");
         var tyres = ReadDataIni(source, "tyres.ini");
         var engine = ReadDataIni(source, "engine.ini");
-        var ratios = ReadRatios(source, setup.Required("FINAL_GEAR_RATIO", "RATIOS"));
-        var current = Index(saved.Required("FINAL_RATIO", "VALUE"), ratios.Count, "final drive");
+        bool adjustableFinal = setup.Sections.ContainsKey("FINAL_GEAR_RATIO");
+        if (!adjustableFinal && saved.Sections.ContainsKey("FINAL_RATIO"))
+            throw new InvalidDataException("The saved final-drive selection has no matching definition. Save a fresh baseline for this car.");
+        var ratios = adjustableFinal ? ReadRatios(source, setup.Required("FINAL_GEAR_RATIO", "RATIOS"))
+            : new List<FinalDriveRatio> { new(0, "Fixed final drive", Number(drive.Required("GEARS", "FINAL"), .05, 30, "fixed final drive")) };
+        var current = adjustableFinal ? Index(saved.Required("FINAL_RATIO", "VALUE"), ratios.Count, "final drive") : 0;
         var count = Index(drive.Required("GEARS", "COUNT"), 11, "forward gear count");
         if (gear > count) throw new InvalidDataException($"This car has {count} forward gears. Choose one of those gears.");
 
         double gearRatio;
         string gearSource;
+        string gearboxKind = "Fixed individual gears";
+        int selectedGearChoices = 1;
         var gearSets = setup.Sections.Keys.Any(x => x.StartsWith("GEAR_SET_", StringComparison.OrdinalIgnoreCase));
         var useGearSet = setup.Optional("GEARS", "USE_GEARSET") ?? "0";
         if (useGearSet is not ("0" or "1")) throw new InvalidDataException("Unrecognized gearbox selection format.");
@@ -44,6 +50,7 @@ public sealed class GearingDataService
             var section = $"GEAR_SET_{selected}";
             gearRatio = Number(setup.Required(section, $"GEAR_{gear}"), 0.05, 20, "selected gear ratio");
             gearSource = $"Gearbox {selected}: {setup.Optional(section, "NAME") ?? section}";
+            gearboxKind = $"{setup.Sections.Keys.Count(k => k.StartsWith("GEAR_SET_", StringComparison.OrdinalIgnoreCase))} preset gearboxes";
         }
         else if (useGearSet == "0" && setup.Sections.ContainsKey($"GEAR_{gear}"))
         {
@@ -52,6 +59,8 @@ public sealed class GearingDataService
             var selected = Index(saved.Required($"INTERNAL_GEAR_{gear + 1}", "VALUE"), gears.Count, "selected gear");
             gearRatio = gears[selected].Ratio;
             gearSource = $"Adjustable gear {gear}: {gears[selected].Label}";
+            gearboxKind = "Individually adjustable gear";
+            selectedGearChoices = gears.Count;
         }
         else
         {
@@ -61,6 +70,8 @@ public sealed class GearingDataService
                 throw new InvalidDataException("The saved setup selects a gearbox but no active gearset definition is available.");
             gearRatio = Number(drive.Required("GEARS", $"GEAR_{gear}"), 0.05, 20, "fixed gear ratio");
             gearSource = "Fixed gearbox from drivetrain.ini";
+            if (useGearSet == "0" && Enumerable.Range(1, count).Any(g => setup.Sections.ContainsKey($"GEAR_{g}")))
+                gearboxKind = "Mixed gearbox (some individually adjustable gears)";
         }
 
         var traction = drive.Required("TRACTION", "TYPE").ToUpperInvariant();
@@ -78,18 +89,30 @@ public sealed class GearingDataService
             new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
                 new Dictionary<string, string>(_fingerprints, StringComparer.OrdinalIgnoreCase)))
         {
-            CarDataEvidence = source.Evidence
+            CarDataEvidence = source.Evidence, GearCount = count, GearboxKind = gearboxKind,
+            SelectedGearChoices = selectedGearChoices, FinalDriveAdjustable = adjustableFinal,
+            RpmEstimate = ReadRpmEstimate(source, engine, limiter)
         };
+    }
+
+    public GearingPlan Calculate(CarProfile car, string baselinePath, GearingTarget target)
+    {
+        target.Validate();
+        var first = Load(car, baselinePath, target.Gear);
+        var second = target.Sweeper is { } s ? Load(car, baselinePath, s.Gear) : null;
+        EnsureUnchanged(first);
+        if (second is not null) EnsureUnchanged(second);
+        return GearingPlanner.Plan(first, target, second);
     }
 
     public string Save(GearingPlan plan, string outputPath)
     {
         if (!plan.HasChange) throw new InvalidOperationException("The current final drive is already the best match; there is no gearing change to save.");
         EnsureUnchanged(plan.Data);
+        if (plan.SweeperData is not null) EnsureUnchanged(plan.SweeperData);
         // Recompute from fresh disk data instead of trusting mutable UI analysis or ratio indexes.
         var car = new CarProfile { SourceFolderPath = plan.Data.CarPath, SourceFolderName = Path.GetFileName(plan.Data.CarPath) };
-        var fresh = Load(car, plan.Data.BaselinePath, plan.Target.Gear);
-        var verified = GearingPlanner.Plan(fresh, plan.Target);
+        var verified = Calculate(car, plan.Data.BaselinePath, plan.Target);
         if (verified.Recommended.FinalDrive != plan.Recommended.FinalDrive)
             throw new InvalidDataException("Gearing data changed. Calculate again before saving.");
         var output = Path.GetFullPath(outputPath);

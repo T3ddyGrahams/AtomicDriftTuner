@@ -23,6 +23,14 @@ public static class PowertrainComparison
         var oldTune = RunHistoryStore.ValidContext(baseline.Session.Context) ? baseline.Session.Context!.Tune : null;
         var newTune = RunHistoryStore.ValidContext(current.Session.Context) ? current.Session.Context!.Tune : null;
         var notes = new List<string> { "RPM differences are observations, not an improvement score or proof that gearing or ECU caused the change." };
+        if (oldTune?.GearingTarget is { } oldTarget && newTune?.GearingTarget is { } newTarget)
+        {
+            string Goals(GearingTarget t) => string.Join("; ", t.Goals().Select(g => $"{g.Label}: gear {g.Target.Gear}, {g.Target.MinimumSpeedKmh / (t.DisplayMph ? GearingPlanner.KmhPerMph : 1):0.#}–{g.Target.MaximumSpeedKmh / (t.DisplayMph ? GearingPlanner.KmhPerMph : 1):0.#} {(t.DisplayMph ? "mph" : "km/h")}")) + $"; {t.MinimumRpm:0}–{t.MaximumRpm:0} RPM";
+            bool same = oldTarget with { DisplayMph = false, RpmSource = "", RpmSourceFingerprint = null } == newTarget with { DisplayMph = false, RpmSource = "", RpmSourceFingerprint = null };
+            rows.Add(new() { Metric = "Recorded gearing targets", Previous = Goals(oldTarget), Current = Goals(newTarget), Change = same ? "Same" : "Changed",
+                Interpretation = "Saved driver goals, not detected corner geometry. Different targets change which gear/speed windows qualify as target exposure." });
+            if (!same) notes.Add("Gearing targets changed between these runs. Their below/above-target exposure is not a like-for-like measure of improvement.");
+        }
         if (conditions?.Comparable != true) notes.Add("The main before/after conditions are not met; inspect its limitations before comparing setup effects.");
         var oldFinal = oldTune?.Powertrain?.FinalDrive; var newFinal = newTune?.Powertrain?.FinalDrive;
         bool gearingChanged = false, mapChanged = false;

@@ -19,7 +19,7 @@ public sealed class PowertrainContext
 
 public sealed class PowertrainDiagnosis
 {
-    public string AnalyzerVersion { get; set; } = "powertrain-diagnosis/1";
+    public string AnalyzerVersion { get; set; } = "powertrain-diagnosis/2";
     public string Summary { get; set; } = "No usable forward-gear RPM evidence.";
     public string SetupContext { get; set; } = "No gearing or engine-map snapshot was recorded.";
     public string TargetContext { get; set; } = "No RPM target was saved for this recording. Observed RPM is not a detected power band.";

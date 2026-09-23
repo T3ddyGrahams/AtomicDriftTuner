@@ -2,6 +2,15 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.17 rolls the intervening local previews into a public beta update.
 
+## Local v0.9.0-preview.29 — Gearing for tight corners and sweepers
+
+- Ask which gear and speed range the driver wants for tight corners and long sweepers. Compare both goals together against the car's real final-drive presets, show each section's fit and explain compromises. Legacy single-gear targets remain available and load unchanged.
+- Detect fixed individual gears, individually adjustable selections, preset gearboxes and fixed final drive. Keep original ratio-list indexes and selected gear/gearset values. A saved gearing setup changes only final drive; a fixed final drive can be assessed but not changed.
+- Suggest a provisional RPM starting range from readable base engine torque curves. Explain the estimation rule and its limits; missing or unsupported curves require a manual target. Turbo, ECU, hybrid and script effects are not reconstructed. Stale automatic estimates require refreshing before calculation/export.
+- Add a shared mph/km/h default for new car targets, preserve existing per-car unit choices, and convert both speed ranges without cumulative rounding drift. Let drivers explicitly choose a saved run to fill typical speeds when both requested gears have enough reliable evidence.
+- Retain both goals and RPM provenance with new tune/run snapshots. Review exposure in both requested gear/speed windows without double counting overlaps, consider both goals in test guidance, and flag target changes in descriptive comparisons. Earlier recordings are not rewritten; handling/FFB calculations and recommendation-credit logic are unchanged.
+- Local desktop update only. Public preview.17 and the game companion remain unchanged. The separate tuning-engine audit findings remain pending.
+
 ## Local v0.9.0-preview.28 — Camber staging correction
 
 - Fix standard camber values being rejected by **Stage for in-game pits** when the car's definition uses a different scale from its saved setup. Generation, file export and pit staging now share verified camber bounds and whole saved-value steps for supported modes 0/1/2, including packed car data.

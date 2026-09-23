@@ -6,40 +6,48 @@ namespace AtomicDriftTuner.Engine;
 public static class GearingPlanner
 {
     public const double KmhPerMph = 1.609344;
-
     public static double Rpm(double speedKmh, double gear, double finalDrive, double radius) =>
         speedKmh / 3.6 / (2 * Math.PI * radius) * 60 * gear * finalDrive;
 
-    public static GearingPlan Plan(GearingData data, GearingTarget target)
+    public static GearingPlan Plan(GearingData data, GearingTarget target, GearingData? sweeperData = null)
     {
         target.Validate();
-        if (target.Gear != data.Gear)
-            throw new InvalidDataException("The selected gear changed. Calculate again.");
-        if (target.MaximumRpm > data.LimiterRpm)
-            throw new InvalidDataException($"The target RPM exceeds the base engine.ini limiter of {data.LimiterRpm:N0} RPM. Lower the RPM target; active ECU/script overrides are not verified.");
-
+        var goals = target.Goals().ToArray();
+        var sources = target.Sweeper is null ? new[] { data } : new[] { data, sweeperData ?? throw new InvalidDataException("Read both selected gears before calculating.") };
+        for (int i = 0; i < goals.Length; i++)
+        {
+            var source = sources[i]; var t = goals[i].Target;
+            if (t.Gear != source.Gear) throw new InvalidDataException("The selected gear changed. Calculate again.");
+            if (t.MaximumRpm > source.LimiterRpm) throw new InvalidDataException($"The target RPM exceeds the base engine.ini limiter of {source.LimiterRpm:N0} RPM. Lower the RPM target; active ECU/script overrides are not verified.");
+            if (i > 0 && (source.CarPath != data.CarPath || source.BaselinePath != data.BaselinePath || source.CurrentIndex != data.CurrentIndex ||
+                source.CarDataEvidence?.Fingerprint != data.CarDataEvidence?.Fingerprint || !source.FinalDrives.SequenceEqual(data.FinalDrives) ||
+                source.TyreRadius != data.TyreRadius || source.LimiterRpm != data.LimiterRpm || !source.Fingerprints.OrderBy(p => p.Key).SequenceEqual(data.Fingerprints.OrderBy(p => p.Key))))
+                throw new InvalidDataException("The two corner targets must use the same car, baseline and unchanged definitions.");
+            if (t.RpmSourceFingerprint is not null && (source.CarDataEvidence?.Fingerprint != t.RpmSourceFingerprint ||
+                source.RpmEstimate.MinimumRpm != t.MinimumRpm || source.RpmEstimate.MaximumRpm != t.MaximumRpm))
+                throw new InvalidDataException("The engine data behind the suggested RPM band changed. Read the car's RPM range again, or choose a manual target.");
+        }
         var options = data.FinalDrives.Select(ratio =>
         {
-            var low = Rpm(target.MinimumSpeedKmh, data.GearRatio, ratio.Ratio, data.TyreRadius);
-            var high = Rpm(target.MaximumSpeedKmh, data.GearRatio, ratio.Ratio, data.TyreRadius);
-            // Fit both endpoints equally in proportional terms. The ranking does not
-            // infer engine torque, wheelspin or driver preference from these inputs.
-            var score = Math.Pow((low - target.MinimumRpm) / target.MinimumRpm, 2) +
-                        Math.Pow((high - target.MaximumRpm) / target.MaximumRpm, 2);
-            return new GearingOption(ratio, low, high, target.MaximumSpeedKmh * data.LimiterRpm / high,
-                score, low >= target.MinimumRpm && high <= target.MaximumRpm);
+            double score = 0;
+            var results = goals.Select((goal, i) =>
+            {
+                var t = goal.Target; var source = sources[i];
+                var low = Rpm(t.MinimumSpeedKmh, source.GearRatio, ratio.Ratio, source.TyreRadius);
+                var high = Rpm(t.MaximumSpeedKmh, source.GearRatio, ratio.Ratio, source.TyreRadius);
+                score += Math.Pow((low - t.MinimumRpm) / t.MinimumRpm, 2) + Math.Pow((high - t.MaximumRpm) / t.MaximumRpm, 2);
+                return new GearingGoalEstimate(goal.Label, t.Gear, low, high, t.MaximumSpeedKmh * source.LimiterRpm / high,
+                    low >= t.MinimumRpm && high <= t.MaximumRpm, high < source.LimiterRpm);
+            }).ToArray();
+            return new GearingOption(ratio, results[0].LowRpm, results[0].HighRpm, results[0].LimiterSpeedKmh, score / goals.Length, results.All(g => g.FitsTarget)) { Goals = results };
         }).ToArray();
         var current = options.Single(x => x.FinalDrive.Index == data.CurrentIndex);
-        // Never recommend a ratio that reaches the limiter within the requested speed range.
-        var eligible = options.Where(x => x.HighRpm < data.LimiterRpm).ToArray();
-        if (eligible.Length == 0)
-            throw new InvalidDataException("Every supported final drive reaches the base engine.ini limiter within this speed range. Try a higher drift gear or lower your maximum speed; active ECU/script overrides are not verified.");
-        var ranked = eligible.OrderByDescending(x => x.FitsTarget).ThenBy(x => x.Score)
-            .ThenBy(x => x.FinalDrive.Index == data.CurrentIndex ? 0 : 1).ThenBy(x => x.FinalDrive.Index).ToArray();
-        var best = ranked[0];
-        // Avoid changes that merely select a duplicate ratio or offer negligible improvement.
-        if (current.HighRpm < data.LimiterRpm && current.FitsTarget == best.FitsTarget &&
-            current.Score - best.Score < 0.0001) best = current;
-        return new GearingPlan(data, target, current, best, options);
+        // A preset must avoid the base limiter in every requested section.
+        var eligible = options.Where(x => x.BelowLimiter).ToArray();
+        if (eligible.Length == 0) throw new InvalidDataException("No supported final drive stays below the base limiter across all requested speed ranges. Try a higher gear or lower maximum speed for the affected section. No setup was changed.");
+        var best = eligible.OrderByDescending(x => x.FitsTarget).ThenBy(x => x.Score)
+            .ThenBy(x => x.FinalDrive.Index == data.CurrentIndex ? 0 : 1).ThenBy(x => x.FinalDrive.Index).First();
+        if (current.BelowLimiter && current.FitsTarget == best.FitsTarget && current.Score - best.Score < .0001) best = current;
+        return new(data, target, current, best, options) { SweeperData = sweeperData };
     }
 }

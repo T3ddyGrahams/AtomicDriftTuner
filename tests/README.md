@@ -144,3 +144,9 @@ Optional installed-car verification: set `ADT_GEARING_TEST_CAR` to an installed 
 The regression runner has 101 scenarios, including 14 in `PedalChecks`. Coverage includes sustained pedal events, response windows, initiation/transition association, sample-rate equivalence from 15–100 Hz, spikes, gaps/exclusions, incomplete clutch cycles, shifts, raw polarity, missing signals, matching means with different input distributions or cycle rates, saved Desired Behavior guidance, and reanalysis without raw-file changes. Pedal context never becomes an improvement score or writes tuning settings.
 
 The WPF suite checks production report binding and clearing, selected-event detail binding, theme inheritance, minimum column widths, and scroll access to the event/detail/context sections. It passes 381 geometry assertions plus 167 theme, 16 companion-recorder, 50 recovery, 14 gearing and 25 guided-workflow assertions. Pedal screenshots are explicitly synthetic fixtures. Actual driving is still required to evaluate the usefulness of the provisional event/comparison thresholds.
+
+## Corner gearing (local preview.29)
+
+`CornerGearingChecks` adds packed/unpacked joint-goal ranking and final-drive-only export, per-goal limiter rejection, compromise/no-op results, stale second-gear evidence, fixed/individual/preset gearbox detection, RPM curve estimation/refusals/source changes, old/new target persistence, unit defaults, two-goal history/exposure, changed-target comparisons and recorded-speed helper gates. Estimates are hypotheses for a test; tests do not establish better driving behavior.
+
+The focused WPF run is `dotnet run --project tests/AtomicDriftTuner.LayoutTests -- . artifacts/corner-gearing-wpf --gearing`. It checks the production window's single/two-goal workflow, preset explanations, conversion/persistence, automatic/manual RPM provenance, invalidation, theme colors and narrow/portrait/wide layouts using isolated stores.

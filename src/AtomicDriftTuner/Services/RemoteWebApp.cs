@@ -665,7 +665,7 @@ input[type=number]{
             <b id="reviewTorque">--</b>
           </div>
 
-          <h3>AZOM / MOZA RECOMMENDATIONS</h3>
+          <h3 id="wheelbaseReviewHeading">AZOM / MOZA RECOMMENDATIONS</h3>
           <div id="recommendedAzom"></div>
 
           <h3>ASSETTO CORSA FFB</h3>
@@ -1451,22 +1451,22 @@ async function refreshStatus(){
       .join(' • ');
 
     $('selfScore').textContent=
-      t.hasGeneratedTune
+      t.hasGeneratedTune && !t.logitechG27
         ? t.selfSteerScore+'/100'
         : '--';
 
     $('stabilityScore').textContent=
-      t.hasGeneratedTune
+      t.hasGeneratedTune && !t.logitechG27
         ? t.stabilityScore+'/100'
         : '--';
 
     $('detailScore').textContent=
-      t.hasGeneratedTune
+      t.hasGeneratedTune && !t.logitechG27
         ? t.detailScore+'/100'
         : '--';
 
     $('peakTorque').textContent=
-      t.hasGeneratedTune
+      t.hasGeneratedTune && !t.logitechG27
         ? num(
             t.estimatedPeakWheelTorqueNm,
             1,
@@ -1687,7 +1687,7 @@ function renderTuneReview(
   if(
     !tune ||
     !tune.hasGeneratedTune ||
-    !tune.recommendedAzom ||
+    (!tune.recommendedAzom && !tune.logitechG27) ||
     !tune.recommendedAc
   ){
     $('tuneEmpty')
@@ -1729,7 +1729,8 @@ function renderTuneReview(
     );
 
   const azom=
-    tune.recommendedAzom;
+    tune.recommendedAzom || {};
+  $('wheelbaseReviewHeading').textContent=tune.logitechG27?'LOGITECH G27 MANUAL PLAN':'AZOM / MOZA RECOMMENDATIONS';
 
   const core=
     azom.core || {};
@@ -1835,6 +1836,18 @@ function renderTuneReview(
 
   const ac=
     tune.recommendedAc || {};
+
+  if(tune.logitechG27){
+    const g=tune.logitechG27;
+    for(const id of ['reviewSelf','reviewStability','reviewDetail','reviewTorque']) $(id).textContent='Not modelled';
+    addTuneRows('recommendedAzom',[
+      ['G27 manual plan','Enter and verify in legacy Logitech Profiler; no automatic read/apply'],
+      ['Overall Effects Strength',g.overallEffectsStrength+'%'],['Spring Effect Strength',g.springEffectStrength+'%'],
+      ['Damper Effect Strength',g.damperEffectStrength+'%'],['Centering Spring',g.enableCenteringSpring?'On':'Off'],
+      ['Centering Spring Strength',g.centeringSpringStrength+'%'],['Degrees Of Rotation',g.degreesOfRotation+'°'],
+      ['Report Combined Pedals',g.reportCombinedPedals?'On':'Off'],['Allow Game To Adjust Settings',g.allowGameToAdjustSettings?'On':'Off']
+    ]);
+  }
 
   addTuneRows(
     'recommendedAc',

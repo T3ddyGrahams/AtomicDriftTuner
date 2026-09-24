@@ -64,6 +64,12 @@ if (args is ["--render-remote", var renderDirectory])
 var failures = 0;
 var root = Path.Combine(Path.GetTempPath(), "adt-regression-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
+if (args.Contains("--g27"))
+{
+    LogitechG27Checks.Run(Run, root);
+    Console.WriteLine($"Failures: {failures}. Isolated fixtures: {root}");
+    return failures == 0 ? 0 : 1;
+}
 if (args.Contains("--setup-comparison"))
 {
     SetupComparisonChecks.Run(Run, root);
@@ -191,7 +197,9 @@ Run("all built-in hardware/car/intent combinations stay in output ranges", () =>
         var input = new TuneInput { Hardware = hardware, Wheel = wheel, Car = car, DriftPack = BuiltInProfiles.DriftPacks().Single(p => p.Id == car.PackId), Intent = intent };
         var result = new TuningEngine().Generate(input);
         Assert(result.Ac.GainPct is >= 35 and <= 90, "AC gain outside engine contract.");
-        Assert(result.Azom.Core.BaseTorqueOutputPct is >= 50 and <= 100, "Torque outside engine contract.");
+        if (LogitechG27Support.IsG27(hardware))
+            Assert(result.LogitechG27 is not null && result.EstimatedPeakWheelTorqueNm == 0, "G27 entered the direct-drive torque model.");
+        else Assert(result.Azom.Core.BaseTorqueOutputPct is >= 50 and <= 100, "Torque outside engine contract.");
         Assert(double.IsFinite(result.EstimatedPeakWheelTorqueNm), "Nonfinite torque estimate.");
         count++;
     }
@@ -284,6 +292,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
     method.Invoke(null, new object[] { plan, new AzomLiveSnapshot { Torque = 70 } });
 });
         PitHouseChecks.Run(Run, root);
+        LogitechG27Checks.Run(Run, root);
         MozaWorkerChecks.Run(Run, root);
         WheelSlipEvidenceChecks.Run(Run);
         CarPhysicsChecks.Run(Run, root);

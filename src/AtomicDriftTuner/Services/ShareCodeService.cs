@@ -40,6 +40,7 @@ public sealed class ShareCodeService
 
             Input = new AtomicShareInput
             {
+                LogitechG27 = result.LogitechG27 is null ? null : RunHistoryStore.Clone(result.LogitechG27),
                 Hardware = new AtomicShareHardware
                 {
                     Id = input.Hardware.Id,
@@ -440,6 +441,7 @@ public sealed class ShareCodeService
 
         return new TuneInput
         {
+            LogitechG27 = payload.Input.LogitechG27 is null ? null : RunHistoryStore.Clone(payload.Input.LogitechG27),
             Hardware = new HardwareProfile
             {
                 Id =
@@ -647,6 +649,15 @@ public sealed class ShareCodeService
         sb.AppendLine(
             "SHARED RECOMMENDATION SNAPSHOT");
 
+        if (payload.Input.Hardware.Id == LogitechG27Support.HardwareId)
+        {
+            sb.AppendLine(LogitechG27Support.Summary(payload.Input.LogitechG27 ?? new()));
+            sb.AppendLine($"Generated AC FFB: gain {ac.GainPct}%, filter {ac.FilterPct}%, minimum force {ac.MinimumForcePct}%. Other AC effects: kerb {ac.KerbPct}%, road {ac.RoadPct}%, slip {ac.SlipPct}%, ABS {ac.AbsPct}%.");
+            sb.AppendLine("G27 physical torque and wheel-response scores are not modelled. Shared values are plans, not hardware readbacks.");
+            sb.AppendLine($"Desired behavior: front {Signed(b.FrontEndBite)}, rear grip {Signed(b.RearGrip)}, self-steer {Signed(b.SelfSteerSpeed)}, transitions {Signed(b.TransitionSpeed)}, stability {Signed(b.AngleStability)}.");
+            return sb.ToString();
+        }
+
         sb.AppendLine(
             $"Rotation {a.WheelRotationAngleDeg}° • Game FFB {a.GameFfbStrengthPct}% • Base Torque {a.BaseTorqueOutputPct}%");
 
@@ -732,6 +743,9 @@ public sealed class ShareCodeService
                 $"Unsupported share schema '{payload.Schema}'.");
         }
 
+        payload.Input.LogitechG27?.Validate();
+        if ((payload.Input.Hardware.Id == LogitechG27Support.HardwareId) != (payload.Input.LogitechG27 is not null))
+            throw new InvalidDataException("Share code wheelbase and FFB provider do not match.");
         RequireText(
             payload.AtomicVersion,
             "ADT version",
@@ -837,7 +851,7 @@ public sealed class ShareCodeService
 
         RequireRange(
             payload.Input.Hardware.PeakTorqueNm,
-            0.5,
+            payload.Input.Hardware.Id == LogitechG27Support.HardwareId ? 0 : 0.5,
             60,
             "Peak torque");
 
@@ -950,6 +964,8 @@ public sealed class ShareCodeService
         var a =
             payload.Recommendation.Azom;
 
+        if (payload.Input.Hardware.Id != LogitechG27Support.HardwareId)
+        {
         RequireInt(
             a.WheelRotationAngleDeg,
             60,
@@ -1047,6 +1063,7 @@ public sealed class ShareCodeService
                 0,
                 100,
                 "Output curve node");
+        }
         }
 
         var ac =

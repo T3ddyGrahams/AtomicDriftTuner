@@ -368,7 +368,15 @@ public partial class MainWindow : Window
     private void PopulateHardware()
     {
         if (HardwareBox.SelectedItem is not HardwareProfile h) { PeakTorqueBox.Text = ""; return; }
+        PeakTorqueBox.IsEnabled = !LogitechG27Support.IsG27(h);
+        PeakTorqueLabel.Text = LogitechG27Support.IsG27(h) ? "Peak torque — not modelled for G27" : "Peak Torque (Nm)";
+        PeakTorqueBox.ToolTip = LogitechG27Support.IsG27(h) ? "Not modelled for G27; zero is an unknown-value marker, not measured torque." : null;
         PeakTorqueBox.Text = h.PeakTorqueNm.ToString("0.##", CultureInfo.InvariantCulture);
+        foreach (var slider in new[] { SelfSteerSlider, WeightSlider, DetailSlider, OscillationSlider })
+        {
+            slider.IsEnabled = !LogitechG27Support.IsG27(h);
+            slider.ToolTip = LogitechG27Support.IsG27(h) ? "Automatic adjustment of this Logitech control is not available. Enter and test one change in Wheelbase Settings." : null;
+        }
         UpdateCalibrationStatusSafely();
     }
 
@@ -482,12 +490,13 @@ public partial class MainWindow : Window
 
         return new TuneInput
         {
+            LogitechG27 = LogitechG27Support.IsG27(hb) ? new LogitechG27Store().Load() : null,
             Hardware = new HardwareProfile
             {
                 Id = hb.Id,
                 Manufacturer = hb.Manufacturer,
                 Model = hb.Model,
-                PeakTorqueNm = Number(PeakTorqueBox.Text, "Peak torque"),
+                PeakTorqueNm = LogitechG27Support.IsG27(hb) ? 0 : Number(PeakTorqueBox.Text, "Peak torque"),
                 MaxRotationDeg = hb.MaxRotationDeg,
                 IsCustom = hb.IsCustom
             },
@@ -1056,6 +1065,12 @@ public partial class MainWindow : Window
             $"Detail                 {result.DetailScore,3}/100\n" +
             $"Est. peak torque       {result.EstimatedPeakWheelTorqueNm,5:0.0} Nm";
 
+        if (result.LogitechG27 is { } g27)
+        {
+            AzomText.Text = LogitechG27Support.Summary(g27);
+            BehaviorText.Text = "G27: physical torque and wheel-response scores are not modelled.\nUse telemetry and driver feedback to compare repeated runs.\nAC gain calibration is supported; MOZA-specific adjustments are not mapped.";
+        }
+
         RenderConfidence(input.Car.Confidence);
         RenderCalibrationStatus(_currentCalibration);
 
@@ -1086,6 +1101,12 @@ public partial class MainWindow : Window
 
     private void RenderCalibrationStatus(CalibrationProfile? calibration)
     {
+        if (HardwareBox.SelectedItem is HardwareProfile hardware && LogitechG27Support.IsG27(hardware))
+        {
+            CalibrationStatusText.Text = "G27 uses your entered FFB plan. Only the saved AC gain calibration is applied: " + Signed(calibration?.AcGainDelta ?? 0) +
+                ". Other wheelbase calibration axes are not mapped to Logitech controls. Review the generated AC gain before recording.";
+            return;
+        }
         if (calibration is null || calibration.Samples == 0)
         {
             CalibrationStatusText.Text = "No saved calibration for this exact wheelbase + wheel + pack + car. Drive the generated setup, rate the feel below, then apply feedback.";
@@ -1127,8 +1148,16 @@ public partial class MainWindow : Window
     {
         try
         {
-            var input = BuildInput();
             var provider = _workflow.Preferences().FfbProvider;
+            var g27Selected = HardwareBox.SelectedItem is HardwareProfile hardware && LogitechG27Support.IsG27(hardware);
+            if (g27Selected || provider == FfbProvider.LogitechG27)
+            {
+                if (!g27Selected) throw new InvalidOperationException("Select Logitech G27 as the dashboard wheelbase before opening its settings.");
+                var g27Window = new LogitechG27Window { Owner = this }; g27Window.ShowDialog();
+                if (g27Window.SettingsSaved) { ClearGeneratedSelection(); RefreshCurrentTuneSafely(); }
+                return;
+            }
+            var input = BuildInput();
             if (provider != FfbProvider.SimHubAzom)
             {
                 var result = _engine.Generate(input, _calibrationStore.Get(_calibrationEngine.BuildKey(input)), _azomPreferences);
@@ -1797,6 +1826,7 @@ public partial class MainWindow : Window
     private void ImportSharePayload(AtomicSharePayload payload, bool saveBehavior)
     {
         var shared = _shareCodeService.ToTuneInput(payload);
+        if (LogitechG27Support.IsG27(shared.Hardware) && shared.LogitechG27 is { } sharedG27) new LogitechG27Store().Save(sharedG27);
 
         SelectOrAddHardware(shared.Hardware);
         SelectOrAddWheel(shared.Wheel);
@@ -1908,6 +1938,7 @@ public partial class MainWindow : Window
             if (dialog.ShowDialog() != true) return;
 
             var tune = _store.Load(dialog.FileName);
+            if (LogitechG27Support.IsG27(tune.Input.Hardware) && tune.Input.LogitechG27 is { } savedG27) new LogitechG27Store().Save(savedG27);
             SelectOrAddHardware(tune.Input.Hardware);
             SelectOrAddWheel(tune.Input.Wheel);
             SelectOrAddPack(tune.Input.DriftPack);
@@ -2099,6 +2130,16 @@ public partial class MainWindow : Window
     private void HardwareBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         PopulateHardware();
+        if (_selectionReady && !_restoringSelection && HardwareBox.SelectedItem is HardwareProfile hardware && LogitechG27Support.IsG27(hardware))
+        {
+            WheelBox.SelectedItem = _wheels.FirstOrDefault(w => w.Id == LogitechG27Support.WheelId);
+            try
+            {
+                var preferences = _workflow.Preferences(); preferences.FfbProvider = FfbProvider.LogitechG27;
+                _workflow.SavePreferences(preferences);
+            }
+            catch (Exception ex) { CalibrationStatusText.Text = "G27 selected; save the G27 provider in Setup & Paths before recording. " + ex.Message; }
+        }
         SessionSelectionChanged();
     }
 

@@ -8,6 +8,7 @@ public static class FfbProviderOptions
     public static IReadOnlyList<Option> All { get; } = Array.AsReadOnly(new[] {
         new Option(FfbProvider.SimHubAzom, "SimHub / AZOM"),
         new Option(FfbProvider.MozaPitHouse, "MOZA Pit House"),
+        new Option(FfbProvider.LogitechG27, "Logitech G27 / legacy Profiler (manual)"),
         new Option(FfbProvider.Manual, "Other wheelbase software / manual") });
     public static string Label(FfbProvider provider) => All.Single(x => x.Provider == provider).Label;
     public static bool UsesAzom(GuidedPreferences p) => p.FfbProvider == FfbProvider.SimHubAzom;

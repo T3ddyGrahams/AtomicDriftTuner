@@ -47,24 +47,27 @@ public static class SetupComparisonPresentation
             var changed = hasOld && hasNew && Math.Abs(old - next) > .000001;
             var car = key.StartsWith("ACSetup.", StringComparison.Ordinal);
             var generated = key.StartsWith("Generated.", StringComparison.Ordinal);
+            var manualG27 = key.StartsWith("Manual.LogitechG27.", StringComparison.Ordinal);
             var oldMapping = car && hasOld ? Verified(before!.DecodedSetup, key[8..], old) : null;
             var newMapping = car && hasNew ? Verified(after!.DecodedSetup, key[8..], next) : null;
             var mappingChanged = hasOld && hasNew && !changed && oldMapping is not null && newMapping is not null && oldMapping.Value != newMapping.Value;
             var difference = !hasOld || !hasNew ? "Cannot compare" : mappingChanged ? "Saved value unchanged; meaning differs" : changed ? Signed(next - old) + " saved units" : "No change";
+            if (manualG27 && hasOld && hasNew && changed)
+                difference = G27Unit(key) switch { "toggle" => "Switch changed", "°" => Signed(next - old) + "°", "%" => Signed(next - old) + " percentage points", _ => difference };
             if (changed && car && (key == "ACSetup.FINAL_RATIO" || key.StartsWith("ACSetup.INTERNAL_GEAR_", StringComparison.Ordinal)) &&
                 oldMapping?.NumericValue is double ratioBefore && newMapping?.NumericValue is double ratioAfter && double.IsFinite(ratioBefore) && double.IsFinite(ratioAfter))
                 difference = Signed(ratioAfter - ratioBefore) + " ratio";
-            var note = car ? "Recorded setup values. The run does not establish why this individual setting changed or whether it helped."
+            var note = manualG27 ? "Driver-entered Logitech G27 plan; not hardware readback. Confirm the active Logitech profile and actual settings for both runs." : car ? "Recorded setup values. The run does not establish why this individual setting changed or whether it helped."
                 : generated ? "Generated ADT targets saved with each run; these are not wheelbase or in-game FFB readbacks."
                 : "Unassigned or unknown snapshot value; no tunable control or physical unit is inferred.";
-            return new Row(key, Label(key), car ? Group(key[8..]) : generated ? "FFB targets" : "Other captured values",
+            return new Row(key, Label(key), car ? Group(key[8..]) : manualG27 ? "G27 manual plan" : generated ? "FFB targets" : "Other captured values",
                 hasOld ? RecordedValue(before!, key, old) : "Not captured", hasNew ? RecordedValue(after!, key, next) : "Not captured",
                 difference,
                 !hasOld || !hasNew ? "Missing evidence" : mappingChanged ? "Mapping differs" : changed ? "Changed" : "Unchanged",
                 mappingChanged ? "The same saved value has different verified meanings in these snapshots. Car data may have changed; this is not an equivalent unchanged setup." : note,
                 $"{key}\nBefore: {Source(before, car)}\nAfter: {Source(after, car)}" +
                 (car ? "\nStored VALUE units can differ from the game's display. Verified mappings are shown only when they match that snapshot's saved value." : ""), changed, !hasOld || !hasNew || mappingChanged)
-            { AfterHeading = generated ? "After target" : "Recorded after", BeforeHeading = generated ? "Before target" : "Before" };
+            { AfterHeading = manualG27 ? "After plan" : generated ? "After target" : "Recorded after", BeforeHeading = manualG27 ? "Before plan" : generated ? "Before target" : "Before" };
         }));
     }
 
@@ -74,9 +77,19 @@ public static class SetupComparisonPresentation
 
     private static string RecordedValue(TuneVersion tune, string key, double value)
     {
+        if (key.StartsWith("Manual.LogitechG27.", StringComparison.Ordinal))
+            return G27Unit(key) switch { "toggle" when value is 0 or 1 => value == 1 ? "On" : "Off", "°" => F(value) + "°", "%" => F(value) + "%", _ => F(value) + " (saved value)" };
         var mapping = key.StartsWith("ACSetup.", StringComparison.Ordinal) ? Verified(tune.DecodedSetup, key[8..], value) : null;
         return mapping is null ? F(value) + " (saved value)" : mapping.Value + $" (saved {F(value)})";
     }
+
+    private static string G27Unit(string key) => key[19..] switch
+    {
+        "EnableCenteringSpring" or "ReportCombinedPedals" or "AllowGameToAdjustSettings" => "toggle",
+        "DegreesOfRotation" => "°",
+        "OverallEffectsStrength" or "SpringEffectStrength" or "DamperEffectStrength" or "CenteringSpringStrength" or
+        "Ac.GainPct" or "Ac.FilterPct" or "Ac.MinimumForcePct" or "Ac.KerbPct" or "Ac.RoadPct" or "Ac.SlipPct" or "Ac.AbsPct" => "%", _ => ""
+    };
 
     private static string ProposalValue(CarSetupParameter p, double? value, string raw, CarSetupAnalysis analysis)
     {
@@ -118,6 +131,7 @@ public static class SetupComparisonPresentation
 
     public static string Label(string key, string? carLabel = null)
     {
+        if (key.StartsWith("Manual.LogitechG27.", StringComparison.Ordinal)) return Humanize(key[19..]) + " (G27 plan)";
         if (key.StartsWith("Generated.", StringComparison.Ordinal))
         {
             var parts = key.Split('.', 3);

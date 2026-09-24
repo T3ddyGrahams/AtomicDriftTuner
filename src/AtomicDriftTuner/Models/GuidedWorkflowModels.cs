@@ -2,7 +2,7 @@ namespace AtomicDriftTuner.Models;
 
 public enum TuningFocus { Both, FfbOnly, CarSetupOnly }
 public enum RecommendationArea { General, Ffb, CarSetup }
-public enum FfbProvider { SimHubAzom, MozaPitHouse, Manual }
+public enum FfbProvider { SimHubAzom, MozaPitHouse, Manual, LogitechG27 }
 
 public sealed class GuidedPreferences
 {

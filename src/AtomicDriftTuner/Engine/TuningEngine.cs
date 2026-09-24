@@ -22,6 +22,21 @@ public sealed class TuningEngine
         Validate(
             input);
 
+        if (Services.LogitechG27Support.IsG27(input.Hardware))
+        {
+            var settings = Services.RunHistoryStore.Clone(input.LogitechG27 ?? new LogitechG27Settings());
+            settings.Validate();
+            var state = ResolveCalibration(input, calibration);
+            var ac = Services.RunHistoryStore.Clone(settings.Ac);
+            if (state.Profile is { } saved) ac.GainPct = Math.Clamp(ac.GainPct + Math.Clamp(saved.AcGainDelta, -12, 12), 0, 100);
+            return new TuneResult { LogitechG27 = settings, Ac = ac,
+                CalibrationSummary = state.Profile is null ? state.Reason : "G27: only the saved AC gain adjustment is used; MOZA-specific adjustments are not mapped.",
+                Notes = ["G27 manual plan. Enter and verify Logitech Profiler and AC settings before recording. ADT does not read or apply them.",
+                    "New G27 plans use a provisional starting point: 100% overall strength, other driver effects zero, centering spring off, 900° rotation, separate pedals and AC gain 50%. Replace these with your actual baseline or test them explicitly; this is not a measured optimum.",
+                    "Physical torque, rim inertia and self-steer/stability/detail scores are not modelled for the G27. Car telemetry diagnosis and setup tuning still work.",
+                    "Keep LUT/post-processing and other driver options fixed across comparison runs. Adjust minimum force in small tests if needed; its optimum is not inferred from a screenshot."] };
+        }
+
         preferences ??=
             new AzomUserPreferences();
 
@@ -886,7 +901,7 @@ public sealed class TuningEngine
             nameof(input.DriftPack.DampingBias));
 
         if (
-            input.Hardware.PeakTorqueNm <= 0 ||
+            (input.Hardware.PeakTorqueNm <= 0 && !Services.LogitechG27Support.IsG27(input.Hardware)) || input.Hardware.PeakTorqueNm < 0 ||
             input.Hardware.PeakTorqueNm > 40)
         {
             throw new ArgumentOutOfRangeException(

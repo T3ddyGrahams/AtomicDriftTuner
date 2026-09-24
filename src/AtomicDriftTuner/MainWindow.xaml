@@ -488,7 +488,7 @@
                   <Border Style="{StaticResource InsetPanel}">
                     <StackPanel>
                       <TextBlock Foreground="{DynamicResource SectionHeadingBrush}" Text="HARDWARE DETAILS" FontSize="12" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap" />
-                      <TextBlock Text="Peak Torque (Nm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
+                      <TextBlock x:Name="PeakTorqueLabel" Text="Peak Torque (Nm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="PeakTorqueBox" LostKeyboardFocus="SessionValue_LostFocus" />
                       <TextBlock Text="Wheel Diameter (mm)" Style="{StaticResource LabelText}" TextWrapping="Wrap" />
                       <TextBox x:Name="WheelDiameterBox" LostKeyboardFocus="SessionValue_LostFocus" />

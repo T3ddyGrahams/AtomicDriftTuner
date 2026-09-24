@@ -76,8 +76,15 @@ public sealed class RunHistoryStore
         }
         if (TuningFocusOptions.IncludesFfb(focus))
         {
+            if (LogitechG27Support.IsG27(input.Hardware) != (ffbProvider == FfbProvider.LogitechG27))
+                throw new InvalidDataException("For G27 FFB recording, select both Logitech G27 hardware and the Logitech G27 / legacy Profiler provider. Use the matching provider for other hardware.");
             Flatten(JsonSerializer.SerializeToElement(tune.Ac), "Generated.ACFFB");
-            if (ffbProvider == FfbProvider.MozaPitHouse)
+            if (ffbProvider == FfbProvider.LogitechG27)
+            {
+                Flatten(JsonSerializer.SerializeToElement(tune.LogitechG27), "Manual.LogitechG27");
+                version.Source = "Driver-entered Logitech G27 plan and generated AC FFB targets; no Logitech or game readback. Confirm the actual values and active profile before recording.";
+            }
+            else if (ffbProvider == FfbProvider.MozaPitHouse)
             {
                 foreach (var setting in PitHouseCatalog.Settings)
                 {

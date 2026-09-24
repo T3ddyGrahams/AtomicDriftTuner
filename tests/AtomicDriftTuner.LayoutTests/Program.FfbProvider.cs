@@ -73,7 +73,7 @@ internal static partial class Program
         try
         {
             var provider = (ComboBox)wizard.FindName("FfbProviderBox");
-            Check(provider.Items.Count == 3 && ((FfbProviderOptions.Option)provider.SelectedItem).Provider == FfbProvider.SimHubAzom, "Existing AZOM choice changed");
+            Check(provider.Items.Count == 4 && ((FfbProviderOptions.Option)provider.SelectedItem).Provider == FfbProvider.SimHubAzom, "Existing AZOM choice changed");
             provider.SelectedItem = FfbProviderOptions.All.Single(x => x.Provider == FfbProvider.MozaPitHouse);
             Check(((StackPanel)wizard.FindName("PitHouseInterviewPanel")).Visibility == Visibility.Visible, "Pit House panel hidden");
             Check(((StackPanel)wizard.FindName("SimHubInterviewPanel")).Visibility == Visibility.Collapsed && ((Border)wizard.FindName("OptionalSimHubCard")).Visibility == Visibility.Collapsed, "Pit House still requires AZOM setup");
@@ -83,6 +83,9 @@ internal static partial class Program
             provider.SelectedItem = FfbProviderOptions.All.Single(x => x.Provider == FfbProvider.Manual);
             Check(((StackPanel)wizard.FindName("PitHouseInterviewPanel")).Visibility == Visibility.Collapsed, "Manual exposes SDK");
             Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("Manual FFB"), "Manual instructions wrong");
+            provider.SelectedItem = FfbProviderOptions.All.Single(x => x.Provider == FfbProvider.LogitechG27);
+            Check(((StackPanel)wizard.FindName("PitHouseInterviewPanel")).Visibility == Visibility.Collapsed && ((StackPanel)wizard.FindName("SimHubInterviewPanel")).Visibility == Visibility.Collapsed, "G27 exposes incompatible provider setup");
+            Check(((TextBlock)wizard.FindName("InterviewInstructionsText")).Text.Contains("G27"), "G27 guidance missing");
             provider.SelectedItem = FfbProviderOptions.All.Single(x => x.Provider == FfbProvider.SimHubAzom);
             Check(((Border)wizard.FindName("OptionalSimHubCard")).Visibility == Visibility.Visible, "Switch back lost AZOM help");
         }

@@ -32,6 +32,8 @@ public partial class TelemetryWindow
         RecorderHelpExpander.IsExpanded = plan.ShowDetailedHelp;
         RecorderConfirmationText.Text = plan.Focus == TuningFocus.CarSetupOnly
             ? "I confirm the attached car setup is loaded in AC and my in-game FFB and wheelbase settings are unchanged."
+            : plan.FfbProvider == FfbProvider.LogitechG27
+                ? "I confirm the saved G27 plan matches the active Logitech profile, I entered the generated AC FFB values, and the attached car setup is loaded. ADT has not read these FFB settings."
             : plan.FfbProvider == FfbProvider.MozaPitHouse
                 ? "I confirm I am using the supported Pit House core FFB targets, AC FFB and attached setup for this run. Unsupported wheelbase controls remain fixed."
                 : "I confirm I am using the generated ADT FFB targets and the attached setup for this run.";

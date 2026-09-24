@@ -765,13 +765,14 @@ public partial class TelemetryWindow : Window
         SuggestionText.Text =
             suggestion.IsNeutral
                 ? "No automatic correction proposed."
-                : $"Wheel Speed          {Signed(suggestion.WheelSpeedDelta)}\n" +
+                : (LogitechG27Support.IsG27(_input.Hardware) ? $"G27: AC gain {Signed(suggestion.AcGainDelta)}. Logitech settings remain a manual plan." :
+                  $"Wheel Speed          {Signed(suggestion.WheelSpeedDelta)}\n" +
                   $"Wheel Damper         {Signed(suggestion.DampingDelta)}\n" +
                   $"Wheel Friction       {Signed(suggestion.FrictionDelta)}\n" +
                   $"High-Speed Damping   {Signed(suggestion.SpeedDampingDelta)}\n" +
                   $"Base Torque          {Signed(suggestion.TorqueLimitDelta)}\n" +
                   $"AC Gain              {Signed(suggestion.AcGainDelta)}\n" +
-                  $"Interpolation        {Signed(suggestion.InterpolationDelta)}" +
+                  $"Interpolation        {Signed(suggestion.InterpolationDelta)}") +
                   (
                       suggestion.Reasons.Count > 0
                           ? "\n\n" +

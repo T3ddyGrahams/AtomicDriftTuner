@@ -7,7 +7,8 @@ public static class GuidedWorkflowEngine
     public static bool CanAdvanceFromRun(TelemetrySession session, TelemetryAnalysis analysis) =>
         analysis.DriftTimeSeconds >= 20 && DriftDiagnosisEngine.Reliable(session, analysis);
     public static string TuneSignature(TuneResult result) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-        System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new { result.Ac, result.Azom })));
+        result.LogitechG27 is null ? System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new { result.Ac, result.Azom }) :
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new { result.Ac, result.LogitechG27 })));
 
     public static string Overview(TuningFocus focus) =>
         "Your route: choose your car → save your goals → prepare " +
@@ -93,6 +94,8 @@ public static class GuidedWorkflowEngine
 
     public static string Instructions(GuidedPreferences p, IntegrationState? s)
     {
+        if (TuningFocusOptions.IncludesFfb(p.Focus) && p.FfbProvider == FfbProvider.LogitechG27)
+            return LogitechG27Support.Instructions(p.ShowDetailedHelp);
         if (TuningFocusOptions.IncludesFfb(p.Focus) && p.FfbProvider == FfbProvider.MozaPitHouse)
             return FfbProviderOptions.PitHouseInstructions(p.ShowDetailedHelp);
         if (!p.ShowDetailedHelp)

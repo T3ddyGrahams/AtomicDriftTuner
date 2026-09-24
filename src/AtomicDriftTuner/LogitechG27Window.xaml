@@ -1,0 +1,50 @@
+<Window x:Class="AtomicDriftTuner.LogitechG27Window"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ADT • Logitech G27" Width="820" Height="860" MinWidth="430" MinHeight="430"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <DataTemplate x:Key="G27SettingRow">
+            <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="10" Margin="0,0,0,6">
+                <StackPanel><TextBlock Text="{Binding Label}" TextWrapping="Wrap" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Label}" MaxLength="6" Width="100" HorizontalAlignment="Left" Margin="0,5"/>
+                    <TextBlock Text="{Binding Help}" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+        <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/></Style>
+        <Style TargetType="Button" BasedOn="{StaticResource AtomicButtonStyle}"><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="Padding" Value="12,8"/></Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <ScrollViewer x:Name="G27BodyScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,0,12,0">
+                <TextBlock Text="LOGITECH G27" FontSize="23" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
+                <TextBlock Text="A manual plan for legacy Logitech Gaming Software / Profiler" Margin="0,4,0,10"/>
+                <TextBlock Text="1. Copy your current values from Logitech and AC into these boxes. 2. Save your plan in ADT. 3. Enter and verify the values in Logitech/AC, then record a baseline. Saving here does not change the wheel or the game."/>
+                <Expander Header="Full start-to-finish instructions" HorizontalContentAlignment="Stretch" Margin="0,10"><TextBlock x:Name="HelpText" Margin="8"/></Expander>
+                <TextBlock Text="Logitech software version (optional, from Help / About)" Foreground="{DynamicResource FieldLabelBrush}"/>
+                <TextBox x:Name="SoftwareVersionBox" MaxLength="100" AutomationProperties.Name="Logitech software version" Margin="0,4,0,10"/>
+                <TextBlock Text="Logitech device settings" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}"/>
+                <TextBlock Text="Match the active AC profile or Global Device Settings. These limits come from the tester's screenshots; they are allowed ranges, not recommended maximums." Margin="0,6,0,8"/>
+                <ItemsControl x:Name="LogitechRows" ItemTemplate="{StaticResource G27SettingRow}"/>
+                <CheckBox x:Name="CenteringCheck" AutomationProperties.Name="Enable Centering Spring in Force Feedback Games" Margin="0,6"><TextBlock Text="Enable Centering Spring in Force Feedback Games" TextWrapping="Wrap"/></CheckBox>
+                <TextBlock Text="This adds an artificial return-to-centre effect. Keep its strength recorded even when the checkbox is off." Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <CheckBox x:Name="CombinedCheck" Content="Report Combined Pedals" Margin="0,6"/>
+                <TextBlock Text="For independent throttle and brake axes, leave this off and check each pedal separately in AC." Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <CheckBox x:Name="GameAdjustCheck" Content="Allow Game To Adjust Settings" Margin="0,6"/>
+                <TextBlock Text="Check your actual steering range in AC after changing this; the game can request a different setting." Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="Assetto Corsa FFB baseline" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" Margin="0,18,0,6"/>
+                <TextBlock Text="Enter the values you are starting from. A generated recommendation can include an existing, matching AC gain calibration; check the dashboard's generated AC values before recording." Margin="0,0,0,8"/>
+                <ItemsControl x:Name="AcRows" ItemTemplate="{StaticResource G27SettingRow}"/>
+                <TextBlock Text="Keep steering gamma, LUT/post-processing and other settings fixed while testing. ADT does not read or configure them in this version." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,8"/>
+                <Button x:Name="StartingPointButton" Click="StartingPoint_Click" HorizontalAlignment="Left"><TextBlock Text="Use ADT provisional starting point" TextWrapping="Wrap"/></Button>
+                <TextBlock Text="Optional starting point: overall 100%, spring/damper/centering strength 0%, centering off, 900°, separate pedals, game adjustment on, AC gain 50% and other AC effects 0%. This is a test baseline, not an automatically diagnosed tune. Start gently, check clipping, and adjust one item at a time." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="1" Margin="0,10,0,0">
+            <TextBlock x:Name="StatusText" Text="No Logitech or game settings have been read or applied." Margin="0,0,0,8"/>
+            <WrapPanel><Button x:Name="SavePlanButton" Content="Save plan in ADT" Click="Save_Click" FontWeight="Bold"/><Button Content="Close" Click="Close_Click"/></WrapPanel>
+        </StackPanel>
+    </Grid>
+</Window>

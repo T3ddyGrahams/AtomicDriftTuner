@@ -118,6 +118,7 @@ public sealed class RunComparisonEngine
                         ? (a.Tune.SetupSource == "csp-current-setup" && b.Tune.SetupSource == "csp-current-setup"
                             ? "Current CSP setup VALUE, sampled periodically. Stored setup units may differ from the game's display units."
                             : "Captured setup-file value; use is driver-confirmed.") + mappingNote
+                        : key.StartsWith("Manual.LogitechG27.", StringComparison.Ordinal) ? "Driver-entered G27 plan; not hardware readback. Confirm the active Logitech profile for both runs."
                         : "Generated ADT target; not live hardware readback." });
             }
             if (a.Tune.SetupSource != "csp-current-setup" && b.Tune.SetupSource != "csp-current-setup" &&

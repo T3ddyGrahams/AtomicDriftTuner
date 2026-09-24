@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.33 — Logitech G27 manual support
+
+- Add a dedicated G27 wheelbase, integrated rim and legacy Logitech Gaming Software / Profiler provider, with a scrollable manual settings screen matching the tester's five numeric controls and three switches. Store the entered plan locally and include it in saved tunes, share codes and confirmed FFB run snapshots.
+- Show before/after G27 plans alongside generated AC FFB targets, with percentages, rotation degrees, switch states and explicit provenance. Remote tune review shows the G27 plan and blocks AZOM reads/writes for G27 hardware.
+- Use the entered AC baseline plus matching AC gain calibration for G27 generation. Do not map MOZA controls onto Logitech, invent a torque specification or calculate direct-drive response scores. Unmapped dashboard feedback sliders are disabled. Car diagnosis, Desired Behavior, setup/gearing/ECU calculations and comparison scoring are unchanged.
+- Add step-by-step legacy Profiler guidance, optional software-version capture and a tester acceptance checklist. This first version does not install a Logitech driver or read/apply wheel settings. Hardware acceptance remains with the G27 tester.
+- Includes preview.32 setup comparisons and preview.31 focused car tests. Companion 0.4.0-preview.4 is unchanged; no companion reinstall required. Public preview.30 remains the published release.
+
 ## Local v0.9.0-preview.32 — Clear setup comparisons
 
 - Add **Your setup changes** to full AC Setup generation and the focused saved-run setup test. Readable setting names, before/recommended values, differences and the existing recommendation reasons appear together. Changed rows are highlighted; **Show all settings** includes preserved values. Technical details remain expandable.

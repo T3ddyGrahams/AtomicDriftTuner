@@ -13,7 +13,9 @@ public static class BuiltInProfiles
         new() { Id="moza-r16", Manufacturer="MOZA", Model="R16", PeakTorqueNm=16.0 },
         new() { Id="moza-r21", Manufacturer="MOZA", Model="R21", PeakTorqueNm=21.0 },
         new() { Id="moza-r25", Manufacturer="MOZA", Model="R25 Ultra", PeakTorqueNm=25.0 },
-        new() { Id="custom-base", Manufacturer="Custom", Model="Direct Drive Base", PeakTorqueNm=10.0, IsCustom=true }
+        new() { Id="custom-base", Manufacturer="Custom", Model="Direct Drive Base", PeakTorqueNm=10.0, IsCustom=true },
+        // No verified peak-torque value is assumed. The dedicated manual path bypasses DD modelling.
+        new() { Id="logitech-g27", Manufacturer="Logitech", Model="G27 (legacy Profiler)", PeakTorqueNm=0, MaxRotationDeg=900 }
     ];
 
     public static List<SteeringWheelProfile> Wheels() =>
@@ -27,7 +29,8 @@ public static class BuiltInProfiles
         new() { Id="moza-vision-gs", Manufacturer="MOZA", Model="Vision GS", DiameterMm=310, InertiaFactor=0.94, IsRound=false },
         new() { Id="moza-gs-v2p", Manufacturer="MOZA", Model="GS V2P GT", DiameterMm=300, InertiaFactor=0.91, IsRound=false },
         new() { Id="moza-tsw", Manufacturer="MOZA", Model="TSW", DiameterMm=400, InertiaFactor=1.35, IsRound=true },
-        new() { Id="custom-wheel", Manufacturer="Custom", Model="Other / Aftermarket Wheel", DiameterMm=330, InertiaFactor=1.0, IsRound=true, IsCustom=true }
+        new() { Id="custom-wheel", Manufacturer="Custom", Model="Other / Aftermarket Wheel", DiameterMm=330, InertiaFactor=1.0, IsRound=true, IsCustom=true },
+        new() { Id="logitech-g27-integrated", Manufacturer="Logitech", Model="G27 integrated rim", DiameterMm=279.4, InertiaFactor=1.0, IsRound=true }
     ];
 
     public static List<DriftPackProfile> DriftPacks() =>

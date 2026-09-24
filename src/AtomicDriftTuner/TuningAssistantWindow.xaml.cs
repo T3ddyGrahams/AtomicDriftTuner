@@ -112,7 +112,7 @@ public partial class TuningAssistantWindow : Window
         if (_bindingHistory || TuneHistoryBox.SelectedItem is not TuneVersion tune) return;
         TuneHistoryText.Text = $"{tune.DisplayName}\n{tune.Source}\nAC setup snapshot: {(tune.SetupFileName.Length == 0 ? "none" : tune.SetupFileName)}. Values below are this immutable snapshot; setup VALUE units can differ from game display units.";
         TuneChangesGrid.ItemsSource = tune.Settings.Select(p => new AssistantComparisonRow { Metric = p.Key, Previous = $"{p.Value:0.###}", Current = "—",
-            Interpretation = p.Key.StartsWith("ACSetup.", StringComparison.Ordinal) ? "Captured AC setup-file value" : "Generated ADT target, not a live measurement" }).ToList();
+            Interpretation = p.Key.StartsWith("ACSetup.", StringComparison.Ordinal) ? "Captured AC setup-file value" : p.Key.StartsWith("Manual.LogitechG27.", StringComparison.Ordinal) ? "Driver-entered G27 plan, not hardware readback" : "Generated ADT target, not a live measurement" }).ToList();
     }
     private void ReviewHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -669,13 +669,14 @@ public partial class TuningAssistantWindow : Window
                     $"Saved session: {selected.SessionUtc.ToLocalTime():g}\n\n" +
                     $"Qualified drift evidence: {selected.Analysis.DriftTimeSeconds:0.0} s\n" +
                     $"Assistant confidence: {_report.OverallConfidence.ToString().ToUpperInvariant()}\n\n" +
+                    (LogitechG27Support.IsG27(_input.Hardware) ? $"G27: AC gain {Signed(suggestion.AcGainDelta)}. Logitech settings stay in your manual plan.\n\n" :
                     $"Wheel speed {Signed(suggestion.WheelSpeedDelta)}\n" +
                     $"Wheel damper {Signed(suggestion.DampingDelta)}\n" +
                     $"Wheel friction {Signed(suggestion.FrictionDelta)}\n" +
                     $"High-speed damping {Signed(suggestion.SpeedDampingDelta)}\n" +
                     $"Base torque {Signed(suggestion.TorqueLimitDelta)}\n" +
                     $"AC gain {Signed(suggestion.AcGainDelta)}\n" +
-                    $"Interpolation {Signed(suggestion.InterpolationDelta)}\n\n" +
+                    $"Interpolation {Signed(suggestion.InterpolationDelta)}\n\n") +
                     "This updates ADT calibration only. It does NOT directly write AZOM or the wheelbase.\n\n" +
                     "Continue?",
                     "Apply Telemetry Calibration",

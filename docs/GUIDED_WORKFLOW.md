@@ -1,6 +1,21 @@
 # Start-to-finish tuning
 
-ADT starts with your own hardware/car choices and asks what you want to tune. Local preview.32 adds setup comparisons to the clearer saved-run setup tests from preview.31. Public preview.30 includes the earlier guided workflow, sustained-angle goals, run history, touchscreen, gearing support and explicit pit Save & Apply Tune through Companion 0.4.0-preview.4.
+ADT starts with your own hardware/car choices and asks what you want to tune. Local preview.33 adds Logitech G27 manual plans and retains the setup comparisons from preview.32 and clearer saved-run setup tests from preview.31. Public preview.30 includes the earlier guided workflow, sustained-angle goals, run history, touchscreen, gearing support and explicit pit Save & Apply Tune through Companion 0.4.0-preview.4.
+
+## Logitech G27 and legacy Profiler — local preview.33
+
+1. Select **Logitech G27 (legacy Profiler)** as the dashboard wheelbase. ADT selects the integrated G27 rim and the **Logitech G27 / legacy Profiler (manual)** provider. Choose **Car + FFB** in Setup & Paths if you want FFB included in run snapshots. Car-only tuning is still available.
+2. Open **Wheelbase Settings**. Enter the values you currently use in Logitech Gaming Software / Profiler and AC. The four effect strengths accept **0–150%**; rotation accepts **40–900°**. Record the centering-spring, combined-pedals and game-adjustment switches. Enter the software version from Help/About if known.
+3. **Save plan in ADT** stores your entered values locally; it does not apply to Logitech or AC. The optional **Use ADT provisional starting point** button fills the form only. Its values are a test baseline, not a hardware measurement or a manufacturer-endorsed optimum.
+4. Generate/review the dashboard tune. For the G27, a matching saved calibration can adjust **AC gain only**. Enter the final AC values in Content Manager → Settings → Assetto Corsa → Controls → Force Feedback. Enter the Logitech values in Profiler → Options → Global Device Settings, or the equivalent settings in the AC game profile. Check the active profile, since profile settings can override global settings.
+5. Match steering rotation in AC and check full steering and separate throttle, brake and clutch travel. Start with a short drive, check clipping and confirm the actual settings before recording. Keep LUT/post-processing, gamma and other untracked settings fixed.
+6. Record a baseline, change one setting, enter the updated plan in ADT, regenerate, verify it in Logitech/AC and record again. **Before / After → Your setup changes → Show all settings** includes all captured G27 controls and entered AC baseline values. Entries say **Before plan / After plan**; these are driver-entered values, not readbacks. Generated AC FFB targets are shown separately. Differences alone do not prove a benefit; use comparable runs and driver feedback.
+
+SimHub, AZOM and Pit House are not required for this path. ADT does not load a Logitech SDK or read/write the driver in this version. G27 physical torque, inertia-based response scores and automatic spring/damper/centering/rotation tuning are not modelled. Dashboard feedback supports an AC gain adjustment; unmapped feedback sliders are disabled. Existing car diagnosis, Desired Behavior, gearing, ECU review and setup tuning remain available.
+
+The G27 identification and legacy software family are documented in [Logitech's LGS 5.10 compatibility list](https://support.logi.com/hc/articles/360023375193). The 40–900° rotation range and 11-inch integrated rim are documented in [Logitech's G27 specifications](https://support.logi.com/hc/en-001/articles/360023461893/). Effect-strength limits and switch labels were transcribed from tester screenshots. No peak-torque value is assumed. Driver installation and actual on-wheel behavior need the G27 tester's acceptance on their OS/version.
+
+**G27 acceptance checklist:** verify the correct legacy profile is active; copy all eight Logitech controls into ADT and reload them; enter/verify generated AC FFB; check rotation and independent pedals; record a confirmed baseline and one deliberate change; verify both plans appear accurately in the comparison. Confirm saving, generating and remote viewing alone do not alter the wheel. Report the Logitech software version and any labels/ranges that differ.
 
 ## See exactly what changes — local preview.32
 

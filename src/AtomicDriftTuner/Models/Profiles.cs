@@ -285,6 +285,7 @@ public sealed class DriftIntent
 
 public sealed class TuneInput
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LogitechG27Settings? LogitechG27 { get; set; }
     private HardwareProfile _hardware =
         new();
 
@@ -370,6 +371,7 @@ public sealed class AssettoCorsaSettings
 
 public sealed class TuneResult
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LogitechG27Settings? LogitechG27 { get; set; }
     private AzomSettings _azom =
         new();
 

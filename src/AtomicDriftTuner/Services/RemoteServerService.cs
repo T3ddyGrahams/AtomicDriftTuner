@@ -96,7 +96,8 @@ public sealed partial class RemoteServerService : IAsyncDisposable
             ref _app) is not null;
 
     public bool RemoteWritesEnabled =>
-        _remoteWritesEnabled && FfbProviderOptions.AzomSelected();
+        _remoteWritesEnabled && !G27Context && FfbProviderOptions.AzomSelected();
+    private bool G27Context { get { lock (_stateGate) return _currentInput is { } input && LogitechG27Support.IsG27(input.Hardware); } }
 
     public int Port { get; private set; } =
         DefaultPort;
@@ -157,6 +158,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
 
             _tune = new RemoteTuneContext
             {
+                LogitechG27 = result?.LogitechG27,
                 Wheelbase =
                     input.Hardware.ToString(),
 
@@ -176,7 +178,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
                     result is not null,
 
                 RecommendedAzom =
-                    result?.Azom,
+                    result?.LogitechG27 is null ? result?.Azom : null,
 
                 RecommendedAc =
                     result?.Ac,
@@ -1262,6 +1264,7 @@ public sealed partial class RemoteServerService : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         var provider = new GuidedWorkflowStore().Preferences().FfbProvider;
+        if (G27Context) return new { ok = false, error = "G27 settings are entered manually in Logitech Profiler. Use Wheelbase Settings on the PC.", remoteWritesEnabled = false, settings = Array.Empty<RemoteAzomSettingView>() };
         if (provider != FfbProvider.SimHubAzom)
             return new { ok = false, error = $"{FfbProviderOptions.Label(provider)} selected. Use Wheelbase Settings on the PC. Recording and car setup controls remain available.", remoteWritesEnabled = false, settings = Array.Empty<RemoteAzomSettingView>() };
         try

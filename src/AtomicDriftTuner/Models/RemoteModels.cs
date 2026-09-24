@@ -71,6 +71,7 @@ public sealed class RemoteTuneContext
     }
 
     public bool HasGeneratedTune { get; set; }
+    public LogitechG27Settings? LogitechG27 { get; set; }
 
     public AzomSettings? RecommendedAzom { get; set; }
 

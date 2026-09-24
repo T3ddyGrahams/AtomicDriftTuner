@@ -84,6 +84,8 @@ public sealed class AtomicSharePayload
 
 public sealed class AtomicShareInput
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LogitechG27Settings? LogitechG27 { get; set; }
     private AtomicShareHardware _hardware =
         new();
 

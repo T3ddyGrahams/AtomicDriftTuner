@@ -493,6 +493,9 @@ public sealed class ProfileStore
         ValidateInput(
             tune.Input);
 
+        if (LogitechG27Support.IsG27(tune.Input.Hardware) != (tune.Result.LogitechG27 is not null))
+            throw new InvalidDataException("Saved tune wheelbase and FFB provider do not match.");
+
         ValidateResult(
             tune.Result);
 
@@ -531,6 +534,7 @@ public sealed class ProfileStore
     {
         ArgumentNullException.ThrowIfNull(
             input);
+        input.LogitechG27?.Validate();
 
         var hardware =
             input.Hardware
@@ -573,7 +577,7 @@ public sealed class ProfileStore
 
         ValidateFiniteRange(
             hardware.PeakTorqueNm,
-            double.Epsilon,
+            LogitechG27Support.IsG27(hardware) ? 0 : double.Epsilon,
             MaxPeakTorqueNm,
             "wheelbase peak torque");
 
@@ -832,6 +836,7 @@ public sealed class ProfileStore
     {
         ArgumentNullException.ThrowIfNull(
             result);
+        result.LogitechG27?.Validate();
 
         ValidateFiniteRange(
             result.EstimatedPeakWheelTorqueNm,
@@ -888,8 +893,7 @@ public sealed class ProfileStore
         ValidateAcResult(
             result.Ac);
 
-        ValidateAzomResult(
-            result.Azom);
+        if (result.LogitechG27 is null) ValidateAzomResult(result.Azom);
     }
 
     private static void ValidateAcResult(

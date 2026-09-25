@@ -62,7 +62,7 @@ internal static partial class Program
         Check(save.IsEnabled && result.Text.Contains("Tight corners") && result.Text.Contains("Long sweepers") && result.Text.Contains("4:1"), "joint fit missing from production review");
         Check(((TextBlock)window.FindName("DetectedText")).Text.Contains("3 final-drive presets"), "preset availability hidden");
         Box("SweeperHighBox").Text = "135"; Check(!save.IsEnabled, "sweeper edit left stale export enabled"); Call(window, "Calculate_Click");
-        Check(result.Text.Contains("No available preset fits every") && ((TextBlock)window.FindName("OptionsText")).Text.Contains("excluded: reaches base limiter"), "joint compromise or excluded ratio hidden");
+        Check(result.Text.Contains("No available preset fits every") && ((TextBlock)window.FindName("OptionsText")).Text.Contains("excluded: reaches setup rev limit"), "joint compromise or excluded ratio hidden");
         Box("SweeperHighBox").Text = "100";
         for (int i = 0; i < 50; i++) { units.SelectedIndex = 1; units.SelectedIndex = 0; }
         Check(Box("LowSpeedBox").Text == "45" && Box("SweeperHighBox").Text == "100", "repeated unit switches drifted the target");
@@ -88,6 +88,19 @@ internal static partial class Program
         Check(ThemeService.ToHex(((SolidColorBrush)save.Foreground).Color) == theme.ButtonText, "save button ignores theme");
         Render(content, new Size(900, 800), Path.Combine(output, "Gearing-Custom-Theme.png"));
         ThemeService.Apply(ThemeCatalog.Presets[0]);
+        File.AppendAllText(Path.Combine(data, "setup.ini"), "[ENGINE_LIMITER]\nMIN=90\nMAX=100\nSTEP=1\nSHOW_CLICKS=1\n");
+        File.AppendAllText(baseline, "[ENGINE_LIMITER]\nVALUE=90\n");
+        Box("HighRpmBox").Text = "9000"; Call(window, "Calculate_Click");
+        Check(!save.IsEnabled && ((TextBlock)window.FindName("StatusText")).Text.Contains("7,200") && ((TextBlock)window.FindName("StatusText")).Text.Contains("Read car and suggest RPM range"), "Over-limit target lacks resolved RPM and recovery action.");
+        Call(window, "ReadCar_Click");
+        Check(double.Parse(Box("HighRpmBox").Text) <= 7200 * .95 && ((TextBlock)window.FindName("RpmEvidenceText")).Text.Contains("90%"), "Read car failed to refresh target and explain selected limiter.");
+        Call(window, "Calculate_Click");
+        Check(((TextBlock)window.FindName("SourceText")).Text.Contains("setup rev limit 7,200 RPM") && ((TextBlock)window.FindName("SourceText")).Text.Contains("not a live"), "Calculated source omitted limiter provenance.");
+        Box("LowRpmBox").Text = "3100"; Box("HighRpmBox").Text = "5900"; Call(window, "Calculate_Click");
+        Check(save.IsEnabled, "Legal adjustable-limiter setup still blocked.");
+        Layout(content, new Size(900, 800));
+        ((ScrollViewer)window.FindName("GearingScroll")).ScrollToBottom(); Layout(content, new Size(900, 800));
+        Render(content, new Size(900, 800), Path.Combine(output, "Gearing-Resolved-Limiter.png"));
         foreach (var size in new[] { new Size(340, 430), new Size(680, 900), new Size(1200, 700) })
         {
             var scroll = (ScrollViewer)window.FindName("GearingScroll");

@@ -8,6 +8,43 @@ using System.Runtime.CompilerServices;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
 
+if (args is ["--verify-gearing-limiter", var installedLimiterCar, var installedLimiterSetup, var limiterTargets])
+{
+    var car = new CarProfile { SourceFolderPath = installedLimiterCar, SourceFolderName = Path.GetFileName(installedLimiterCar.TrimEnd('\\', '/')) };
+    var baselineHash = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(installedLimiterSetup));
+    var source = CarDataSource.Open(car); var service = new GearingDataService();
+    var target = System.Text.Json.JsonSerializer.Deserialize<GearingTarget>(File.ReadAllText(limiterTargets))!;
+    var data = service.Load(car, installedLimiterSetup, target.Gear);
+    Console.WriteLine(data.LimiterSource);
+    try { service.Calculate(car, installedLimiterSetup, target); Console.WriteLine("Existing target accepted."); }
+    catch (InvalidDataException ex) { Console.WriteLine("Existing target: " + ex.Message); }
+    if (!data.RpmEstimate.Available) throw new Exception(data.RpmEstimate.Explanation);
+    var suggested = target with { MinimumRpm = data.RpmEstimate.MinimumRpm!.Value, MaximumRpm = data.RpmEstimate.MaximumRpm!.Value,
+        RpmSource = "Base engine curve estimate", RpmSourceFingerprint = data.CarDataEvidence!.Fingerprint };
+    var plan = service.Calculate(car, installedLimiterSetup, suggested);
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { data.LimiterRpm, RpmLow = suggested.MinimumRpm, RpmHigh = suggested.MaximumRpm,
+        Current = plan.Current.FinalDrive.Ratio, Suggested = plan.Recommended.FinalDrive.Ratio, plan.HasChange, plan.Recommended.BelowLimiter, plan.Recommended.FitsTarget }));
+    CarDataSource.EnsureUnchanged(source.Evidence);
+    if (!baselineHash.SequenceEqual(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(installedLimiterSetup)))) throw new Exception("Baseline changed.");
+    Console.WriteLine("PASS installed-car calculation; car data and baseline unchanged; no setup exported."); return 0;
+}
+
+if (args is ["--review-limiter", var limiterCarPath])
+{
+    var source = CarDataSource.Open(new CarProfile { SourceFolderPath = limiterCarPath, SourceFolderName = Path.GetFileName(limiterCarPath.TrimEnd('\\', '/')) });
+    foreach (var name in new[] { "engine.ini", "setup.ini" })
+    {
+        Console.WriteLine(name); bool show = false;
+        foreach (var raw in (source.ReadText(name) ?? "").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.StartsWith('[')) show = line is "[ENGINE_DATA]" or "[ENGINE_LIMITER]" or "[LIMITER]";
+            if (show) Console.WriteLine(line);
+        }
+    }
+    return 0;
+}
+
 if (args is ["--verify-car-archive", var installedCarDirectory])
 {
     var path = Path.Combine(installedCarDirectory, "data.acd"); var bytes = File.ReadAllBytes(path);
@@ -64,6 +101,12 @@ if (args is ["--render-remote", var renderDirectory])
 var failures = 0;
 var root = Path.Combine(Path.GetTempPath(), "adt-regression-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
+if (args.Contains("--gearing-limiter"))
+{
+    GearingLimiterChecks.Run(Run, root);
+    Console.WriteLine($"Failures: {failures}. Isolated fixtures: {root}");
+    return failures == 0 ? 0 : 1;
+}
 if (args.Contains("--g27"))
 {
     LogitechG27Checks.Run(Run, root);
@@ -293,6 +336,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
 });
         PitHouseChecks.Run(Run, root);
         LogitechG27Checks.Run(Run, root);
+        GearingLimiterChecks.Run(Run, root);
         MozaWorkerChecks.Run(Run, root);
         WheelSlipEvidenceChecks.Run(Run);
         CarPhysicsChecks.Run(Run, root);

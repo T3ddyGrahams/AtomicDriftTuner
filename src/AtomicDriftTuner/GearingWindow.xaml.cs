@@ -135,7 +135,7 @@ public partial class GearingWindow : Window
         try
         {
             var data = _data.Load(_input.Car, BaselinePathBox.Text, ReadGear(GearBox));
-            DetectedText.Text = DescribeCar(data); RpmEvidenceText.Text = data.RpmEstimate.Explanation;
+            DetectedText.Text = DescribeCar(data); RpmEvidenceText.Text = data.LimiterSource + "\n" + data.RpmEstimate.Explanation;
             if (data.RpmEstimate.Available)
             {
                 _ready = false;
@@ -171,16 +171,16 @@ public partial class GearingWindow : Window
                 return $"{goal.Label}: gear {goal.Gear}, {FormatSpeed(t.MinimumSpeedKmh)}–{FormatSpeed(t.MaximumSpeedKmh)} {Unit}\nCurrent: {before.LowRpm:N0}–{before.HighRpm:N0} RPM → suggested: {goal.LowRpm:N0}–{goal.HighRpm:N0} RPM\n{fit}";
             });
             ResultText.Text = title + "\n\n" + string.Join("\n\n", lines) + "\n\n" +
-                (next.FitsTarget ? "All requested sections fit this RPM target in the no-slip estimate." : "No available preset fits every requested section. This is the closest combined match below the base limiter; adjust the affected gear or speed range if the compromise is unsuitable.") +
+                (next.FitsTarget ? "All requested sections fit this RPM target in the no-slip estimate." : "No available preset fits every requested section. This is the closest combined match below the setup rev limit; adjust the affected gear or speed range if the compromise is unsuitable.") +
                 $"\nRPM and torque multiplication change: {change:+0.0;-0.0;0.0}% in every gear. Test the same sections before keeping the change.";
             DetectedText.Text = DescribeCar(_plan.Data) + (_plan.SweeperData is { SelectedGearChoices: > 1 } second ? $"\nSweeper gear {second.Gear} has {second.SelectedGearChoices} individual ratio choices; its saved selection is retained." : "");
-            SourceText.Text = $"{target.RpmSource}: {target.MinimumRpm:N0}–{target.MaximumRpm:N0} RPM.\n{_plan.Data.RpmEstimate.Explanation}\n\n{_plan.Data.CarDataEvidence?.Kind} car data; {_plan.Data.TyreSource}, radius {_plan.Data.TyreRadius:0.###} m; base limiter {_plan.Data.LimiterRpm:N0} RPM.\nA preset must stay below the base limiter in both sections. Ranking prefers a fit for all targets, then the smallest average proportional error at their speed endpoints, with equal weight per section. Indexes follow the car's original list order. ECU/script limiter overrides and wheelspin are not simulated.";
+            SourceText.Text = $"{target.RpmSource}: {target.MinimumRpm:N0}–{target.MaximumRpm:N0} RPM.\n{_plan.Data.RpmEstimate.Explanation}\n\n{_plan.Data.CarDataEvidence?.Kind} car data; {_plan.Data.TyreSource}, radius {_plan.Data.TyreRadius:0.###} m; setup rev limit {_plan.Data.LimiterRpm:N0} RPM.\n{_plan.Data.LimiterSource}\nA preset must stay below the setup rev limit in both sections. Ranking prefers a fit for all targets, then the smallest average proportional error at their speed endpoints, with equal weight per section. Indexes follow the car's original list order. ECU/script limiter overrides and wheelspin are not simulated.";
             if (_plan.Data.CarDataEvidence?.MatchingUnpackedCopy == true) SourceText.Text += "\nPacked and unpacked data match; both are checked again at save.";
             SourceText.Text += $"\nGear {target.Gear}: {_plan.Data.GearSource}; ratio {_plan.Data.GearRatio:0.####}:1.";
             if (_plan.SweeperData is { } sweepData) SourceText.Text += $"\nGear {sweepData.Gear}: {sweepData.GearSource}; ratio {sweepData.GearRatio:0.####}:1.";
             OptionsText.Text = string.Join("\n\n", _plan.Options.Select(x => $"{x.FinalDrive.Ratio:0.###}:1 • {x.FinalDrive.Label} • {(x.FinalDrive.Ratio / current.FinalDrive.Ratio - 1) * 100:+0.0;-0.0;0.0}% RPM vs current" +
                 (x.FinalDrive.Index == current.FinalDrive.Index ? " • current" : "") + (x.FinalDrive.Index == next.FinalDrive.Index ? " • suggested" : "") + "\n" +
-                string.Join("\n", x.Goals.Select(g => $"{g.Label}, gear {g.Gear}: {g.LowRpm:N0}–{g.HighRpm:N0} RPM • {(!g.BelowLimiter ? "excluded: reaches base limiter" : g.FitsTarget ? "fits target band" : "partial fit")}; base-limit speed {FormatSpeed(g.LimiterSpeedKmh)} {Unit}"))));
+                string.Join("\n", x.Goals.Select(g => $"{g.Label}, gear {g.Gear}: {g.LowRpm:N0}–{g.HighRpm:N0} RPM • {(!g.BelowLimiter ? "excluded: reaches setup rev limit" : g.FitsTarget ? "fits target band" : "partial fit")}; rev-limit speed {FormatSpeed(g.LimiterSpeedKmh)} {Unit}"))));
             SaveGearingButton.IsEnabled = _plan.HasChange;
             StatusText.Text = _plan.HasChange ? "Review both sections, then save a separate gearing setup." : "No final-drive change to save. Review the fit or adjust the target.";
         }

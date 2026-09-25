@@ -81,20 +81,53 @@ public sealed partial class GearingDataService
         var axle = traction == "RWD" ? "REAR" : "FRONT";
         var tyreSection = compound == 0 ? axle : $"{axle}_{compound}";
         var radius = Number(tyres.Required(tyreSection, "RADIUS"), 0.1, 1, "driven tyre radius");
-        if (new[] { "ENGINE_LIMITER", "LIMITER" }.Any(key => setup.Sections.ContainsKey(key) || saved.Sections.ContainsKey(key)))
-            throw new InvalidDataException("This car has an adjustable RPM limiter. Version 1 cannot verify its active value yet.");
-        var limiter = Number(engine.Required("ENGINE_DATA", "LIMITER"), 1000, 30000, "engine limiter");
+        var (limiter, limiterSource) = ReadLimiter(engine, setup, saved);
         return new GearingData(baselineFull, carPath, ratios.AsReadOnly(), current, gear, gearRatio, radius, limiter,
             gearSource, $"{axle.ToLowerInvariant()} compound {compound}: {tyres.Optional(tyreSection, "NAME") ?? "unnamed"}",
             new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
                 new Dictionary<string, string>(_fingerprints, StringComparer.OrdinalIgnoreCase)))
         {
-            CarDataEvidence = source.Evidence, GearCount = count, GearboxKind = gearboxKind,
+            CarDataEvidence = source.Evidence, GearCount = count, GearboxKind = gearboxKind, LimiterSource = limiterSource,
             SelectedGearChoices = selectedGearChoices, FinalDriveAdjustable = adjustableFinal,
             DefinitionWarnings = Array.AsReadOnly(setup.InvalidSections.Select(p =>
                 $"setup.ini [{p.Key}] has a {p.Value}; it is not used by this gearing calculation and is left unchanged.").ToArray()),
             RpmEstimate = ReadRpmEstimate(source, engine, limiter)
         };
+    }
+
+    private static (double Rpm, string Source) ReadLimiter(Ini engine, Ini setup, Ini saved)
+    {
+        var baseRpm = Number(engine.Required("ENGINE_DATA", "LIMITER"), 1000, 30000, "engine limiter");
+        // Only the standard ENGINE_LIMITER percentage control is mapped. A differently named
+        // limiter may be a mod-defined control; never guess that it has the same units.
+        if (setup.Sections.ContainsKey("LIMITER") || saved.Sections.ContainsKey("LIMITER"))
+            throw new InvalidDataException("This setup has an unsupported LIMITER control. ADT cannot infer its RPM mapping.");
+        var defined = setup.Sections.ContainsKey("ENGINE_LIMITER");
+        var selected = saved.Sections.ContainsKey("ENGINE_LIMITER");
+        if (!defined && !selected) return (baseRpm, $"engine.ini base limiter: {baseRpm:N0} RPM (no saved adjustable limiter)");
+        if (!defined || !selected)
+            throw new InvalidDataException("The adjustable engine limiter needs both its setup.ini definition and a saved ENGINE_LIMITER value. Save a fresh baseline in AC and select it again.");
+        if (setup.Optional("ENGINE_LIMITER", "RATIOS") is not null || setup.Optional("ENGINE_LIMITER", "LUT") is not null)
+            throw new InvalidDataException("The engine limiter uses an unsupported list/curve mapping; a standard percentage control is required.");
+        var min = Number(setup.Required("ENGINE_LIMITER", "MIN"), 1, 200, "limiter minimum percentage");
+        var max = Number(setup.Required("ENGINE_LIMITER", "MAX"), min, 200, "limiter maximum percentage");
+        var step = Number(setup.Required("ENGINE_LIMITER", "STEP"), .000001, 200, "limiter step");
+        var mode = Index(setup.Optional("ENGINE_LIMITER", "SHOW_CLICKS") ?? "0", 3, "limiter display mode");
+        var raw = Number(saved.Required("ENGINE_LIMITER", "VALUE"), 0, 1_000_000, "saved engine limiter");
+        if (mode != 0 && raw != Math.Truncate(raw))
+            throw new InvalidDataException("The saved engine-limiter click count is not a whole number.");
+        // Content Manager's saved-value mapping: actual, step-normalized, or zero-based steps.
+        // The decoded control is percent of engine.ini LIMITER, never an RPM value or an ECU map.
+        var percent = mode switch { 1 => raw * step, 2 => min + raw * step, _ => raw };
+        var clicks = (percent - min) / step;
+        if (!double.IsFinite(percent) || percent < min - .000001 || percent > max + .000001 ||
+            Math.Abs(clicks - Math.Round(clicks)) > .000001)
+            throw new InvalidDataException("The saved engine limiter does not match this car's percentage range and steps. Save a fresh baseline in AC.");
+        var rpm = baseRpm * percent / 100;
+        if (!double.IsFinite(rpm) || rpm is < 1000 or > 30000)
+            throw new InvalidDataException("The selected engine limiter resolves outside the supported RPM range.");
+        return (rpm, $"Saved ENGINE_LIMITER {raw:0.######}, SHOW_CLICKS={mode}, STEP={step:0.######}: {percent:0.######}% × engine.ini {baseRpm:N0} RPM = {rpm:N0} RPM. " +
+            "This is the selected baseline's limit, not a live ECU/script readback. Load this setup in AC before testing.");
     }
 
     public GearingPlan Calculate(CarProfile car, string baselinePath, GearingTarget target)

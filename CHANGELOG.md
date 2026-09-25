@@ -2,13 +2,19 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
-## Local v0.9.0-preview.33 — Logitech G27 manual support
+## Local v0.9.0-preview.34 — Adjustable limiter support for gearing
+
+- Read standard `ENGINE_LIMITER` percentages and click-based selections from the saved setup and car definition, in both supported packed and unpacked data. Show the resulting setup rev limit and its source instead of blocking every adjustable limiter.
+- Use that limit for candidate exclusion and the existing base-curve RPM estimate. Explain how to refresh an older target that exceeds it. Missing, malformed or unknown limiter mappings remain unsupported; this does not verify active ECU/script overrides.
+- Preserve the saved limiter when exporting the final-drive change and recheck the baseline and car data before saving. Handling, telemetry diagnosis, FFB, ECU review and comparison scoring are unchanged. Companion 0.4.0-preview.4 is unchanged; no companion reinstall required.
+
+## v0.9.0-preview.33 — Logitech G27 manual support
 
 - Add a dedicated G27 wheelbase, integrated rim and legacy Logitech Gaming Software / Profiler provider, with a scrollable manual settings screen matching the tester's five numeric controls and three switches. Store the entered plan locally and include it in saved tunes, share codes and confirmed FFB run snapshots.
 - Show before/after G27 plans alongside generated AC FFB targets, with percentages, rotation degrees, switch states and explicit provenance. Remote tune review shows the G27 plan and blocks AZOM reads/writes for G27 hardware.
 - Use the entered AC baseline plus matching AC gain calibration for G27 generation. Do not map MOZA controls onto Logitech, invent a torque specification or calculate direct-drive response scores. Unmapped dashboard feedback sliders are disabled. Car diagnosis, Desired Behavior, setup/gearing/ECU calculations and comparison scoring are unchanged.
 - Add step-by-step legacy Profiler guidance, optional software-version capture and a tester acceptance checklist. This first version does not install a Logitech driver or read/apply wheel settings. Hardware acceptance remains with the G27 tester.
-- Includes preview.32 setup comparisons and preview.31 focused car tests. Companion 0.4.0-preview.4 is unchanged; no companion reinstall required. Public preview.30 remains the published release.
+- Includes preview.32 setup comparisons and preview.31 focused car tests. Companion 0.4.0-preview.4 is unchanged; no companion reinstall required. Published as a GitHub beta on 2026-09-24.
 
 ## Local v0.9.0-preview.32 — Clear setup comparisons
 

@@ -125,7 +125,7 @@ internal static class CornerGearingChecks
             Check(report.Rows.Single(r => r.Metric == "Recorded gearing targets").Change == "Changed" && report.Summary.Contains("not a like-for-like"), "Different corner goals compared without an explanation");
         });
     }
-    private static FixtureData Fixture(string root, bool packed = false)
+    internal static FixtureData Fixture(string root, bool packed = false)
     {
         var dir = Path.Combine(root, "corners-" + Guid.NewGuid().ToString("N")); var car = new CarProfile { Id = "physics_car", SourceFolderName = "physics_car", SourceFolderPath = Path.Combine(dir, "physics_car") };
         Directory.CreateDirectory(car.SourceFolderPath); var baseline = Path.Combine(dir, "baseline.ini");
@@ -136,7 +136,7 @@ internal static class CornerGearingChecks
             ["final.rto"] = "Short|4.5\nLong|3\nMiddle|4\n", ["power.lut"] = "1000|100\n3000|250\n5000|300\n6000|280\n7000|200\n8000|100\n" };
         var f = new FixtureData(dir, car, baseline, entries, packed); f.Write(); return f;
     }
-    private sealed record FixtureData(string Root, CarProfile Car, string Baseline, Dictionary<string,string> Entries, bool Packed)
+    internal sealed record FixtureData(string Root, CarProfile Car, string Baseline, Dictionary<string,string> Entries, bool Packed)
     {
         public GearingDataService Service { get; } = new();
         public void Write()

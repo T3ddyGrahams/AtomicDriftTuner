@@ -18,7 +18,7 @@ public static class GearingPlanner
         {
             var source = sources[i]; var t = goals[i].Target;
             if (t.Gear != source.Gear) throw new InvalidDataException("The selected gear changed. Calculate again.");
-            if (t.MaximumRpm > source.LimiterRpm) throw new InvalidDataException($"The target RPM exceeds the base engine.ini limiter of {source.LimiterRpm:N0} RPM. Lower the RPM target; active ECU/script overrides are not verified.");
+            if (t.MaximumRpm > source.LimiterRpm) throw new InvalidDataException($"The target RPM exceeds this baseline's setup rev limit of {source.LimiterRpm:N0} RPM. Use Read car and suggest RPM range, or lower the upper RPM under Advanced. Active ECU/script overrides are not verified.");
             if (i > 0 && (source.CarPath != data.CarPath || source.BaselinePath != data.BaselinePath || source.CurrentIndex != data.CurrentIndex ||
                 source.CarDataEvidence?.Fingerprint != data.CarDataEvidence?.Fingerprint || !source.FinalDrives.SequenceEqual(data.FinalDrives) ||
                 source.TyreRadius != data.TyreRadius || source.LimiterRpm != data.LimiterRpm || !source.Fingerprints.OrderBy(p => p.Key).SequenceEqual(data.Fingerprints.OrderBy(p => p.Key))))
@@ -42,9 +42,9 @@ public static class GearingPlanner
             return new GearingOption(ratio, results[0].LowRpm, results[0].HighRpm, results[0].LimiterSpeedKmh, score / goals.Length, results.All(g => g.FitsTarget)) { Goals = results };
         }).ToArray();
         var current = options.Single(x => x.FinalDrive.Index == data.CurrentIndex);
-        // A preset must avoid the base limiter in every requested section.
+        // A preset must avoid the selected baseline's setup rev limit in every requested section.
         var eligible = options.Where(x => x.BelowLimiter).ToArray();
-        if (eligible.Length == 0) throw new InvalidDataException("No supported final drive stays below the base limiter across all requested speed ranges. Try a higher gear or lower maximum speed for the affected section. No setup was changed.");
+        if (eligible.Length == 0) throw new InvalidDataException("No supported final drive stays below this baseline's setup rev limit across all requested speed ranges. Try a higher gear or lower maximum speed for the affected section. No setup was changed.");
         var best = eligible.OrderByDescending(x => x.FitsTarget).ThenBy(x => x.Score)
             .ThenBy(x => x.FinalDrive.Index == data.CurrentIndex ? 0 : 1).ThenBy(x => x.FinalDrive.Index).First();
         if (current.BelowLimiter && current.FitsTarget == best.FitsTarget && current.Score - best.Score < .0001) best = current;

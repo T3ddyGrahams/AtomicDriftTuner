@@ -48,6 +48,7 @@ public sealed record GearingData(
     public string GearboxKind { get; init; } = "Fixed individual gears";
     public int SelectedGearChoices { get; init; } = 1;
     public bool FinalDriveAdjustable { get; init; } = true;
+    public string LimiterSource { get; init; } = "Base engine limiter";
     public IReadOnlyList<string> DefinitionWarnings { get; init; } = Array.Empty<string>();
     public GearingRpmEstimate RpmEstimate { get; init; } = new(null, null, "No engine curve was read.");
 }

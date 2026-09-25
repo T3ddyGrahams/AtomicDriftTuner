@@ -29,7 +29,7 @@ public sealed partial class GearingDataService
             var idle = engine.Optional("ENGINE_DATA", "MINIMUM") is { } min ? Number(min, 0, 30000, "engine minimum RPM") : 500;
             var low = Math.Ceiling(Math.Max(Math.Max(500, idle), points[0].Rpm) / 100) * 100;
             var high = Math.Floor(Math.Min(limiter * .95, points[^1].Rpm) / 100) * 100;
-            if (high - low < 500) throw new InvalidDataException("The readable curve has too little usable RPM coverage below the base limiter.");
+            if (high - low < 500) throw new InvalidDataException("The readable curve has too little usable RPM coverage below the setup rev limit.");
             var samples = new List<(double Rpm, double Power)>();
             int right = 1;
             for (var rpm = low; rpm <= high; rpm += 100)
@@ -46,7 +46,7 @@ public sealed partial class GearingDataService
             while (end < samples.Count - 1 && samples[end + 1].Power >= peak.Power * .8) end++;
             if (samples[end].Rpm - samples[start].Rpm < 500) throw new InvalidDataException("The curve's high-power region is too narrow for a useful starting band.");
             return new(samples[start].Rpm, samples[end].Rpm,
-                $"Starting estimate from {file}: the continuous region around peak base power at or above 80% of that peak, sampled every 100 RPM and capped at 95% of the base limiter. No extrapolation. Turbo boost, ECU maps, hybrid systems and scripts are not included; confirm or adjust this band after driving.");
+                $"Starting estimate from {file}: the continuous region around peak base power at or above 80% of that peak, sampled every 100 RPM and capped at 95% of the setup rev limit. No extrapolation. Turbo boost, ECU maps, hybrid systems and scripts are not included; confirm or adjust this band after driving.");
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
         { return new(null, null, "Automatic RPM target unavailable: " + ex.Message + " Enter a known range under Advanced; the rev limit alone is not a power band."); }

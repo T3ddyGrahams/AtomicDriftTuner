@@ -2,7 +2,9 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
-## Local v0.9.0-preview.38 — Track tools and driver feedback in the main app
+## v0.9.0-preview.38 — HUGE UPDATE: track tools, driver feedback and Intelligence 2.0
+
+Public beta update containing previews .34–.38: main-app track tools and quick driver feedback, exact setup-test verification, diagnosis by driving condition, verified legal setup adjustments and adjustable limiter support. Reuses the verified local preview.38 packages. See the [release notes](docs/releases/v0.9.0-preview.38.md) and [testing checklist](docs/testing/v0.9.0-preview.38-checklist.md).
 
 - Integrate the track prototype and goal-specific driver feedback into the normal ADT executable, existing user data and Remote port 5190. No separate developer app or fresh main profile is needed.
 - Add Quick driver review to Before / After: Better / Same / Worse / Couldn't judge, a new-problem check, saved history and evidence-aware next steps. Answers follow the exact run/baseline/test and recorded goals. A supported next-test preview retains all existing setup guards; saving feedback does not change a tune.

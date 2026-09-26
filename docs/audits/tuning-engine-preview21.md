@@ -14,6 +14,8 @@ Priority definitions: **P1** should be addressed before relying on the affected 
 
 Follow-up, September 26: local preview.35 addresses **A3–A5 and A8**. Focused car tests now carry exact baseline-bound expected values, and comparison checks actual numeric changes, equal capture coverage and the intended metric. Explicit driver-defined tests remain separate; legacy/free-text and unsupported FFB plans do not claim recommendation credit. Backward travel is excluded consistently from clean phase/pedal/gain evidence while retaining angle recovery inspection. All four original failure scenarios were reproduced before the fix, then passed. Analysis versions are saved with new reviews. General A1/A2/A7 and accumulated learning remain open; real driving acceptance remains pending. Preview.34 also expands the A6 correction to supported saved ENGINE_LIMITER percentage modes without claiming live ECU readback.
 
+Follow-up, September 26: local preview.36 addresses **A1/A2/A7** for supported scalar/camber mappings. Generation, file export and staging now enforce the same saved-value legality; off-grid baselines and rounded-away requests are held honestly, and setup exposure no longer depends on base-fact availability. [Scope, format sources and acceptance](setup-values-preview36.md) document unsupported cases and the remaining mechanical validation. All eight original audit findings now have corrective implementations; this does not complete wider 2.0 diagnosis, accumulated learning or real driving acceptance.
+
 | ID | Priority | Confirmed issue | Main effect |
 | --- | --- | --- | --- |
 | A1 | P1 | Saved click modes and physical limits are not modeled consistently | A generated setup can export a selection past a defined end stop |

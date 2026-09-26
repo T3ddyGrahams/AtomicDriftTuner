@@ -290,6 +290,9 @@ public sealed class SetupRangeDefinition
     public bool ShowClicks { get; set; }
     // Only standard CAMBER_* serialization is verified here. Null keeps it unsupported.
     public int? CamberValueMode { get; set; }
+    // Verified ordinary scalar serialization: actual (0), normalized clicks (1), offset clicks (2).
+    // Null means unknown, including ambiguous global display inheritance and custom lookups.
+    public int? ScalarValueMode { get; set; }
     public string? UnavailableReason { get; set; }
     public bool DirectValueRangeVerified { get; set; }
 
@@ -411,6 +414,7 @@ public sealed class CarSetupParameter
         {
             if (Range?.UnavailableReason is { } unavailable) return unavailable;
             if (CamberSetupValues.IsCamber(Section)) return CamberSetupValues.Describe(Range);
+            if (SetupValueMapping.TryCreate(Section, Range, out var mapping)) return mapping.Describe();
             if (Range is null)
             {
                 return "Unknown";

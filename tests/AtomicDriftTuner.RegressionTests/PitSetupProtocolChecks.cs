@@ -248,7 +248,7 @@ internal static class PitSetupProtocolChecks
         File.WriteAllText(path, "[CAR]\nMODEL=test_car\n[PRESSURE_LF]\nVALUE=24\n");
         var analysis = new AssettoCorsaSetupService().LoadBaseline(path, new CarProfile { SourceFolderName = "test_car" });
         analysis.Parameters[0].RecommendedValue = 25;
-        analysis.Parameters[0].Range = new() { Section = "PRESSURE_LF", Min = 20, Max = 40, Step = 1 };
+        analysis.Parameters[0].Range = new() { Section = "PRESSURE_LF", Min = 20, Max = 40, Step = 1, ScalarValueMode = 0 };
         return new PitSetupPlanService().Create(analysis, "test_car", "Protocol fixture");
     }
 

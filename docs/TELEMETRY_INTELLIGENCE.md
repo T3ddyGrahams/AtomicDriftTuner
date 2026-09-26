@@ -2,12 +2,12 @@
 
 ## Intelligence 2.0 completion plan — September 26
 
-Local **preview.35** completes the first implementation milestone below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.
+Local **previews .35 and .36** implement the first two milestones below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.
 
 | Milestone | State | Completion requirement |
 | --- | --- | --- |
 | Reliable test attribution and direction handling | Implemented in preview.35; driving acceptance pending | Exact planned versus actual controls, preserved history, matched coverage, goal-specific evidence, and consistent backward-travel exclusions. |
-| Car-supported legal adjustments | Partly implemented | Finish audit A1/A2/A7: shared verified value/step mapping, legal directional adjustments and definition guards, with truthful holds for unsupported controls. |
+| Car-supported legal adjustments | Implemented for supported mappings in preview.36; driving acceptance pending | Audit A1/A2/A7: shared verified value/step mapping, direction-preserving quantization and definition guards, with truthful holds for unknown mappings, invalid baselines, end stops and no-ops. See [scope and tests](audits/setup-values-preview36.md). |
 | Deeper phase and speed diagnosis | Next | Separate repeatable initiation/transition/sustained behavior by speed and direction; tie it to saved Desired Behavior and pedal context, with evidence counts, uncertainty and conflicting signals visible. Do not relabel slip proxies as measured tyre grip or driver steering as proven self-steer. |
 | Repeated car/driver test history | Pending | Accumulate only matched, comparable experiments with analysis provenance; retain regressions, tradeoffs and driver disagreements, avoid counting repeated reviews of one run as independent tests, and report insufficient evidence explicitly. |
 | Controlled recommendations and acceptance | Pending | Use supported adjustments and repeatable car/driver evidence for one reviewable test at a time. Validate with multiple cars, tracks, input styles and wheelbases; preserve manual confirmation and rollback. |

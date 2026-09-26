@@ -43,6 +43,7 @@ credentials.json
 *.p12
 
 # Local runtime/state files
+.tools/
 *.pid
 *.sqlite
 *.sqlite3

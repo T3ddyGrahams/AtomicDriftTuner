@@ -201,7 +201,7 @@ internal static class PitSetupChecks
             File.AppendAllText(f.Path, "\n"); Reject(() => f.Create());
             f = Fixture(root); File.WriteAllBytes(f.Path, [0xff, 0xfe, 0xff]); Reject(() => f.Create());
 
-            f = Fixture(root); f.Analysis.Parameters.Clear();
+            f = Fixture(root); f.Analysis.Parameters.Clear(); f.Analysis.Physics = null;
             var source = new StringBuilder("[CAR]\nMODEL=test_car\n");
             for (var i = 0; i < 512; i++)
             {
@@ -210,7 +210,7 @@ internal static class PitSetupChecks
                 f.Analysis.Parameters.Add(new CarSetupParameter
                 {
                     Section = section, CurrentRaw = "10", CurrentValue = 10, RecommendedValue = i < 64 ? 11 : 10,
-                    Range = new SetupRangeDefinition { Section = section, Min = 0, Max = 20, Step = 1 }
+                    Range = new SetupRangeDefinition { Section = section, Min = 0, Max = 20, Step = 1, ScalarValueMode = 0 }
                 });
             }
             File.WriteAllText(f.Path, source.ToString());

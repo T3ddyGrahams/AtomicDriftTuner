@@ -29,7 +29,8 @@ internal static class AssistantCarTestChecks
         });
         test("assistant car test refuses unsupported display mappings, missing paired controls and no-op limits", () =>
         {
-            foreach (var mode in new[] { "1", "2", "garbage" }) Reject(() => new CarTestFixture(root, mode).Build());
+            foreach (var mode in new[] { "3", "garbage" }) Reject(() => new CarTestFixture(root, mode).Build());
+            foreach (var mode in new[] { "1", "2" }) Check(new CarTestFixture(root, mode).Build().Count == 1, "Verified click setup cannot produce a focused test");
             Reject(() => new CarTestFixture(root, includePair: false).Build());
             Reject(() => new CarTestFixture(root, pressure: 10).Build());
         });

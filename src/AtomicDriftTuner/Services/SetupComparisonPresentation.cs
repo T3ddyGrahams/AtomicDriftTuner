@@ -25,8 +25,9 @@ public static class SetupComparisonPresentation
             var difference = delta is null ? "Unavailable" : !changed ? "No change" : Signed(delta.Value) + " saved units";
             if (changed && old is double c && next is double d && CamberSetupValues.TrySetupValue(p.Range, c, out var camberBefore) &&
                 CamberSetupValues.TrySetupValue(p.Range, d, out var camberAfter)) difference = Signed(camberAfter - camberBefore) + " setup units";
-            else if (changed && p.Range?.DirectValueRangeVerified == true && !string.IsNullOrWhiteSpace(p.Range.Units))
-                difference = Signed(delta!.Value) + " " + p.Range.Units;
+            else if (changed && old is double oldScalar && next is double nextScalar &&
+                SetupValueMapping.TryCreate(p.Section, p.Range, out var scalar) && scalar.IsLegal(oldScalar) && scalar.IsLegal(nextScalar))
+                difference = Signed(scalar.SetupValue(nextScalar) - scalar.SetupValue(oldScalar)) + " " + SetupUnits(p);
             var explanation = !generated ? "Generate a setup to see ADT's recommendations." : p.Reason;
             if (changed && goal.Length > 0) explanation = goal + "\n" + explanation;
             return new Row(p.Section, Label(p.Section, p.Range?.Name), Category(p.Category),
@@ -97,9 +98,12 @@ public static class SetupComparisonPresentation
         if (CamberSetupValues.TrySetupValue(p.Range, number, out var camber)) return F(camber) + " setup units";
         var mapping = Verified(analysis.Physics?.DecodedSettings ?? [], p.Section, number);
         if (mapping is not null) return mapping.Value + $" (saved {F(number)})";
-        if (p.Range?.DirectValueRangeVerified == true && !string.IsNullOrWhiteSpace(p.Range.Units)) return F(number) + " " + p.Range.Units;
+        if (SetupValueMapping.TryCreate(p.Section, p.Range, out var scalar) && scalar.IsLegal(number))
+            return F(scalar.SetupValue(number)) + " " + SetupUnits(p) + (p.Range?.ScalarValueMode is 1 or 2 ? $" (saved {F(number)})" : "");
         return F(number) + " (saved value)";
     }
+
+    private static string SetupUnits(CarSetupParameter p) => string.IsNullOrWhiteSpace(p.Range?.Units) ? "setup units" : p.Range.Units;
 
     private static DecodedSetupSetting? Verified(IEnumerable<DecodedSetupSetting> values, string section, double raw)
     {

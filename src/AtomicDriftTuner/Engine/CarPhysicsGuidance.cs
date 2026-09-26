@@ -1,4 +1,5 @@
 using AtomicDriftTuner.Models;
+using AtomicDriftTuner.Services;
 
 namespace AtomicDriftTuner.Engine;
 
@@ -10,11 +11,12 @@ public static class CarPhysicsGuidance
         foreach (var parameter in analysis.Parameters)
         {
             parameter.PhysicsContext = "Base value not mapped.";
-            if (parameter.Range?.UnavailableReason is { } unavailable)
+            if (SetupChangeValidation.Restriction(analysis, parameter) is { } restriction)
             {
                 parameter.RecommendedValue = parameter.CurrentValue;
-                parameter.Reason = "Left unchanged: " + unavailable;
-                parameter.BlendStatus = "Definition unavailable";
+                parameter.Reason = "Left unchanged: " + restriction;
+                parameter.BlendStatus = restriction.Contains("not exposed") ? "Not exposed" :
+                    restriction.Contains("drivetrain") ? "Drivetrain check" : "Definition unavailable";
                 continue;
             }
             if (physics?.Available != true) continue;
@@ -39,18 +41,7 @@ public static class CarPhysicsGuidance
                 parameter.PhysicsContext = fact.Display;
                 parameter.Reason += " Base-car context: " + fact.Display + ". The recommendation is a change to the loaded setup VALUE; base physics units are not assumed to match saved clicks or indexes.";
             }
-            if (physics.HasSetupDefinition && !physics.AdjustableSections.Contains(parameter.Section, StringComparer.OrdinalIgnoreCase))
-            {
-                parameter.RecommendedValue = parameter.CurrentValue;
-                parameter.Reason = "Left unchanged: this saved control is not exposed in the imported setup.ini. ADT will not invent an adjustable control from a base physics value.";
-                parameter.BlendStatus = "Not exposed";
-            }
-            if (section.StartsWith("DIFF_") && physics.DriveType is "FWD" or "AWD" or "AWD2")
-            {
-                parameter.RecommendedValue = parameter.CurrentValue;
-                parameter.Reason = $"Left unchanged: imported drivetrain is {physics.DriveType}; ADT's current rear-drive differential advice is not verified for this drivetrain. Review the base values and tune this control manually.";
-                parameter.BlendStatus = "Drivetrain check";
-            }
+
         }
     }
 }

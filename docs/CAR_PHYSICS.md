@@ -31,6 +31,8 @@ A saved ECU setting needs a named section that ADT can identify. An isolated `VA
 
 ## Base context and tuning guidance
 
+Local preview.36 checks ordinary supported scalar controls against a shared saved-value range and step mapping before recommending, exporting or staging changes. Explicit actual/normalized-click/offset-click formats are supported; off-grid baselines, unknown modes, ambiguous global display inheritance and custom LUTs are held. **Your setup changes** and the focused test summary display converted control values. A limit or a request that rounds away is described as unchanged. These units describe the setup control; they are not a simulation of suspension geometry or measured grip.
+
 ADT can display supported mass, wheelbase, weight distribution, suspension type, track width, spring/damper/camber/toe values, anti-roll bars, driven wheels, differential values, final drive, engine limiter, brakes and selected-compound tyre dimensions/pressures. The base facts come from `car.ini`, `suspensions.ini`, `tyres.ini`, `drivetrain.ini`, `engine.ini`, `brakes.ini` and `setup.ini`; setting decoders can also read supported local ratio and lookup tables referenced by those definitions.
 
 Mapped recommendation rows now show the relevant base value and source. When readable `setup.ini` does not expose a saved control, ADT holds that control instead of treating a base physics field as an adjustable pit setting. Imported FWD/AWD/AWD2 drivetrains hold the current rear-drive differential advice for manual review. Existing numeric tuning heuristics and telemetry analysis remain in place.

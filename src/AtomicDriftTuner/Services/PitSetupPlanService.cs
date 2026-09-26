@@ -65,7 +65,7 @@ public sealed class PitSetupPlanService
             var formatted = parameter.RecommendedRaw;
             if (!TryNumeric(formatted, out var after) || !NumbersEqual(after, recommended))
                 throw Invalid($"{section} cannot be represented reliably in a saved setup VALUE.");
-            ValidateRange(parameter, saved, after);
+            SetupChangeValidation.Validate(analysis, parameter, saved, after);
             if (NumbersEqual(saved, after))
                 throw Invalid($"{section} does not produce a distinct saved setup VALUE.");
             changes.Add(new PitSetupChange(section, saved, after));
@@ -81,40 +81,6 @@ public sealed class PitSetupPlanService
     /// <summary>The protocol uses an absolute tolerance in raw saved VALUE units, never displayed units.</summary>
     public static bool NumbersEqual(double first, double second) =>
         double.IsFinite(first) && double.IsFinite(second) && Math.Abs(first - second) <= NumericTolerance;
-
-    private static void ValidateRange(CarSetupParameter parameter, double before, double after)
-    {
-        var range = parameter.Range;
-        if (range?.UnavailableReason is { } unavailable) throw Invalid(unavailable);
-        if (CamberSetupValues.IsCamber(parameter.Section))
-        {
-            if (range is null || !range.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase) ||
-                !CamberSetupValues.TryRawRange(range, out var camberRange))
-                throw Invalid($"{parameter.Section} has no verified camber saved-value mapping. Reload its baseline and car definitions before staging.");
-            range = camberRange;
-        }
-        // Other SHOW_CLICKS controls still lack a verified saved-VALUE mapping here.
-        // Camber reaches this gate only after conversion to its verified raw range.
-        if (range is null || range.ShowClicks ||
-            !string.Equals(range.Section, parameter.Section, StringComparison.OrdinalIgnoreCase) ||
-            range.Min is not double min || !Numeric(min) ||
-            range.Max is not double max || !Numeric(max) || min > max ||
-            range.Step is not double step || !double.IsFinite(step) || step <= 0)
-            throw Invalid($"{parameter.Section} needs a known numeric minimum, maximum and step before it can be applied in the pits.");
-        if (!InRange(before, min, max) || !InRange(after, min, max) ||
-            !OnStep(before, min, step) || !OnStep(after, min, step))
-            throw Invalid($"{parameter.Section} is outside its supported range or does not match a legal setup step.");
-    }
-
-    private static bool InRange(double value, double min, double max) =>
-        value >= min - NumericTolerance && value <= max + NumericTolerance;
-
-    private static bool OnStep(double value, double min, double step)
-    {
-        var position = (value - min) / step;
-        if (!double.IsFinite(position) || Math.Abs(position) > LiveSetupCaptureService.MaximumSafeCounter) return false;
-        return NumbersEqual(value, min + Math.Round(position, MidpointRounding.AwayFromZero) * step);
-    }
 
     private static string ReadBaseline(string path)
     {

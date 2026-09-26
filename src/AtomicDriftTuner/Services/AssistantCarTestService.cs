@@ -67,7 +67,7 @@ public sealed class AssistantCarTestService
             var members = generated.Parameters.Where(p => sections.Contains(p.Section, StringComparer.OrdinalIgnoreCase)).ToArray();
             if (members.Length != sections.Length || !members.Any(p => p.Changed) ||
                 members.Any(p => p.Range?.UnavailableReason is not null ||
-                    !(CamberSetupValues.IsCamber(p.Section) ? CamberSetupValues.TryRawRange(p.Range, out _) : p.Range?.DirectValueRangeVerified == true))) continue;
+                    !SetupValueMapping.TryCreate(p.Section, p.Range, out _))) continue;
             var isolated = service.LoadBaseline(baselinePath, input.Car);
             MatchRecordedSetup(run, isolated);
             foreach (var p in isolated.Parameters)
@@ -155,6 +155,9 @@ public sealed class AssistantCarTestService
     {
         var raw = after ? p.RecommendedValue!.Value : p.CurrentValue!.Value;
         if (CamberSetupValues.TrySetupValue(p.Range, raw, out var camber)) return camber.ToString("0.###", CultureInfo.CurrentCulture) + " setup units";
-        return raw.ToString("0.###", CultureInfo.CurrentCulture) + (string.IsNullOrWhiteSpace(p.Range?.Units) ? "" : " " + p.Range.Units);
+        if (SetupValueMapping.TryCreate(p.Section, p.Range, out var mapping) && mapping.IsLegal(raw))
+            return mapping.SetupValue(raw).ToString("0.###", CultureInfo.CurrentCulture) +
+                (string.IsNullOrWhiteSpace(p.Range?.Units) ? " setup units" : " " + p.Range.Units);
+        return raw.ToString("0.###", CultureInfo.CurrentCulture) + " (saved value)";
     }
 }

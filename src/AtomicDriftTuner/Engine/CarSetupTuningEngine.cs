@@ -28,7 +28,7 @@ public sealed class CarSetupTuningEngine
 
         CarPhysicsService.EnsureUnchanged(analysis.Physics);
         if (analysis.SourceEvidence is not null) CarDataSource.EnsureUnchanged(analysis.SourceEvidence);
-        if (analysis.Physics?.Available == true && !string.Equals(analysis.Physics.CarId, analysis.CarFolderName, StringComparison.OrdinalIgnoreCase))
+        if (analysis.Physics is { } physics && (physics.Available || physics.HasSetupDefinition) && !string.Equals(physics.CarId, analysis.CarFolderName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Imported physics belongs to a different car. Reload the selected baseline.");
 
         if (analysis.Parameters is null)
@@ -88,20 +88,25 @@ public sealed class CarSetupTuningEngine
                 continue;
             }
 
+            if (!SetupValueMapping.TryCreate(parameter.Section, parameter.Range, out var mapping) || !mapping.IsLegal(current))
+            {
+                parameter.Reason = "Left unchanged: this baseline has no verified saved-value mapping or is outside its legal range/step. Reload a valid supported setup before tuning this control.";
+                parameter.BlendStatus = "Mapping or baseline unavailable";
+                continue;
+            }
+            // Existing heuristics operate on actual setup units. Evaluate ordinary click
+            // controls in those same units so encoding alone cannot change the request.
+            // Camber retains its separately verified tenths-based request convention.
+            var requestParameter = CamberSetupValues.IsCamber(parameter.Section) ? parameter : new CarSetupParameter
+            {
+                Section = parameter.Section, CurrentValue = mapping.SetupValue(current), Range = parameter.Range
+            };
             var styleDelta =
                 CalculateDelta(
                     input,
-                    parameter,
+                    requestParameter,
                     scale,
                     out var styleReason);
-
-            if (CamberSetupValues.IsCamber(parameter.Section) &&
-                (parameter.Range is null || !parameter.Range.Section.Equals(parameter.Section, StringComparison.OrdinalIgnoreCase) ||
-                 !CamberSetupValues.IsLegal(parameter.Range, current)))
-            {
-                parameter.Reason = "Left unchanged because this camber baseline has no verified saved-value mapping or is outside its legal range/step. Reload a valid setup before tuning camber.";
-                continue;
-            }
 
             if (!double.IsFinite(styleDelta))
             {
@@ -113,7 +118,7 @@ public sealed class CarSetupTuningEngine
 
             var behaviorResult =
                 CalculateBehaviorDelta(
-                    parameter,
+                    requestParameter,
                     desiredBehavior,
                     scale);
 
@@ -222,12 +227,7 @@ public sealed class CarSetupTuningEngine
                     behaviorResult.HasInfluence)
                 {
                     parameter.Reason =
-                        MergeReasons(
-                            styleReason,
-                            behaviorReason) +
-                        " Blend result: the competing requests resolve to no net saved-value change." +
-                        RangeNote(
-                            parameter.Range);
+                        "Left unchanged: the competing requests resolve to no net setup change.";
 
                     if (
                         parameter.BlendStatus ==
@@ -241,9 +241,8 @@ public sealed class CarSetupTuningEngine
                 continue;
             }
 
-            var proposed =
-                current +
-                delta;
+            var rawDelta = CamberSetupValues.IsCamber(parameter.Section) ? delta : delta / mapping.Scale;
+            var proposed = mapping.Adjust(current, rawDelta, out var outcome);
 
             if (!double.IsFinite(proposed))
             {
@@ -253,33 +252,22 @@ public sealed class CarSetupTuningEngine
                 continue;
             }
 
-            proposed =
-                SnapAndClamp(
-                    proposed,
-                    parameter.Range,
-                    current,
-                    parameter.CurrentRaw);
-
-            if (!double.IsFinite(proposed))
-            {
-                parameter.Reason =
-                    "Left unchanged because the setup range could not produce a valid finite saved value.";
-
-                continue;
-            }
-
             parameter.RecommendedValue =
                 proposed;
 
-            parameter.Reason =
-                MergeReasons(
-                    styleReason,
-                    behaviorReason) +
-                RangeNote(
-                    parameter.Range);
-            if (CamberSetupValues.IsCamber(parameter.Section))
-                parameter.Reason = parameter.Changed ? parameter.Reason + " " + CamberSetupValues.Describe(parameter.Range) + "."
-                    : "Left unchanged: the requested camber adjustment reaches a limit or rounds to the same legal saved step. " + CamberSetupValues.Describe(parameter.Range) + ".";
+            if (parameter.Changed)
+            {
+                try { SetupChangeValidation.Validate(analysis, parameter, current, proposed); }
+                catch (InvalidDataException ex)
+                {
+                    parameter.RecommendedValue = current;
+                    parameter.Reason = "Left unchanged: " + ex.Message;
+                    continue;
+                }
+            }
+            parameter.Reason = parameter.Changed
+                ? outcome + " Intended effect: " + MergeReasons(styleReason, behaviorReason) + " Verify the result with a comparable run."
+                : outcome;
         }
 
         analysis.BehaviorBlend =
@@ -1605,231 +1593,11 @@ public sealed class CarSetupTuningEngine
             });
     }
 
-    private static double PercentLikeStep(
-        double current,
-        double requested)
+    private static double PercentLikeStep(double current, double requested)
     {
-        if (
-            !double.IsFinite(current) ||
-            !double.IsFinite(requested) ||
-            Math.Abs(requested) <
-            Epsilon)
-        {
-            return 0;
-        }
-
-        // Common AC differential values are percent-like.
-        //
-        // Very small saved values are more likely to represent click/index
-        // positions, so preserve whole-step semantics rather than pretending
-        // they are literal percentages.
-        if (Math.Abs(current) >= 10)
-        {
-            return requested;
-        }
-
-        return
-            Math.Sign(requested) *
-            Math.Max(
-                1,
-                Math.Round(
-                    Math.Abs(requested) /
-                    4.0,
-                    MidpointRounding.AwayFromZero));
-    }
-
-    private static double SnapAndClamp(
-        double value,
-        SetupRangeDefinition? range,
-        double current,
-        string? currentRaw)
-    {
-        if (
-            !double.IsFinite(value) ||
-            !double.IsFinite(current))
-        {
-            return current;
-        }
-
-        if (range is not null && CamberSetupValues.IsCamber(range.Section))
-            range = CamberSetupValues.TryRawRange(range, out var camberRange) ? camberRange : null;
-        var compatible =
-            IsCompatibleNumericRange(
-                range,
-                current);
-
-        if (compatible)
-        {
-            if (
-                range!.Step is double step &&
-                double.IsFinite(step) &&
-                step >
-                0)
-            {
-                var origin =
-                    range.Min is double minimum &&
-                    double.IsFinite(minimum)
-                        ? minimum
-                        : 0;
-
-                var stepPosition =
-                    (
-                        value -
-                        origin
-                    ) /
-                    step;
-
-                if (double.IsFinite(
-                        stepPosition))
-                {
-                    value =
-                        origin +
-                        Math.Round(
-                            stepPosition,
-                            MidpointRounding.AwayFromZero) *
-                        step;
-                }
-            }
-
-            if (
-                range.Min is double minimumValue &&
-                double.IsFinite(
-                    minimumValue))
-            {
-                value =
-                    Math.Max(
-                        value,
-                        minimumValue);
-            }
-
-            if (
-                range.Max is double maximumValue &&
-                double.IsFinite(
-                    maximumValue))
-            {
-                value =
-                    Math.Min(
-                        value,
-                        maximumValue);
-            }
-        }
-        else if (
-            IsIntegralRawValue(
-                currentRaw))
-        {
-            // Unknown/click-index mappings stay on whole saved-value steps
-            // when the baseline itself was stored as an integer.
-            value =
-                Math.Round(
-                    value,
-                    MidpointRounding.AwayFromZero);
-        }
-
-        return
-            double.IsFinite(value)
-                ? value
-                : current;
-    }
-
-    private static bool IsCompatibleNumericRange(
-        SetupRangeDefinition? range,
-        double current)
-    {
-        if (
-            range is null ||
-            range.ShowClicks ||
-            !double.IsFinite(current))
-        {
-            return false;
-        }
-
-        if (
-            range.Min is double minimum &&
-            !double.IsFinite(minimum))
-        {
-            return false;
-        }
-
-        if (
-            range.Max is double maximum &&
-            !double.IsFinite(maximum))
-        {
-            return false;
-        }
-
-        if (
-            range.Min is double min &&
-            range.Max is double max &&
-            min >
-            max)
-        {
-            return false;
-        }
-
-        if (
-            range.Step is double step &&
-            (
-                !double.IsFinite(step) ||
-                step <= 0
-            ))
-        {
-            return false;
-        }
-
-        if (
-            range.Min is double minimumValue &&
-            current <
-            minimumValue -
-            0.0001)
-        {
-            return false;
-        }
-
-        if (
-            range.Max is double maximumValue &&
-            current >
-            maximumValue +
-            0.0001)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool IsIntegralRawValue(
-        string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(
-                raw))
-        {
-            return false;
-        }
-
-        var trimmed =
-            raw.Trim();
-
-        return
-            !trimmed.Contains(
-                '.') &&
-            !trimmed.Contains(
-                ',');
-    }
-
-    private static string RangeNote(
-        SetupRangeDefinition? range)
-    {
-        return range switch
-        {
-            null =>
-                " Range metadata unavailable; change is baseline-relative.",
-
-            { ShowClicks: true } =>
-                " setup.ini uses click display; physical MIN/MAX mapping is not forced onto the saved raw value.",
-
-            _ =>
-                " Numeric setup.ini metadata is used only when the baseline raw value is compatible with that range."
-        };
+        // The caller has decoded a verified scalar definition. Its value is a
+        // percentage control even near zero; magnitude is not an encoding detector.
+        return double.IsFinite(current) && double.IsFinite(requested) ? requested : 0;
     }
 
     private static string MergeReasons(

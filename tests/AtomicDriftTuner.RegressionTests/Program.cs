@@ -274,6 +274,7 @@ Run("setup generation refuses a changed baseline", () =>
     File.WriteAllText(path, "[PRESSURE_LF]\nVALUE=25\n");
     var service = (AssettoCorsaSetupService)RuntimeHelpers.GetUninitializedObject(typeof(AssettoCorsaSetupService));
     var analysis = service.LoadBaseline(path, ValidInput().Car);
+    analysis.Parameters[0].Range = new() { Section = "PRESSURE_LF", Min = 20, Max = 40, Step = 1, ScalarValueMode = 0 };
     analysis.Parameters[0].RecommendedValue = 26;
     File.WriteAllText(path, "[PRESSURE_LF]\nVALUE=30\n");
     var refused = false;
@@ -316,6 +317,7 @@ Run("unchanged setup generates a new file and preserves baseline", () =>
     File.WriteAllText(path, original);
     var service = (AssettoCorsaSetupService)RuntimeHelpers.GetUninitializedObject(typeof(AssettoCorsaSetupService));
     var analysis = service.LoadBaseline(path, ValidInput().Car);
+    analysis.Parameters[0].Range = new() { Section = "PRESSURE_LF", Min = 20, Max = 40, Step = 1, ScalarValueMode = 0 };
     analysis.Parameters[0].RecommendedValue = 26;
     var output = service.WriteGenerated(analysis, Path.Combine(root, "generated.ini"));
     Assert(File.ReadAllText(path) == original && File.ReadAllText(output).Contains("VALUE=26"), "Valid setup save failed.");

@@ -40,7 +40,13 @@ ADT now maps standard `CAMBER_LF/RF/LR/RR` bounds into the same saved `VALUE` un
 
 The verified mapping follows Content Manager's [camber fixed step and saved-value loader](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupEntry.cs) and [mode enum](https://github.com/gro-ove/actools/blob/master/AcManager.Tools/Objects/CarSetupStepsMode.cs): modes 0/1 use raw × 0.1; explicit local mode 2 uses MIN + raw × 0.1. These are setup units, not a computed wheel angle. Missing/global 0/1 mode metadata shares the same camber serialization; global-only mode 2, unknown modes and custom LUT/RATIOS mappings remain unsupported.
 
-The companion's live spinner bounds remain an independent requirement. Desktop support never overrides a fixed, read-only, unavailable or incompatible in-game control. This correction does not add general click-mode support for other parameters.
+The companion's live spinner bounds remain an independent requirement. Desktop support never overrides a fixed, read-only, unavailable or incompatible in-game control.
+
+## Other scalar values (local preview.36)
+
+Supported standard scalar controls now use the same saved-value legality check for generation, file export and staging. Explicit per-control modes 0/1/2 are supported: actual value, value divided by STEP, and (value − MIN) divided by STEP. Previewed values are converted for readability; staged commands and files retain the correct saved values. A rebound control with MIN=500, MAX=9000, STEP=500 and mode 2 has legal saved clicks 0–17; 18 is refused.
+
+Unknown/custom mappings, ambiguous global-only display modes, invalid baselines and incompatible live controls remain held. Small requests may round to no change, which ADT now states explicitly. The existing companion verifies raw saved values against its live spinner limits and whole-setup readback; it does not rescale or guess incompatible metadata. Real-car acceptance is still required. The desktop update does not replace the companion.
 
 ## Manual fallback
 

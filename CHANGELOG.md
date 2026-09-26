@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.36 — Telemetry Intelligence 2.0: legal setup adjustments
+
+- Close setup audit A1/A2/A7 for supported controls: generation, export and pit staging share verified saved-value limits and steps. Standard scalar controls support explicit actual, normalized-click and offset-click formats; camber retains its separate verified mapping.
+- Reject out-of-range or off-grid baselines, unknown/custom mappings and adjustments that cannot be saved precisely. Report limits and rounded-away requests as unchanged. Never silently normalize an off-grid baseline in the opposite direction, or inflate a small heuristic request to force a coarse mechanical adjustment.
+- Show equivalent control values across the three supported formats. Focused test previews display converted values while saved files, pit commands and exact before/after contracts retain their correct encoded values.
+- Enforce setup exposure even when other physics facts are unavailable; retain drivetrain restrictions. Revalidate final-drive exports with their existing ratio-list decoder, independently of the scalar mapping.
+- Preserve Desired Behavior blending, telemetry diagnosis, Gearing/ECU planning and FFB logic. Differential requests now use the verified percentage value rather than guessing its encoding from magnitude. Mechanical effects remain provisional and need driving validation; deeper phase diagnosis and accumulated learning are still upcoming.
+
 ## Local v0.9.0-preview.35 — Telemetry Intelligence 2.0: verified setup tests
 
 - Record exact focused car tests with a stable ID, baseline/tune identity, numeric-setting fingerprint, goal, intended measurement and expected before/after values. Carry the plan through save/stage, guided recording, companion preparation and immutable run history.

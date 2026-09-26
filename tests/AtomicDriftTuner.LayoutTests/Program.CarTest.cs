@@ -50,6 +50,33 @@ internal static partial class Program
         }
         finally { window.Close(); }
 
+        foreach (var mode in new[] { "1", "2" })
+        {
+            var clickFixture = new CarTestFixture(output, mode);
+            var clickStages = new List<PitSetupPlan>();
+            RecommendationTest? exactTest = null;
+            var clicks = new CarSetupTestWindow(clickFixture.Input, clickFixture.Run, clickFixture.Report)
+            {
+                StageHandler = (a, label) => { clickStages.Add(new PitSetupPlanService().Create(a, clickFixture.Input.Car.SourceFolderName!, label)); return "Staged for review."; },
+                TestPrepared = (test, _) => exactTest = test
+            };
+            try
+            {
+                Call(clicks, "LoadBaseline", clickFixture.Baseline);
+                Check(Button(clicks, "SaveTestButton").IsEnabled && Button(clicks, "StageTestButton").IsEnabled, "Verified clicks were blocked");
+                Check(Text(clicks, "ChangesText").Text.Contains(mode == "2" ? "38 psi → 36 psi" : "28 psi → 26 psi"), "Click counts were mislabeled as pressure");
+                var body = (FrameworkElement)clicks.Content; var size = new Size(430, 560);
+                Layout(body, size); AssertVisible(body, "StageTestButton", size);
+                Render(body, size, Path.Combine(output, $"CarTest-ClickMode-{mode}.png"));
+                Call(clicks, "StageTest_Click", clicks, new RoutedEventArgs());
+                Check(clickStages.Single().Changes.All(c => c.Before == 28 && c.After == 26), "Displayed units leaked into pit command");
+                Check(exactTest is not null && exactTest.Changes.Count == 2 && exactTest.Changes.All(c => c.Before == 28 && c.After == 26), "Exact test lost raw encoded values");
+                var saved = Path.Combine(clickFixture.DirectoryPath, "ClickTest.ini"); Call(clicks, "SaveTo", saved);
+                Check(new AssettoCorsaSetupService().LoadBaseline(saved, clickFixture.Input.Car).Parameters.Single(p => p.Section == "PRESSURE_LR").CurrentValue == 26, "Click export did not match preview and staged test");
+            }
+            finally { clicks.Close(); }
+        }
+
         var missing = new CarTestFixture(output);
         var partial = new CarSetupTestWindow(missing.Input, missing.Run, missing.Report) { TestPrepared = (_, _) => throw new InvalidOperationException("tracking fixture failure") };
         try

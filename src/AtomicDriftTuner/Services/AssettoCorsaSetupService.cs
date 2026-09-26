@@ -388,7 +388,7 @@ public sealed class AssettoCorsaSetupService
 
         var replacements =
             BuildReplacementMap(
-                analysis.Parameters);
+                analysis);
 
         var expected = analysis.Parameters
             .Where(p => p is not null && p.Changed && replacements.ContainsKey(p.Section.Trim()))
@@ -523,9 +523,6 @@ public sealed class AssettoCorsaSetupService
                     ShowClicks =
                         sectionClicks,
 
-                    DirectValueRangeVerified = !values.ContainsKey("LUT") && !values.ContainsKey("RATIOS") &&
-                        (values.GetValueOrDefault("SHOW_CLICKS") ?? raw.GetValueOrDefault("DISPLAY_METHOD")?.GetValueOrDefault("SHOW_CLICKS") ?? "0") == "0",
-
                     Source =
                         source.Kind == "packed" ? "data.acd → setup.ini" : "data/setup.ini"
                 };
@@ -624,19 +621,34 @@ public sealed class AssettoCorsaSetupService
                 if (int.TryParse(modeText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mode) &&
                     mode is >= 0 and <= 2 && (localMode is not null || mode != 2)) definition.CamberValueMode = mode;
             }
+            definition.DirectValueRangeVerified = false;
+            if (SetupValueMapping.IsScalarControl(name) && !values.ContainsKey("LUT") && !values.ContainsKey("RATIOS"))
+            {
+                // CM reads the per-control mode, defaulting to actual values. AC also has
+                // global display metadata: do not guess its serialization when nonzero.
+                var localMode = values.GetValueOrDefault("SHOW_CLICKS");
+                var globalMode = raw.GetValueOrDefault("DISPLAY_METHOD")?.GetValueOrDefault("SHOW_CLICKS");
+                if ((localMode is not null || globalMode is null or "0") &&
+                    int.TryParse(localMode ?? "0", System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mode) && mode is >= 0 and <= 2)
+                {
+                    definition.ScalarValueMode = mode;
+                    definition.ShowClicks = mode != 0;
+                    definition.DirectValueRangeVerified = mode == 0;
+                }
+            }
         }
 
         return result;
     }
 
     private static Dictionary<string, string> BuildReplacementMap(
-        IEnumerable<CarSetupParameter> parameters)
+        CarSetupAnalysis analysis)
     {
         var result =
             new Dictionary<string, string>(
                 StringComparer.OrdinalIgnoreCase);
 
-        foreach (var parameter in parameters)
+        foreach (var parameter in analysis.Parameters)
         {
             if (
                 parameter is null ||
@@ -658,15 +670,7 @@ public sealed class AssettoCorsaSetupService
             var replacement =
                 parameter.RecommendedRaw;
 
-            if (parameter.Range?.UnavailableReason is { } unavailable)
-                throw new InvalidDataException(unavailable);
-
-            if (CamberSetupValues.IsCamber(section) &&
-                (parameter.Range is null || !parameter.Range.Section.Equals(section, StringComparison.OrdinalIgnoreCase) ||
-                 parameter.CurrentValue is not double before || parameter.RecommendedValue is not double after ||
-                 !CamberSetupValues.IsLegal(parameter.Range, before) || !CamberSetupValues.IsLegal(parameter.Range, after) ||
-                 !TryNum(replacement, out var serialized) || !PitSetupPlanService.NumbersEqual(after, serialized)))
-                throw new InvalidDataException($"{section} cannot be saved: its camber VALUE is outside a verified range or step. Reload the baseline and generate again.");
+            SetupChangeValidation.Validate(analysis, parameter, parameter.CurrentValue!.Value, parameter.RecommendedValue!.Value, allowFinalDriveExport: true);
 
             if (string.IsNullOrWhiteSpace(
                     replacement))

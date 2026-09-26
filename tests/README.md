@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Legal setup values (local preview.36)
+
+`dotnet run --project tests/AtomicDriftTuner.RegressionTests -- --setup-legality` runs the 13 setup legality groups, including packed/unpacked mode-0/1/2 round trips, equivalent requests, invalid/off-grid baselines, bounds, coarse/fractional steps, unknown/custom/global modes, unavailable base facts, precision and stale definitions. All are also part of the full suite (402 passing groups at this milestone).
+
+`dotnet run --project tests/AtomicDriftTuner.LayoutTests -- . artifacts/setup-legality-layout --intelligence-v2` exercises exact test handoff and the focused save/stage workflow, including click-encoded before/after values and preserved raw commands. It passes 192 assertions plus responsive checks. `tests/companion/pit-setup-tests.lua` additionally checks click apply/restore, independent live bounds and refusal of incompatible spinner units. These are isolated and mocked checks; live car acceptance remains required.
+
 ## Setup comparisons (local preview.32)
 
 `dotnet run --project tests/AtomicDriftTuner.RegressionTests -c Release -- --setup-comparison` checks read-only projection of actual tuner output, all unchanged/missing settings, verified versus stale/partial mappings, camber units, FFB target provenance, changed ratio definitions and culture handling. Included in the full regression suite.

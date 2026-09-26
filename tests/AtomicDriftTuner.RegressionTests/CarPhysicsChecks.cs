@@ -92,11 +92,12 @@ internal static class CarPhysicsChecks
                 var a = new CarSetupTuningEngine().Generate(new() { Car = f.Car }, new AssettoCorsaSetupService().LoadBaseline(f.Baseline, f.Car), SetupAggressiveness.Balanced);
                 Check(a.Parameters.Where(p => p.Section.StartsWith("DIFF_")).All(p => !p.Changed && p.Reason.Contains(drive)), "Rear-drive advice applied to different drivetrain");
             });
-        test("physics import opt-out preserves existing baseline-only recommendations", () =>
+        test("physics import opt-out preserves supported recommendations while holding undefined controls", () =>
         {
             var f = Fixture(Path.Combine(root, "physics-off")); var service = new AssettoCorsaSetupService();
             var a = new CarSetupTuningEngine().Generate(new() { Car = f.Car }, service.LoadBaseline(f.Baseline, f.Car, false), SetupAggressiveness.Balanced);
-            Check(!a.Physics!.Available && a.Parameters.Single(p => p.Section == "DIFF_COAST").Changed, "Opt-out unexpectedly added physics guard");
+            Check(!a.Physics!.Available && !a.Parameters.Single(p => p.Section == "DIFF_COAST").Changed &&
+                a.Parameters.Single(p => p.Section == "DIFF_POWER").Changed, "Opt-out bypassed legal definitions or blocked a supported control");
         });
         foreach (var kind in new[] { "packed", "ambiguous", "missing" })
             test("physics import explains unavailable source: " + kind, () =>

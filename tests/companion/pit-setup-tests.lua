@@ -27,7 +27,7 @@ local function fixture()
       return f.saveResult ~= false
     end,
     loadSetup=function(contents)
-      check(contents:find('[CAMBER_LF]',1,true), 'load used a filesystem path')
+      check(contents:find('['..f.spinner.name..']',1,true), 'load used a filesystem path')
       f.loads[#f.loads+1]=contents
       f.current=f.loadedOverride or contents
       f.spinner.value=tonumber(f.current:match('VALUE%s*=%s*([%d-]+)') or f.current:match('VALUE = ([%d-]+)'))
@@ -172,5 +172,21 @@ for _,invalid in ipairs({'lower','upper','fraction','physical-range','readonly'}
   elseif invalid=='physical-range' then f.spinner.min=-10;f.spinner.max=-2
   else f.spinner.readOnly=true end
   check(c:prepare(f.plan,'apply')==nil and #f.loads==0 and #f.saves==0,'camber runtime guard bypassed: '..invalid)
+end
+-- Ordinary normalized/offset clicks also remain raw all the way to loadSetup.
+for _,mode in ipairs({1,2}) do
+  f,c=fixture()
+  f.current=original:gsub('CAMBER_LF','DAMP_REBOUND_LR'):gsub('VALUE = %-30','VALUE = 16')
+  f.spinner.name='DAMP_REBOUND_LR';f.spinner.min=mode==1 and 1 or 0;f.spinner.max=mode==1 and 18 or 17
+  f.spinner.step=1;f.spinner.value=16;f.spinner.showClicksMode=mode;f.spinner.displayMultiplier=500
+  f.plan.baselineValues={DAMP_REBOUND_LR=16,PRESSURE_LF=28};f.plan.changes={{section='DAMP_REBOUND_LR',before=16,after=17}}
+  out=apply(f,c);check(out.success and f.current:find('VALUE = 17',1,true),'click was rescaled during apply')
+  restore=c:prepare(nil,'restore');check(restore,'click restore unavailable');out=c:execute(nil,'click-restore',restore)
+  check(out.success and f.current:find('VALUE = 16',1,true),'click restore did not preserve the saved value')
+  f.plan.changes[1].after=f.spinner.max+1
+  local loads,saves=#f.loads,#f.saves
+  check(c:prepare(f.plan,'apply')==nil and #f.loads==loads and #f.saves==saves,'click exceeded independent runtime limit')
+  f.plan.changes[1].after=17;f.spinner.min=500;f.spinner.max=9000;f.spinner.step=500
+  check(c:prepare(f.plan,'apply')==nil and #f.loads==loads and #f.saves==saves,'incompatible physical spinner units were guessed')
 end
 print('PASS '..count..' pit setup assertions: guards, unique backup, precise patch, full readback, failure preservation and explicit restore.')

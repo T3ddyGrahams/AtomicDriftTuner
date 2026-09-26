@@ -4,6 +4,8 @@ namespace AtomicDriftTuner.Models;
 
 public sealed class TelemetrySample
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TrackPosition? Position { get; set; }
     public TelemetrySample Copy() => (TelemetrySample)MemberwiseClone();
     public bool HasExtendedSignals { get; set; }
     public bool InvalidSourceSignals { get; set; }

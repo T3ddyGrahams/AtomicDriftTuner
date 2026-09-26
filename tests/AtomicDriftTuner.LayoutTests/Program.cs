@@ -57,6 +57,16 @@ internal static partial class Program
             if (!app.Resources.Contains("AppBackgroundBrush"))
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
+            if (args.Contains("--feedback"))
+            {
+                CheckFeedback(output);
+                return 0;
+            }
+            if (args.Contains("--track"))
+            {
+                CheckTrack(output);
+                return 0;
+            }
             if (args.Contains("--intelligence-v2"))
             {
                 CheckDrivingContext(output);

@@ -57,7 +57,7 @@ internal static partial class Program
         {
             var tabs = (TabControl)assistant.FindName("AssistantTabs"); var toggle = (CheckBox)assistant.FindName("AdvancedTelemetryToggle");
             assistant.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
-            Check(toggle.IsChecked != true && tabs.Items.OfType<TabItem>().Count(t => t.Visibility == Visibility.Visible) == 4, "Expert tables visible by default or powertrain review hidden");
+            Check(toggle.IsChecked != true && tabs.Items.OfType<TabItem>().Count(t => t.Visibility == Visibility.Visible && t.Header.ToString() != "Track & sections") == 4, "Expert tables visible by default or powertrain review hidden");
             Check(((TabItem)tabs.SelectedItem).Header.ToString() == "Your next step", "Assistant does not open at the next step");
             var next = new AssistantNextStep { Goal = "Sustain more extreme angle (65–80°)", Noticed = "Synthetic example: your longest controlled hold was 4.0s.",
                 Confidence = "Useful pattern; verify with another run", Instruction = "Keep this setup and record the same section again.", Why = "Synthetic UI test, not a driver's run.", Action = "Evidence", ActionLabel = "Review the attempts" };
@@ -70,7 +70,7 @@ internal static partial class Program
             next.Action = "Compare"; Call(assistant, "RenderNextStep", next); Call(assistant, "NextAction_Click", assistant, new RoutedEventArgs());
             Check(((TabItem)tabs.SelectedItem).Header.ToString() == "Before / After" && ((Expander)assistant.FindName("ComparisonReasonsExpander")).IsExpanded, "Comparison action did not reveal reasons");
             next.Action = "Review"; Call(assistant, "RenderNextStep", next); Call(assistant, "NextAction_Click", assistant, new RoutedEventArgs());
-            Check(((TabItem)tabs.SelectedItem).Header.ToString() == "Tune & Run History", "Feedback action went to the wrong tab");
+            Check(((TabItem)tabs.SelectedItem).Header.ToString() == "Before / After", "Feedback action went to the wrong tab");
             var recommendation = new AssistantRecommendation { Area = RecommendationArea.General, Domain = "Throttle and rear response", Priority = "Repeat inputs", Confidence = "MEDIUM", Change = "Keep this setup and repeat this section." };
             var report = new TuningAssistantReport { Recommendations = [recommendation] };
             var history = new RunHistoryStore(Path.Combine(directory, "history")); var driver = history.GetOrCreateDriver("Angle tester");

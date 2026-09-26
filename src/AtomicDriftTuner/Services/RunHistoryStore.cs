@@ -180,7 +180,12 @@ public sealed class RunHistoryStore
         Guid.TryParseExact(r.SessionId, "N", out _) && Guid.TryParseExact(r.DriverId, "N", out _) && r.BaselineSessionId is not null &&
         r.Notes is not null && r.Notes.Length <= 4000 && !string.IsNullOrWhiteSpace(r.ContextKey) &&
         new[] { "Not rated", "Better", "Worse", "No noticeable difference", "Tradeoff" }.Contains(r.DriverRating) &&
-        r.Comparison is not null && r.Comparison.Limitations is not null && r.Comparison.Metrics is not null && r.Comparison.TuneChanges is not null;
+        r.Comparison is not null && r.Comparison.Limitations is not null && r.Comparison.Metrics is not null && r.Comparison.TuneChanges is not null &&
+        (r.GoalFeedback is null || Engine.GoalFeedbackEngine.Valid(r.GoalFeedback) && r.GoalFeedback.Scope == "Run" &&
+            r.GoalFeedback.SessionId == r.SessionId && r.GoalFeedback.BaselineSessionId == r.BaselineSessionId &&
+            r.GoalFeedback.DriverId == r.DriverId && r.GoalFeedback.ContextKey == r.ContextKey &&
+            r.GoalFeedback.Comparable == r.Comparison.Comparable &&
+            r.GoalFeedback.ExactTestTracked == (r.Comparison.RecommendationTestTracked || r.Comparison.DriverTestTracked));
 
     private static bool ValidTune(TuneVersion v) => v.Schema == "adt/tune-version/1" && Guid.TryParseExact(v.Id, "N", out _) &&
         v.BasePhysicsFingerprint is not null && (v.BasePhysicsFingerprint.Length == 0 || v.BasePhysicsFingerprint.Length == 64 && v.BasePhysicsFingerprint.All(Uri.IsHexDigit)) &&

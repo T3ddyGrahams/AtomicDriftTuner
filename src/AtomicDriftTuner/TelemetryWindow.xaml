@@ -38,6 +38,7 @@
                       HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
             <TextBlock x:Name="RecorderStepsText" Text="Connect → attach setup and confirm context → Record → Stop → Save Session → Review / Compare" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
+            <TextBlock x:Name="TrackCaptureText" Text="TRACK · Position capture uses ADT Companion. Update it through Remote → Install / Update Companion. Core telemetry works independently." TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
             <TextBlock x:Name="RecorderFocusText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,6"/>
             <Expander x:Name="RecorderHelpExpander" Header="Explain the recording steps" Margin="0,0,0,8">
                 <TextBlock x:Name="RecorderHelpText" TextWrapping="Wrap" Foreground="{DynamicResource FieldLabelBrush}" Margin="0,8"/>

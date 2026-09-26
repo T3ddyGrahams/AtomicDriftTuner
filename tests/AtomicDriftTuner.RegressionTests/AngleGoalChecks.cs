@@ -151,7 +151,7 @@ internal static class AngleGoalChecks
             var loaded = store.TryLoad(path)!;
             Check(loaded.Analysis.Diagnosis.AngleGoal.RecoveredAttempts == 6 && loaded.Session.Samples[100].LongitudinalVelocityMs > 0, "Reopened run lost direction or recovery");
             Check(File.ReadAllBytes(path).SequenceEqual(bytes), "Reanalysis modified historical raw recording");
-            Check(File.ReadLines(csv).First().EndsWith("longitudinal_velocity_ms"), "CSV direction channel absent");
+            Check(File.ReadLines(csv).First().Split(',').Contains("longitudinal_velocity_ms"), "CSV direction channel absent");
         });
         test("matching angle goals compare longer holds while retaining speed and control tradeoffs", () =>
         {

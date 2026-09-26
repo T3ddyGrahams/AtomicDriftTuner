@@ -64,7 +64,7 @@ public partial class TuningAssistantWindow
                 if (StatusText.Text.StartsWith("Test plan saved.")) Close();
                 break;
             case "Compare": SelectAssistantTab("Before / After"); ComparisonReasonsExpander.IsExpanded = true; break;
-            case "Review": SelectAssistantTab("Tune & Run History"); DriverRatingBox.BringIntoView(); break;
+            case "Review": SelectAssistantTab("Before / After"); QuickFeedback.BringIntoView(); break;
             case "Evidence": ShowEvidence_Click(sender, e); break;
             default: Close(); break;
         }

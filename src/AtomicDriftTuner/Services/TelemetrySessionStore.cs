@@ -47,8 +47,7 @@ public sealed class TelemetrySessionStore
     public TelemetrySessionStore()
     {
         var localAppData =
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData);
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
         if (string.IsNullOrWhiteSpace(localAppData))
         {
@@ -452,6 +451,10 @@ public sealed class TelemetrySessionStore
             bytes);
     }
 
+    // Track IDs are untrusted data; always quoted, with spreadsheet formula prefixes neutralized.
+    private static string CsvIdentity(string? text) => string.IsNullOrEmpty(text) ? "" :
+        "\"" + ("=+-@".Contains(text[0]) ? "'" : "") + text.Replace("\"", "\"\"") + "\"";
+
     private static void WriteTelemetryCsv(
         string destinationPath,
         TelemetrySession session)
@@ -486,7 +489,7 @@ public sealed class TelemetrySessionStore
                             encoderShouldEmitUTF8Identifier: false)))
             {
                 writer.WriteLine(
-                    "time_s,speed_kmh,throttle,brake,clutch,gear,rpm,steer_angle,steer_rate_deg_s,slip_angle_deg,yaw_rate_deg_s,lat_g,long_g,front_wheel_slip,rear_wheel_slip,final_ff,front_pressure,rear_pressure,longitudinal_velocity_ms");
+                    "time_s,speed_kmh,throttle,brake,clutch,gear,rpm,steer_angle,steer_rate_deg_s,slip_angle_deg,yaw_rate_deg_s,lat_g,long_g,front_wheel_slip,rear_wheel_slip,final_ff,front_pressure,rear_pressure,longitudinal_velocity_ms,world_x,world_y,world_z,track_id,layout_id,position_uncertainty_s,csp_source_time_ms");
 
                 foreach (var sample in session.Samples)
                 {
@@ -548,7 +551,13 @@ public sealed class TelemetrySessionStore
 
                                 FormatNumber(
                                     sample.RearTyrePressureAvg),
-                                sample.LongitudinalVelocityMs is double velocity ? FormatNumber(velocity) : ""
+                                sample.LongitudinalVelocityMs is double velocity ? FormatNumber(velocity) : "",
+                                sample.Position is { } p ? FormatNumber(p.X) : "",
+                                sample.Position is { } py ? FormatNumber(py.Y) : "",
+                                sample.Position is { } pz ? FormatNumber(pz.Z) : "",
+                                CsvIdentity(sample.Position?.Track), CsvIdentity(sample.Position?.Layout),
+                                sample.Position is { } pt ? FormatNumber(pt.AlignmentUncertaintySeconds) : "",
+                                sample.Position is { } ps ? FormatNumber(ps.SourceTimeMs) : ""
                             }));
                 }
 

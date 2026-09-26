@@ -1,5 +1,9 @@
 # Telemetry intelligence preview
 
+## Main-app track and feedback integration — preview.38
+
+Goal-specific **Quick driver review** is in Before / After, and **Track & sections** adds recorded-route maps, section goals and pass comparisons. Normal **ADT Companion 0.5.0-preview.1** supplies optional position evidence; existing user data and Remote port remain unchanged. Feedback guides keep/repeat/tradeoff/next-test decisions using the existing evidence gates, without modifying tuning coefficients or learning numeric settings across accumulated reviews. Section reviews remain separate from whole-run attribution. See [Track tools and quick driver feedback](TRACK_TOOLS.md).
+
 ## Intelligence 2.0 completion plan — September 26
 
 Local **previews .35–.37** implement the first three milestones below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.

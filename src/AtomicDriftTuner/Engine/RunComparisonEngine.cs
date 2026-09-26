@@ -72,6 +72,7 @@ public sealed class RunComparisonEngine
         bool controlWorse = false;
         foreach (var first in x.Diagnosis.Metrics.Where(m => m.Key != "throttle"))
         {
+            var signal = GoalSignal.Unknown;
             var second = y.Diagnosis.Metric(first.Key);
             var row = new AssistantComparisonRow { Metric = first.Name, Previous = first.DisplayValue,
                 Current = second?.DisplayValue ?? "Insufficient data", Change = "—", Interpretation = "Insufficient evidence in one or both runs." };
@@ -89,16 +90,18 @@ public sealed class RunComparisonEngine
                 else if (angleGoal && angleExposureChanged && !first.Key.StartsWith("angle-") && first.Key is not ("extreme-angle" or "oscillation" or "clipping"))
                     row.Interpretation = "Descriptive handling context: angle exposure changed while testing the saved angle goal.";
                 else if (first.Confidence == "LOW" || second.Confidence == "LOW") row.Interpretation = "Descriptive change only: this metric has too little evidence to score.";
-                else if (direction == 0) row.Interpretation = "Context/proxy only; no directional goal was recorded for this axis.";
+                else if (direction == 0) { signal = GoalSignal.Context; row.Interpretation = "Context/proxy only; no directional goal was recorded for this axis."; }
                 else
                 {
                     scored++;
+                    signal = Math.Abs(gain) <= tolerance ? GoalSignal.Same : gain > 0 ? GoalSignal.Closer : GoalSignal.Farther;
                     row.Interpretation = Math.Abs(gain) <= tolerance ? "No clear change beyond the comparison tolerance." : gain > 0 ? "Closer to the recorded goal (proxy where noted)." : "Farther from the recorded goal (proxy where noted).";
                     if (gain > tolerance) { improved++; improvedKeys.Add(first.Key); }
                     if (gain < -tolerance) { worsened++; if (first.Key is "oscillation" or "extreme-angle") controlWorse = true; }
                 }
             }
             result.Metrics.Add(row);
+            result.GoalEvidence.Add(new GoalMetricEvidence { Key = first.Key, Signal = signal, Explanation = row.Interpretation });
         }
         if (a?.Tune is not null && b?.Tune is not null)
         {

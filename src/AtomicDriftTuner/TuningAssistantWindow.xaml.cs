@@ -63,6 +63,9 @@ public partial class TuningAssistantWindow : Window
         _input =
             input;
 
+        QuickFeedback.SaveRequested += (_, _) => SaveRunReview_Click(this, new RoutedEventArgs());
+        QuickFeedback.NextTestRequested += ReviewNextFeedbackTest;
+
         _bindingHistory = true;
         try
         {
@@ -120,7 +123,8 @@ public partial class TuningAssistantWindow : Window
         ReviewHistoryText.Text = $"{review.DisplayName}\n{review.Conclusion}\nRun: {review.SessionId}\nBaseline: {review.BaselineSessionId}\n{review.Comparison.Summary}\nDriver notes: {review.Notes}\n" +
             (string.IsNullOrEmpty(review.Comparison.ComparisonVersion) ? "Historical review: analysis version was not recorded; this is not a newly verified test.\n" :
                 $"Review rules: {review.Comparison.ComparisonVersion}; analyzers {review.Comparison.BeforeAnalyzerVersion} → {review.Comparison.AfterAnalyzerVersion}.\n{review.Comparison.TestMatchSummary}\n") +
-            string.Join("\n", review.Comparison.Limitations) + "\nNext action: " + review.NextAction + " (settings are not applied or reverted automatically).";
+            string.Join("\n", review.Comparison.Limitations) + "\nNext action: " + review.NextAction + " (settings are not applied or reverted automatically)." +
+            (review.GoalFeedback is null ? "" : "\nQuick review:\n" + GoalFeedbackEngine.Summary(review.GoalFeedback));
     }
     private void ShowComparedTunes_Click(object sender, RoutedEventArgs e)
     {
@@ -158,11 +162,12 @@ public partial class TuningAssistantWindow : Window
             var review = new RunReview { SessionId = _reportSession.Session.Id, BaselineSessionId = FindPreviousSession(_reportSession)?.Session.Id ?? "",
                 Focus = context.Focus, NextAction = NextActionBox.SelectedItem as string ?? "Undecided",
                 DriverId = context.DriverId, ContextKey = context.Tune.ContextKey, DriverRating = DriverRatingBox.SelectedItem as string ?? "Not rated",
-                Notes = DriverNotesBox.Text.Trim(), Comparison = RunHistoryStore.Clone(_report.Outcome) };
+                Notes = DriverNotesBox.Text.Trim(), Comparison = RunHistoryStore.Clone(_report.Outcome), GoalFeedback = QuickFeedback.Snapshot };
             _history.SaveReview(review);
             ReviewHistoryBox.ItemsSource = _history.ListReviews(_input, context.DriverId);
             ReviewHistoryBox.SelectedItem = ((List<RunReview>)ReviewHistoryBox.ItemsSource).FirstOrDefault(x => x.Id == review.Id);
             StatusText.Text = "Run review saved. Driver feedback and measured outcome are retained separately; earlier reviews remain available.";
+            QuickFeedback.Saved("Saved for this run and baseline. Earlier reviews are retained in Tune & Run History.");
             try { RunReviewSaved?.Invoke(review); }
             catch (Exception ex) { StatusText.Text += " Review saved; guided progress could not update: " + ex.Message; }
         }
@@ -339,6 +344,7 @@ public partial class TuningAssistantWindow : Window
                     previous,
                     displayMph);
             report.DrivingContextSummary += unitIssue;
+            TrackSections.Bind(selected, previous);
 
             _report =
                 report;
@@ -358,6 +364,7 @@ public partial class TuningAssistantWindow : Window
 
             _reportSession =
                 null;
+            TrackSections.Bind(null, null);
             RecordedSetupComparison.Clear("Selected-session analysis failed. Choose a saved run again.");
 
             AssessmentGrid.ItemsSource =
@@ -478,6 +485,8 @@ public partial class TuningAssistantWindow : Window
             TuneHistoryText.Text = "Compared tune changes are shown below. Choose a saved version to inspect all its captured settings. Generated values are not hardware readback.";
             var reviews = (List<RunReview>)ReviewHistoryBox.ItemsSource;
             var latest = reviews.FirstOrDefault(r => r.SessionId == selected.Session.Id && r.BaselineSessionId == previous?.Session.Id);
+            QuickFeedback.AllowNextTest = TuningFocusOptions.IncludesCar(_focus);
+            QuickFeedback.Bind(GoalFeedbackEngine.ForRun(previous, selected), latest?.GoalFeedback);
             ReviewHistoryText.Text = (latest is null ? "Save your feedback below to assess whether this change helped you. Draft notes survive run switching in this window; click Save Run Review to keep them after closing." :
                 $"Latest saved review for this comparison: {latest.Conclusion}\nDriver rating: {latest.DriverRating}\n{latest.Notes}") + "\n" + string.Join("\n", _history.Warnings);
             SaveReviewButton.IsEnabled = selected.Session.Context?.Tune is not null;
@@ -555,6 +564,8 @@ public partial class TuningAssistantWindow : Window
         string guidance,
         string status)
     {
+        QuickFeedback.Bind(null);
+        TrackSections.Bind(null, null);
         _report =
             null;
         RenderNextStep(new AssistantNextStep());

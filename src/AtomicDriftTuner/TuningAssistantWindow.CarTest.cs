@@ -1,6 +1,7 @@
 using System.Windows;
 using AtomicDriftTuner.Models;
 using AtomicDriftTuner.Services;
+using AtomicDriftTuner.Engine;
 
 namespace AtomicDriftTuner;
 
@@ -34,9 +35,29 @@ public partial class TuningAssistantWindow
         var reason = AssistantCarTestService.UnavailableReason(_input, _reportSession, _report);
         if (reason.Length > 0 || SessionBox.SelectedItem is not SavedTelemetrySession selected || !ReferenceEquals(selected, _reportSession))
         { StatusText.Text = reason.Length > 0 ? reason : "Select the run again to refresh its report."; return; }
+        OpenCarTest(selected, _report!);
+    }
+
+    private void ReviewNextFeedbackTest(object? sender, EventArgs e)
+    {
+        if (_guidedSetupWindow is not null) { RestoreAndActivateGuidedSetup(); return; }
+        if (!TuningFocusOptions.IncludesCar(_focus) || SessionBox.SelectedItem is not SavedTelemetrySession selected || !ReferenceEquals(selected, _reportSession)) return;
+        var feedback = QuickFeedback.Snapshot;
+        var current = GoalFeedbackEngine.ForRun(FindPreviousSession(selected), selected);
+        if (feedback is null || current is null || feedback.ContextFingerprint != current.ContextFingerprint || !GoalFeedbackEngine.Evaluate(feedback).CanReviewNextTest) return;
+        // Reassess the current run as the next baseline, retaining its recorded goals and all existing evidence gates.
+        var candidate = _assistant.Build(_input, selected.Session.Context!.Tune!.DesiredBehavior, selected);
+        var reason = AssistantCarTestService.UnavailableReason(_input, selected, candidate);
+        if (reason.Length > 0)
+        { QuickFeedback.Saved("No further setup test is supported by this run yet. " + reason); return; }
+        OpenCarTest(selected, candidate);
+    }
+
+    private void OpenCarTest(SavedTelemetrySession selected, TuningAssistantReport report)
+    {
         try
         {
-            var window = new CarSetupTestWindow(_input, selected, _report!)
+            var window = new CarSetupTestWindow(_input, selected, report)
             {
                 StageHandler = StagePitSetupHandler,
                 TestPrepared = (test, path) =>

@@ -19,36 +19,7 @@ public sealed class DriftDiagnosisEngine
         var d = r.Diagnosis;
         var goal = RunHistoryStore.ValidContext(session.Context) ? session.Context!.Tune!.DesiredBehavior : null;
         double driftLimit = goal?.HasAngleGoal == true ? 90 : 72;
-        var blocks = new List<List<Frame>>();
-        var block = new List<Frame>();
-        TelemetrySample? previous = null;
-        double collisionUntil = double.NegativeInfinity;
-        void Break() { if (block.Count > 0) blocks.Add(block); block = []; }
-        foreach (var s in session.Samples)
-        {
-            if (s is null || !Valid(s)) { d.InvalidSamples++; Break(); previous = null; continue; }
-            // Optional axle evidence must not break an otherwise valid motion timeline.
-            if (!ValidWheelSlip(s)) d.InvalidWheelSlipSamples++;
-            var dt = previous is null ? 0 : s.TimeSeconds - previous.TimeSeconds;
-            if (previous is not null && (dt < 0 || s.PacketId < previous.PacketId))
-            {
-                d.TimelineReset = true; d.Discontinuities++; Break();
-                // A restart would put two different driving episodes on the same timeline.
-                // Retain only the first episode for inspection, never for attribution.
-                break;
-            }
-            if (previous is not null && (dt <= 0 || dt > .25 || s.PacketId < previous.PacketId || (s.PacketId != 0 && s.PacketId == previous.PacketId)))
-            { d.Discontinuities++; Break(); dt = 0; }
-            if (dt > 0) r.DurationSeconds += dt;
-            if (dt > 0 && s.HasExtendedSignals && previous?.HasExtendedSignals == true && s.DamageTotal > previous.DamageTotal + .01)
-                collisionUntil = s.TimeSeconds + 1;
-            bool excluded = (s.HasExtendedSignals && (s.PitLimiterOn || s.IsAiControlled || s.Gear == 0 || s.WheelsOutsideTrack >= 4)) ||
-                s.TimeSeconds < collisionUntil || Math.Abs(s.LateralG) > 5 || Math.Abs(s.LongitudinalG) > 5;
-            if (excluded) { d.ExcludedSeconds += dt; Break(); previous = s; continue; }
-            // A first frame never attributes the preceding excluded interval to valid driving.
-            block.Add(new Frame(s, block.Count == 0 ? 0 : dt)); previous = s;
-        }
-        Break();
+        var blocks = BuildCleanBlocks(session, r, d);
         // Keep direction reversals for angle/recovery inspection, but never use them as
         // clean handling, phase, pedal or gain-calibration evidence. Split at each reversal.
         var controlBlocks = blocks;
@@ -282,6 +253,46 @@ public sealed class DriftDiagnosisEngine
             else oppositeSince = -1;
             if (transitionStart >= 0 && t - transitionStart > 4) { stableSign = pendingSign = 0; transitionStart = oppositeSince = -1; }
         }
+    }
+
+    // Shared by the optional location review. Original phase/FFB calculations use
+    // precisely the same blocks; missing spatial evidence never removes core frames.
+    internal static List<List<Frame>> LocationBlocks(TelemetrySession session) =>
+        ForwardBlocks(BuildCleanBlocks(session, new TelemetryAnalysis(), new DriftDiagnosis()));
+
+    private static List<List<Frame>> BuildCleanBlocks(TelemetrySession session, TelemetryAnalysis r, DriftDiagnosis d)
+    {
+        var blocks = new List<List<Frame>>();
+        var block = new List<Frame>();
+        TelemetrySample? previous = null;
+        double collisionUntil = double.NegativeInfinity;
+        void Break() { if (block.Count > 0) blocks.Add(block); block = []; }
+        foreach (var s in session.Samples)
+        {
+            if (s is null || !Valid(s)) { d.InvalidSamples++; Break(); previous = null; continue; }
+            // Optional axle evidence must not break an otherwise valid motion timeline.
+            if (!ValidWheelSlip(s)) d.InvalidWheelSlipSamples++;
+            var dt = previous is null ? 0 : s.TimeSeconds - previous.TimeSeconds;
+            if (previous is not null && (dt < 0 || s.PacketId < previous.PacketId))
+            {
+                d.TimelineReset = true; d.Discontinuities++; Break();
+                // A restart would put two different driving episodes on the same timeline.
+                // Retain only the first episode for inspection, never for attribution.
+                break;
+            }
+            if (previous is not null && (dt <= 0 || dt > .25 || s.PacketId < previous.PacketId || (s.PacketId != 0 && s.PacketId == previous.PacketId)))
+            { d.Discontinuities++; Break(); dt = 0; }
+            if (dt > 0) r.DurationSeconds += dt;
+            if (dt > 0 && s.HasExtendedSignals && previous?.HasExtendedSignals == true && s.DamageTotal > previous.DamageTotal + .01)
+                collisionUntil = s.TimeSeconds + 1;
+            bool excluded = (s.HasExtendedSignals && (s.PitLimiterOn || s.IsAiControlled || s.Gear == 0 || s.WheelsOutsideTrack >= 4)) ||
+                s.TimeSeconds < collisionUntil || Math.Abs(s.LateralG) > 5 || Math.Abs(s.LongitudinalG) > 5;
+            if (excluded) { d.ExcludedSeconds += dt; Break(); previous = s; continue; }
+            // A first frame never attributes the preceding excluded interval to valid driving.
+            block.Add(new Frame(s, block.Count == 0 ? 0 : dt)); previous = s;
+        }
+        Break();
+        return blocks;
     }
 
     private static bool Valid(TelemetrySample s) => !s.InvalidSourceSignals && double.IsFinite(s.TimeSeconds) && s.TimeSeconds >= 0 &&

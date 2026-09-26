@@ -121,11 +121,13 @@ public sealed class RunComparison
     public bool Comparable { get; set; }
     public List<string> Limitations { get; set; } = [];
     public List<AssistantComparisonRow> Metrics { get; set; } = [];
+    public List<GoalMetricEvidence> GoalEvidence { get; set; } = [];
     public List<AssistantComparisonRow> TuneChanges { get; set; } = [];
 }
 
 public sealed class RunReview
 {
+    public GoalFeedback? GoalFeedback { get; set; }
     public TuningFocus Focus { get; set; } = TuningFocus.Both;
     public string NextAction { get; set; } = "Undecided";
     public string Schema { get; set; } = "adt/run-review/1";
@@ -138,8 +140,9 @@ public sealed class RunReview
     public string DriverRating { get; set; } = "Not rated";
     public string Notes { get; set; } = "";
     public RunComparison Comparison { get; set; } = new();
-    public string DisplayName => $"{ReviewedUtc.ToLocalTime():g} • {DriverRating} • {Comparison.Verdict}";
-    public string Conclusion => !Comparison.Comparable ? "Inconclusive comparison; driver feedback is retained." :
+    public string DisplayName => $"{ReviewedUtc.ToLocalTime():g} • {(GoalFeedback is { HasAnswers: true } ? "Quick review: " + Engine.GoalFeedbackEngine.Evaluate(GoalFeedback).Action : DriverRating)} • {Comparison.Verdict}";
+    public string Conclusion => GoalFeedback is { HasAnswers: true } ? Engine.GoalFeedbackEngine.Evaluate(GoalFeedback).Message :
+        !Comparison.Comparable ? "Inconclusive comparison; driver feedback is retained." :
         DriverRating == "Better" && Comparison.Verdict == "Closer to goals" && Comparison.RecommendationTestTracked && Comparison.TestGoalImproved ? "Driver and telemetry support improvement in this recorded recommendation test; repeat the test to verify the association." :
         DriverRating == "Better" && Comparison.Verdict == "Closer to goals" && Comparison.DriverTestTracked ? "Driver and telemetry support improvement in this driver-defined test; this is not validation of an ADT recommendation." :
         DriverRating == "Worse" && Comparison.Verdict == "Closer to goals" || DriverRating == "Better" && Comparison.Verdict == "Farther from goals" ? "Driver feedback and telemetry disagree; improvement is not confirmed." :

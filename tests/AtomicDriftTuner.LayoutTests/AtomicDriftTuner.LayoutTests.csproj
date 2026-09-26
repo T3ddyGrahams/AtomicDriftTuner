@@ -7,4 +7,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/AtomicDriftTuner/AtomicDriftTuner.csproj" /><Compile Include="../Shared/CarTestFixture.cs" Link="CarTestFixture.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/TrackFixture.cs" Link="TrackFixture.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/FeedbackFixture.cs" Link="FeedbackFixture.cs" /></ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-<Window x:Class="AtomicDriftTuner.TuningAssistantWindow"
+<Window xmlns:track="clr-namespace:AtomicDriftTuner.Controls" x:Class="AtomicDriftTuner.TuningAssistantWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:layout="clr-namespace:AtomicDriftTuner.Controls"
@@ -412,6 +412,7 @@
                     </Expander>
                     </StackPanel>
                     <layout:SetupComparisonView x:Name="RecordedSetupComparison" Margin="0,0,0,12"/>
+                    <track:GoalFeedbackView x:Name="QuickFeedback"/>
                     <Expander x:Name="ComparisonDetailsExpander" Header="View detailed measurements" IsExpanded="False" HorizontalContentAlignment="Stretch">
                     <DataGrid
                               x:Name="ComparisonGrid"
@@ -463,6 +464,7 @@
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="ReviewHistoryText" TextWrapping="Wrap" Margin="0,6"/>
                 </StackPanel>
             </TabItem>
+            <TabItem x:Name="TrackSectionTab" Header="Track &amp; sections"><track:TrackSectionView x:Name="TrackSections"/></TabItem>
         </TabControl>
         </StackPanel>
         </ScrollViewer>

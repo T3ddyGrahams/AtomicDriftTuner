@@ -1,6 +1,8 @@
 # ADT Companion — workflow preview
 
-Companion **0.4.0-preview.4** with desktop **0.9.0-preview.26** distinguishes **READY FOR PARTIAL REVIEW** from full readiness in its all-tab banner and once-per-run toast. Record shows the remaining requirements and time counters. Short corners and drifts add up; a single ten-second section is not required. Update the companion with the driving session closed, then start a fresh session.
+Companion **0.5.0-preview.1** adds optional read-only track position capture for desktop **0.9.0-preview.38**. The normal ADT Companion now supplies the map channel; a separate Track DEV app is not required. Enable/open this companion in a fresh CSP session after updating. Desktop track capture does not require Remote pairing, while recording controls, setup capture and pit actions retain their existing paired connection. Unsupported or unavailable position APIs do not block normal companion controls. Read `docs/TRACK_TOOLS.md` in the desktop package for the map and driver-feedback workflow.
+
+The existing **READY FOR PARTIAL REVIEW** banner and once-per-run toast remain. Short corners and drifts add up; a single ten-second section is not required. Update the companion with the driving session closed, then start a fresh session.
 
 Companion **0.4.0-preview.3** adds a Ready to Review banner across tabs, a once-per-run toast and missing-goal guidance with desktop **0.9.0-preview.22**. Enable the optional chime in desktop Telemetry Recorder to hear it through PC audio. Recording continues until you stop and save. This version includes the CSP compatibility correction described below.
 

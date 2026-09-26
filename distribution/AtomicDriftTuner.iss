@@ -65,6 +65,7 @@ Source: "{#StagingDir}\docs\GUIDED_WORKFLOW.md"; DestDir: "{app}\docs"; Flags: i
 Source: "{#StagingDir}\docs\TOUCHSCREEN.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\GEARING.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\TELEMETRY_INTELLIGENCE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "{#StagingDir}\docs\TRACK_TOOLS.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\PIT_SETUP.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\PITHOUSE.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#StagingDir}\docs\CAR_PHYSICS.md"; DestDir: "{app}\docs"; Flags: ignoreversion
@@ -75,6 +76,7 @@ Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\ADTCompanion.lua";
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\companion_client.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\setup_capture.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\pit_setup.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
+Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\track_position.lua"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\manifest.ini"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 Source: "{#StagingDir}\CompanionPayload\apps\lua\ADTCompanion\icon.png"; DestDir: "{app}\CompanionPayload\apps\lua\ADTCompanion"; Flags: ignoreversion
 

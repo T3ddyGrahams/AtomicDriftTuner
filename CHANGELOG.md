@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.38 — Track tools and driver feedback in the main app
+
+- Integrate the track prototype and goal-specific driver feedback into the normal ADT executable, existing user data and Remote port 5190. No separate developer app or fresh main profile is needed.
+- Add Quick driver review to Before / After: Better / Same / Worse / Couldn't judge, a new-problem check, saved history and evidence-aware next steps. Answers follow the exact run/baseline/test and recorded goals. A supported next-test preview retains all existing setup guards; saving feedback does not change a tune.
+- Add Track & sections with recorded-route maps, optional AI context, immutable line/angle/gear goals, complete-pass comparisons and separately scoped feedback/history. Missing data, ambiguous paths and mismatched conditions remain inconclusive.
+- Integrate the optional read-only position publisher into normal ADT Companion **0.5.0-preview.1**. Install/update the companion with the driving session closed. Core recording, setup capture, pit controls and touchscreen pairing keep their existing behavior when spatial capture is unavailable.
+- Preserve existing tuning calculations and comparison tolerances. Section findings remain descriptive; no automatic tune application or accumulated numeric learning is introduced. See [the guide](docs/TRACK_TOOLS.md) for setup and live acceptance.
+
 ## Local v0.9.0-preview.37 — Telemetry Intelligence 2.0: diagnosis by driving condition
 
 - Separate initiation, transitions, sustained drift, low-angle cornering and FFB saturation by speed and direction. Show each condition's duration/event count, known throttle/brake/clutch context and relationship to the run's saved Desired Behavior. Repeated short sections accumulate; no single ten-second drift is required.

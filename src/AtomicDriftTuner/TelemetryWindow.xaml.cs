@@ -440,6 +440,7 @@ public partial class TelemetryWindow : Window
         if (!hub.Connected || hub.Sample is null)
         {
             LiveText.Text = "Waiting for fresh Assetto Corsa telemetry.";
+            TrackCaptureText.Text = "TRACK · Position unavailable while native telemetry is stale.";
             if (!_recording)
             {
                 // A pause between runs must not shut down the recorder's refresh timer.
@@ -461,6 +462,10 @@ public partial class TelemetryWindow : Window
         _telemetryUnavailableSince = null;
         var sample = hub.Sample;
         RenderLiveTelemetry(sample);
+        var recentPositions = _session.Samples.TakeLast(250).Count(s => s.Position is not null);
+        TrackCaptureText.Text = sample.Position is { } position
+            ? $"TRACK · {position.Track}/{(position.Layout.Length == 0 ? "default" : position.Layout)} · alignment ≤{position.AlignmentUncertaintySeconds * 1000:0} ms · {recentPositions} position samples in the last 250 native frames."
+            : $"TRACK · {recentPositions} position samples in the last 250 native frames. Missing positions are not invented; update/enable ADT Companion and drive another pass if this stays at zero.";
         if (!_recording)
         {
             RecordButton.IsEnabled = true;

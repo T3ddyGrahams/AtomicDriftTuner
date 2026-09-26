@@ -6,6 +6,7 @@ local preferences
 local readyToasts=0
 local function check(value, message) assert(value, message); count=count+1 end
 require = function(name)
+  if name=='track_position' then return assert(loadfile((arg[3]:gsub('setup_capture.lua$', 'track_position.lua'))))() end
   if name=='setup_capture' then return assert(loadfile(arg[3]))() end
   if name=='pit_setup' then return assert(loadfile((arg[3]:gsub('setup_capture.lua$', 'pit_setup.lua'))))() end
   assert(name=='companion_client'); return create
@@ -175,4 +176,5 @@ check(readyToasts==2,'reconnection repeated notification')
 draw('Disconnect / pair again','Help')
 check(preferences.port=='5190' and preferences.token==nil and preferences.code==nil,'pairing secret persisted')
 check(children.adtWaiting,'disconnected/waiting controls lack scroll access')
+check(draw():find('Position unavailable'), 'Unavailable optional position API hid normal companion UI')
 print('PASS '..count..' companion UI assertions under mocked CSP APIs; actual entry point, all panes and actions.')

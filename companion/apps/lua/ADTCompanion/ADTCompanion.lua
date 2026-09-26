@@ -1,6 +1,7 @@
 local createClient = require('companion_client')
 local setupCapture = require('setup_capture')(ac)
 local pitSetup = require('pit_setup')(ac)
+local trackPosition = require('track_position')(ac)
 local client = createClient(web.request, JSON.stringify, JSON.parse, function() return setupCapture:capture() end, pitSetup)
 local preferences = ac.storage({ port = '5190', lastReadyRun = '' })
 local port, code = preferences.port, ''
@@ -10,6 +11,7 @@ local rating, nextAction, notes, reviewKey = '', 'Undecided', '', ''
 web.timeouts(1000, 1500, 2000, 4000)
 
 function script.update(dt)
+  trackPosition:update(dt)
   client:update(dt)
   local status = client:fresh() and client.status or nil
   local r = status and status.recorder
@@ -254,11 +256,12 @@ local function helpTab(status, w)
   if w then paragraph('', w.comingNext) end
   ui.textWrapped('Keep desktop ADT and its Remote server open; minimizing is fine. SimHub is not required for AC recording. Hiding this panel does not stop a run.')
   ui.textWrapped('After a connection timeout, check the refreshed recorder and review status before trying again. Commands are never repeated automatically.')
-  ui.textWrapped('Companion 0.4.0-preview.1. Pit setup: desktop ADT 0.9.0-preview.15 or newer. Automatic setup capture: desktop ADT 0.9.0-preview.14 or newer. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
+  ui.textWrapped('Companion 0.5.0-preview.1. Track tools: desktop ADT 0.9.0-preview.38 or newer. Pit setup: desktop ADT 0.9.0-preview.15 or newer. Automatic setup capture: desktop ADT 0.9.0-preview.14 or newer. Full workflow: desktop ADT 0.9.0-preview.13 or newer. Install/update through Content Manager, then start a new driving session to reload the app.')
   button('Disconnect / pair again', true, function() client:forget(); confirm = false end)
 end
 
 function script.windowMain(dt)
+  ui.textWrapped('Track: ' .. trackPosition:status())
   ui.textColored('ATOMIC DRIFT TUNER', accent)
   -- Each pane uses the remaining size, so long explanations and buttons stay reachable at 300 x 280.
   if not client.token then

@@ -27,6 +27,8 @@ public sealed class TelemetryHubService : IDisposable
     private AssettoCorsaTelemetryReader _reader =
         new();
 
+    private readonly TrackPositionReader _trackPosition = new();
+
     private readonly Stopwatch _clock =
         new();
 
@@ -311,6 +313,7 @@ public sealed class TelemetryHubService : IDisposable
                 return true;
             }
 
+            sample.Position = _trackPosition.Read(sample.TimeSeconds);
             PublishSampleLocked(sample);
 
             return true;
@@ -439,6 +442,7 @@ public sealed class TelemetryHubService : IDisposable
                 "ADT telemetry service is stopped.";
         }
 
+        _trackPosition.Dispose();
         _pollTimer.Dispose();
 
         _clock.Stop();

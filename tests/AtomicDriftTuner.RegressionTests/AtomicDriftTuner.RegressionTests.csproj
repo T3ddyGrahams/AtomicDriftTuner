@@ -10,4 +10,6 @@
     <Compile Include="../Shared/CarTestFixture.cs" Link="CarTestFixture.cs" />
     <ProjectReference Include="../../src/AtomicDriftTuner/AtomicDriftTuner.csproj" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../Shared/TrackFixture.cs" Link="TrackFixture.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/FeedbackFixture.cs" Link="FeedbackFixture.cs" /></ItemGroup>
 </Project>

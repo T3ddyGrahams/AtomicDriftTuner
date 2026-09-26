@@ -9,6 +9,7 @@ public static class RecommendationTestService
 {
     public const string Adt = "ADT focused setup";
     public const string Driver = "Driver-defined";
+    public static bool Same(RecommendationTest? a, RecommendationTest? b) => JsonSerializer.Serialize(a) == JsonSerializer.Serialize(b);
     public static bool Equal(double a, double b) => Math.Abs(a - b) < .000001;
     public static string Fingerprint(TuneVersion tune) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         JsonSerializer.Serialize(tune.Settings.OrderBy(p => p.Key, StringComparer.Ordinal).ToArray())))).ToLowerInvariant();

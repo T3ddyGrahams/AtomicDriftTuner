@@ -32,6 +32,8 @@ internal static partial class Program
             window.UseRecordingPlan(plan, force: true);
             ((CheckBox)window.FindName("UseAutomaticSetupCheck")).IsChecked = false;
             ((CheckBox)window.FindName("TuneInUseCheck")).IsChecked = true;
+            window.UseRecordingPlan(RunHistoryStore.Clone(plan));
+            Check(((CheckBox)window.FindName("TuneInUseCheck")).IsChecked == true, "Reopening the identical frozen plan lost confirmation.");
             RunContext Capture() => (RunContext)typeof(TelemetryWindow).GetMethod("CaptureRunContext", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
             var recorded = Capture();
             Check(recorded.Test?.Id == choice.Test.Id && recorded.Test.Changes.Count == 2 && recorded.Tune!.Settings["ACSetup.PRESSURE_LR"] == 26,

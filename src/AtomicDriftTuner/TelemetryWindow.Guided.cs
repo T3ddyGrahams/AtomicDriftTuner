@@ -12,7 +12,7 @@ public partial class TelemetryWindow
     public TuningFocus RecordingFocus => _recordingPlan?.Focus ?? TuningFocus.Both;
     public void UseRecordingPlan(RecordingPlan plan, bool force = false)
     {
-        if (!force && _recordingPlan == plan && CompanionPlanMatches(plan)) return;
+        if (!force && _recordingPlan is { } current && (current with { Test = null }) == (plan with { Test = null }) && CompanionPlanMatches(plan)) return;
         if (_recording || !_sessionSaved && _session.Samples.Count > 0)
         {
             StatusText.Text = "Finish and save the current recording first. Return to the dashboard and open the next step again to load the new test plan.";
@@ -41,7 +41,7 @@ public partial class TelemetryWindow
         RecommendationRunBox.ItemsSource = recent; RecommendationRunBox.SelectedItem = baseline;
         ConditionsBox.Text = plan.Conditions;
         TestedChangeBox.Text = plan.Recommendation;
-        DriverDefinedTestCheck.IsChecked = false;
+        DriverDefinedTestCheck.IsChecked = plan.Test?.Origin == RecommendationTestService.Driver;
         TuneLabelBox.Text = baseline is null ? "Baseline" : $"Test {DateTime.Now:MMM d HH:mm}";
         if (File.Exists(plan.SetupPath))
         {

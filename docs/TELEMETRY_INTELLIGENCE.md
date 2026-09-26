@@ -1,5 +1,35 @@
 # Telemetry intelligence preview
 
+## Intelligence 2.0 completion plan — September 26
+
+Local **preview.35** completes the first implementation milestone below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.
+
+| Milestone | State | Completion requirement |
+| --- | --- | --- |
+| Reliable test attribution and direction handling | Implemented in preview.35; driving acceptance pending | Exact planned versus actual controls, preserved history, matched coverage, goal-specific evidence, and consistent backward-travel exclusions. |
+| Car-supported legal adjustments | Partly implemented | Finish audit A1/A2/A7: shared verified value/step mapping, legal directional adjustments and definition guards, with truthful holds for unsupported controls. |
+| Deeper phase and speed diagnosis | Next | Separate repeatable initiation/transition/sustained behavior by speed and direction; tie it to saved Desired Behavior and pedal context, with evidence counts, uncertainty and conflicting signals visible. Do not relabel slip proxies as measured tyre grip or driver steering as proven self-steer. |
+| Repeated car/driver test history | Pending | Accumulate only matched, comparable experiments with analysis provenance; retain regressions, tradeoffs and driver disagreements, avoid counting repeated reviews of one run as independent tests, and report insufficient evidence explicitly. |
+| Controlled recommendations and acceptance | Pending | Use supported adjustments and repeatable car/driver evidence for one reviewable test at a time. Validate with multiple cars, tracks, input styles and wheelbases; preserve manual confirmation and rollback. |
+
+### Try the verified setup-test workflow
+
+1. Record a confirmed baseline with the intended car, driver, Desired Behavior and loaded setup.
+2. In **Tuning Assistant → Your next step → Review one car setup change**, review the exact values and save or stage that focused test. ADT records the intended controls, values and measurement automatically.
+3. Load the saved setup or explicitly apply the staged plan in the pits. Open the guided comparison recorder. Keep the prepared test description unchanged, capture/attach the setup actually in use, confirm it, then record comparable sections.
+4. In **Before / After → Your setup changes**, inspect **Test verification**. The captured values must match the exact plan with no additional changes. Paired left/right controls count as one planned adjustment group, but their individual effects cannot be separated.
+5. Rate and save the comparison. ADT supports the recommendation only when the runs are comparable, the planned measurement improves beyond the existing tolerance, the overall result is closer to the saved goals and the driver reports Better. This is an association to repeat and verify, not proof of causation.
+
+To test your own car change, select the baseline in Recorder, describe the experiment, attach/capture the changed setup and check **This is my own car setup test, not an ADT recommendation**. ADT records the actual before/after car values when recording starts; keep FFB fixed. The review calls it a driver-defined test and never attributes it to an ADT recommendation. The checkbox is cleared when a guided ADT plan is prepared again. No change, mismatched field coverage or mixed FFB changes cannot define this car-only experiment.
+
+Editing a prepared description or choosing a different baseline removes its exact-plan association. Notes alone—including older free-text recommendation and FFB plans—remain observations. Supported exact ADT contracts currently come from the focused car-test window. It is still possible to inspect any valid recording and its setting differences; no synthetic historical plans are invented.
+
+Known backward motion is now excluded from clean drift, initiation/transition windows, pedal context and gain calibration independently of the angle goal. Windows do not bridge the excluded interval. Angle attempts retain their backward/recovery evidence. Legacy recordings lacking direction remain readable with an explicit unknown-direction note.
+
+New reviews store `run-comparison/2`, both `drift-diagnosis/4` versions and the matched test ID/origin. Older saved files are not rewritten; their stored verdicts and driver feedback remain historical, with an unversioned-review label. Reopening raw recordings uses the current analyzer. Numeric setup, gearing and ECU generation rules are unchanged by this milestone.
+
+### Earlier intelligence milestones
+
 Local preview.26 distinguishes full goal coverage from **READY FOR PARTIAL REVIEW**. With reliable telemetry and at least 60 seconds of usable drift, a run can be reviewed even if the track or driving does not provide every requested measurement. The missing goals remain visible; their measured values, confidence and comparison eligibility do not change. Full readiness still uses the existing 20-second minimum and selected-goal requirements. You can stop and save at any time; neither status stops recording automatically. The optional ready notification sounds once per recording, including when partial review becomes available first.
 
 **Short-track guidance:** time counters accumulate across multiple shorter driving sections in the same recording. Ten seconds total does not require one uninterrupted ten-second drift or corner. Individual initiation, transition and angle attempts still need their own valid windows; telemetry gaps do not count as driving time. Repeated short clean sections can supply useful evidence.
@@ -115,7 +145,7 @@ Overall comparison requires the same known driver, exact car/pack, wheelbase/rim
 
 The comparison engine uses a 15% change tolerance with a minimum per-metric floor and requires at least three scored metrics. Faster or more responsive runs with worsened control can receive **Tradeoff**. Rejected comparisons still show descriptive differences and the reason they are inconclusive.
 
-To support improvement in a **recorded recommendation test**, ADT also requires both tunes to be confirmed in use, AC setup fingerprints for both runs, a captured tune change, an explicit reference to the baseline recommendation and a description of the change tested. The saved driver review must say Better and the telemetry must be closer to the recorded goals. Conflicting feedback is retained as disagreement. Multiple changes cannot isolate a single setting's effect.
+To support improvement in a **recorded recommendation test**, ADT also requires both tunes to be confirmed in use, AC setup fingerprints for both runs, a real numeric setting change, and an exact recorded plan linked to that baseline. Captured controls and before/after values must match the plan completely, with matching field coverage and capture methods; metadata-only changes, extra controls and free-text descriptions cannot meet this condition. The intended measurement must improve, the saved driver review must say Better and the overall telemetry must be closer to the recorded goals. Conflicting feedback is retained as disagreement. Multiple changes cannot isolate a single setting's effect.
 
 These checks establish a documented association, not proof of causation or automatically learned optimal setups. Tire wear/temperatures, track conditions, practice and unrecorded setting changes may still affect the result. The system does not train a model or silently retune the car from previous runs.
 

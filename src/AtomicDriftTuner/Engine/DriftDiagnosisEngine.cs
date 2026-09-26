@@ -49,6 +49,12 @@ public sealed class DriftDiagnosisEngine
             block.Add(new Frame(s, block.Count == 0 ? 0 : dt)); previous = s;
         }
         Break();
+        // Keep direction reversals for angle/recovery inspection, but never use them as
+        // clean handling, phase, pedal or gain-calibration evidence. Split at each reversal.
+        var controlBlocks = blocks;
+        d.BackwardTravelSeconds = blocks.SelectMany(b => b).Where(f => f.Sample.LongitudinalVelocityMs < 0).Sum(f => f.Dt);
+        d.ExcludedSeconds += d.BackwardTravelSeconds;
+        blocks = ForwardBlocks(blocks);
         var frames = blocks.SelectMany(x => x).ToList();
         r.SampleCount = frames.Count;
         r.EffectiveSampleRateHz = Time(frames) > 0 ? frames.Count(f => f.Dt > 0) / Time(frames) : 0;
@@ -79,7 +85,7 @@ public sealed class DriftDiagnosisEngine
         r.DriftEntries = entries.Count; r.TransitionCount = transitions.Count;
         r.AverageTransitionSeconds = transitions.Count > 0 ? transitions.Average(e => e.DurationSeconds) : 0;
         r.SpinEvents = d.Events.Count(e => e.Phase == "Extreme angle");
-        d.AngleGoal = DriftAngleGoalEngine.Analyze(blocks, goal, d);
+        d.AngleGoal = DriftAngleGoalEngine.Analyze(controlBlocks, goal, d);
         if (d.AngleGoal.Enabled)
             r.SpinEvents = d.AngleGoal.ControlConcerns + d.Events.Count(e => e.Phase == "Extreme angle" &&
                 !d.AngleGoal.Attempts.Any(a => a.Complete && (a.ControlConcern || !a.RecoveryObserved) && a.StartSeconds <= e.EndSeconds && a.EndSeconds >= e.StartSeconds));
@@ -167,7 +173,11 @@ public sealed class DriftDiagnosisEngine
             "Time at ≥98% FFB magnitude during usable drift.", false);
         Metric("throttle", "Drift throttle context", drift.Count > 0 ? Mean(drift, s => s.Throttle) : null, "0–1", r.DriftTimeSeconds, -1,
             "Used to reject substantially different driving inputs.");
-        d.QualityNotes.Add($"{d.InvalidSamples} invalid frames; {d.Discontinuities} continuity breaks; {d.ExcludedSeconds:0.0}s excluded (pit limiter, AI/reverse, off-track or impact evidence).");
+        d.QualityNotes.Add($"{d.InvalidSamples} invalid frames; {d.Discontinuities} continuity breaks; {d.ExcludedSeconds:0.0}s excluded (pit limiter, AI/reverse, off-track, impact or known backward travel).");
+        if (d.BackwardTravelSeconds > 0)
+            d.QualityNotes.Add($"{d.BackwardTravelSeconds:0.0}s of known backward travel excluded from clean drift, phase, pedal and FFB calibration evidence; retained for angle/recovery inspection.");
+        if (frames.Any(f => f.Sample.LongitudinalVelocityMs is null))
+            d.QualityNotes.Add("Travel direction is unknown for some samples. Legacy observations remain available; missing direction is not treated as verified forward travel.");
         if (d.InvalidWheelSlipSamples > 0)
             d.QualityNotes.Add($"{d.InvalidWheelSlipSamples} unusable wheel-slip readings excluded from axle-slip and affected pedal-slip measurements. Valid motion is retained for initiation, transition and angle analysis.");
         if (entries.Count < 3)
@@ -282,7 +292,26 @@ public sealed class DriftDiagnosisEngine
         double.IsFinite(s.FrontWheelSlipAvg) && double.IsFinite(s.RearWheelSlipAvg) &&
         Math.Abs(s.FrontWheelSlipAvg) <= 10000 && Math.Abs(s.RearWheelSlipAvg) <= 10000;
     private static bool Drifting(TelemetrySample s, double limit) => s.SpeedKmh >= 20 && Math.Abs(s.SlipAngleDeg) >= 10 && Math.Abs(s.SlipAngleDeg) < limit &&
-        (limit <= 72 || s.LongitudinalVelocityMs is null or >= 0);
+        s.LongitudinalVelocityMs is null or >= 0;
+    private static List<List<Frame>> ForwardBlocks(List<List<Frame>> blocks)
+    {
+        var result = new List<List<Frame>>();
+        foreach (var block in blocks)
+        {
+            var current = new List<Frame>();
+            foreach (var frame in block)
+            {
+                if (frame.Sample.LongitudinalVelocityMs < 0)
+                {
+                    if (current.Count > 0) result.Add(current);
+                    current = [];
+                }
+                else current.Add(current.Count == 0 ? frame with { Dt = 0 } : frame);
+            }
+            if (current.Count > 0) result.Add(current);
+        }
+        return result;
+    }
     private static double Time(List<Frame> frames) => frames.Sum(f => f.Dt);
     private static double Mean(List<Frame> frames, Func<TelemetrySample, double> value) => Time(frames) > 0 ? frames.Sum(f => value(f.Sample) * f.Dt) / Time(frames) : 0;
     private static double Peak(List<Frame> frames, Func<TelemetrySample, double> value) => frames.Count > 0 ? frames.Max(f => value(f.Sample)) : 0;

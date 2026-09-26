@@ -8,7 +8,8 @@ public sealed class RunComparisonEngine
     public RunComparison Compare(SavedTelemetrySession before, SavedTelemetrySession after)
     {
         ArgumentNullException.ThrowIfNull(before); ArgumentNullException.ThrowIfNull(after);
-        var result = new RunComparison();
+        var result = new RunComparison { ComparisonVersion = "run-comparison/2",
+            BeforeAnalyzerVersion = before.Analysis.Diagnosis.AnalyzerVersion, AfterAnalyzerVersion = after.Analysis.Diagnosis.AnalyzerVersion };
         var a = RunHistoryStore.ValidContext(before.Session.Context) ? before.Session.Context : null;
         var b = RunHistoryStore.ValidContext(after.Session.Context) ? after.Session.Context : null;
         var x = before.Analysis; var y = after.Analysis;
@@ -41,10 +42,10 @@ public sealed class RunComparisonEngine
                 "Setup capture methods differ. Record both runs with automatic capture, or both with manual attachments.");
             Require(a?.Tune is not null && b?.Tune is not null &&
                 string.Equals(a.Tune.SetupTrackLayout, b.Tune.SetupTrackLayout, StringComparison.OrdinalIgnoreCase), "The captured track layout changed.");
-            Require(a?.Tune is not null && b?.Tune is not null && a.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))
-                .SequenceEqual(b.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))),
-                "The set of captured setup fields changed; use matching setup coverage for before/after tests.");
         }
+        Require(a?.Tune is not null && b?.Tune is not null && a.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal).SetEquals(b.Tune.Settings.Keys.Where(k => k.StartsWith("ACSetup.", StringComparison.Ordinal))),
+            "The set of captured setup fields changed; use matching setup coverage for before/after tests. Added or missing fields do not establish a change in game.");
         Require(a?.Tune is not null && b?.Tune is not null && KnownSame(a.Tune.ContextKey, b.Tune.ContextKey), "A tune snapshot is missing or belongs to a different rig/car.");
         Require(a?.Tune is not null && b?.Tune is not null && RunHistoryStore.SameBehavior(a.Tune.DesiredBehavior, b.Tune.DesiredBehavior), "Desired Behavior changed or was not captured; the goalposts must stay fixed for an improvement verdict.");
         Require(x.DriftTimeSeconds >= 20 && y.DriftTimeSeconds >= 20, "Both runs need at least 20 seconds of clean drift evidence.");
@@ -67,6 +68,7 @@ public sealed class RunComparisonEngine
         result.Comparable = result.Limitations.Count == 0;
         var desired = a?.Tune?.DesiredBehavior ?? new CarBehaviorTarget();
         int improved = 0, worsened = 0, scored = 0;
+        var improvedKeys = new HashSet<string>(StringComparer.Ordinal);
         bool controlWorse = false;
         foreach (var first in x.Diagnosis.Metrics.Where(m => m.Key != "throttle"))
         {
@@ -92,7 +94,7 @@ public sealed class RunComparisonEngine
                 {
                     scored++;
                     row.Interpretation = Math.Abs(gain) <= tolerance ? "No clear change beyond the comparison tolerance." : gain > 0 ? "Closer to the recorded goal (proxy where noted)." : "Farther from the recorded goal (proxy where noted).";
-                    if (gain > tolerance) improved++;
+                    if (gain > tolerance) { improved++; improvedKeys.Add(first.Key); }
                     if (gain < -tolerance) { worsened++; if (first.Key is "oscillation" or "extreme-angle") controlWorse = true; }
                 }
             }
@@ -100,6 +102,7 @@ public sealed class RunComparisonEngine
         }
         if (a?.Tune is not null && b?.Tune is not null)
         {
+            result.ActualSettingChanges = RecommendationTestService.Changes(a.Tune, b.Tune).Count;
             foreach (var key in a.Tune.Settings.Keys.Union(b.Tune.Settings.Keys).Order())
             {
                 var hasOld = a.Tune.Settings.TryGetValue(key, out var old);
@@ -134,11 +137,20 @@ public sealed class RunComparisonEngine
             result.Limitations.Add("Tune use was not confirmed for both runs; this cannot establish whether the recorded recommendation helped.");
         if (b?.RecommendationSessionId != before.Session.Id || b.TestedRecommendations.Count == 0)
             result.Limitations.Add("The after-run does not identify this baseline's recommendation and the change actually tested.");
-        if (result.TuneChanges.Count == 0) result.Limitations.Add("No captured tune setting changed; driving practice or an unrecorded change may explain the result.");
-        if (result.TuneChanges.Count > 1) result.Limitations.Add("Multiple captured settings changed; an individual setting's effect cannot be isolated.");
+        if (result.ActualSettingChanges == 0) result.Limitations.Add("No captured tune setting changed; driving practice or an unrecorded change may explain the result.");
+        if (result.ActualSettingChanges > 1) result.Limitations.Add("Multiple captured settings changed; an individual setting's effect cannot be isolated.");
+        var mismatch = a?.Tune is not null && b?.Tune is not null ? RecommendationTestService.Mismatch(b.Test, before, b.Tune) : "The test baseline or tune snapshot is missing.";
+        result.TestMatchSummary = mismatch.Length > 0 ? mismatch : "Captured changes match the exact " + b!.Test!.Origin + " plan. This verifies the recorded test, not causation.";
+        if (mismatch.Length > 0) result.Limitations.Add(mismatch);
+        if (RecommendationTestService.Valid(b?.Test)) { result.TestId = b!.Test!.Id; result.TestOrigin = b.Test.Origin; }
+        result.TestGoalImproved = b?.Test is { } planned && improvedKeys.Contains(planned.MetricKey);
         result.RecommendationTestTracked = result.Comparable && scored >= 3 && a?.TuneConfirmedInUse == true && b?.TuneConfirmedInUse == true &&
-            b.RecommendationSessionId == before.Session.Id && b.TestedRecommendations.Count > 0 && result.TuneChanges.Count > 0 &&
+            b.RecommendationSessionId == before.Session.Id && b.TestedRecommendations.Count > 0 && result.ActualSettingChanges > 0 && mismatch.Length == 0 &&
             !string.IsNullOrWhiteSpace(a.Tune?.SetupSha256) && !string.IsNullOrWhiteSpace(b.Tune?.SetupSha256);
+        result.DriverTestTracked = result.RecommendationTestTracked && b?.Test?.Origin == RecommendationTestService.Driver;
+        result.RecommendationTestTracked &= b?.Test?.Origin == RecommendationTestService.Adt;
+        if (result.RecommendationTestTracked && !result.TestGoalImproved)
+            result.Limitations.Add("The planned finding did not improve beyond its comparison tolerance. Improvement elsewhere does not validate this recommendation.");
         if (string.IsNullOrWhiteSpace(a?.Tune?.SetupSha256) || string.IsNullOrWhiteSpace(b?.Tune?.SetupSha256))
             result.Limitations.Add("AC setup contents were not captured for both runs; unrecorded car-setup changes prevent recommendation attribution.");
         result.Limitations.Add("A before/after association is not proof of causation. Confirm the result with repeated comparable runs and driver feedback; tire wear, temperatures and track conditions may still differ.");

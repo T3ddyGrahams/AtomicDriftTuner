@@ -172,7 +172,8 @@ public partial class TelemetryWindow : Window
             CarIdentityVerified = identity is not null && string.Equals(identity.CarModel, _input.Car.SourceFolderName, StringComparison.OrdinalIgnoreCase),
             Tune = version, TuneConfirmedInUse = TuneInUseCheck.IsChecked == true && (!AutomaticSetup || capturedSetup is not null),
             RecommendationSessionId = baseline?.Session.Id ?? "",
-            TestedRecommendations = TestedChangeBox.Text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList()
+            TestedRecommendations = TestedChangeBox.Text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList(),
+            Test = RecommendationTestService.ForRecording(_recordingPlan?.Test, baseline, version, TestedChangeBox.Text.Trim(), DriverDefinedTestCheck.IsChecked == true)
         };
     }
 

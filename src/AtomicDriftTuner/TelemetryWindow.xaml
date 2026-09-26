@@ -91,6 +91,10 @@
                     <Button Content="Clear Recommendation Baseline" Click="ClearRecommendationBaseline_Click" HorizontalAlignment="Left"/>
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" Text="Change actually tested / recommendation followed (optional)" TextWrapping="Wrap"/>
                     <TextBox x:Name="TestedChangeBox" MaxLength="1000" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="45" MaxHeight="90" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Change actually tested"/>
+                    <CheckBox x:Name="DriverDefinedTestCheck" AutomationProperties.Name="Record my own car setup test">
+                        <TextBlock Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=CheckBox}}" Text="This is my own car setup test, not an ADT recommendation." TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <TextBlock Foreground="{DynamicResource MutedTextBrush}" Text="ADT setup tests check the exact planned values. For your own test, select a baseline, describe your change, capture the changed setup and keep FFB fixed. Notes alone do not verify a recommendation." TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
         <layout:AdaptivePanel x:Name="TelemetryColumns"

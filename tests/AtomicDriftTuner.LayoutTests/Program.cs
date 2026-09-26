@@ -57,6 +57,16 @@ internal static partial class Program
             if (!app.Resources.Contains("AppBackgroundBrush"))
                 throw new Exception("Production application resources were not loaded.");
             Progress("PASS startup isolation: no application windows; production resources loaded");
+            if (args.Contains("--intelligence-v2"))
+            {
+                CheckIntelligenceV2(output);
+                CheckSetupComparison(output);
+                CheckCarTest(output);
+                CheckAngleSummary(output);
+                CheckRecordingRecovery(output);
+                CheckCompanionWorkflow(output);
+                return 0;
+            }
             if (args.Contains("--g27"))
             {
                 CheckLogitechG27(output);
@@ -128,6 +138,7 @@ internal static partial class Program
             CheckEvidenceNotifications(output);
             CheckSetupComparison(output);
             CheckPowertrain(output);
+            CheckIntelligenceV2(output);
             CheckFfbProvider(output);
             CheckThemeCoverage(repo, output);
             CheckCompanionRecorder(output);

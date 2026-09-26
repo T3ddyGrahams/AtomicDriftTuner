@@ -194,7 +194,7 @@ public partial class MainWindow
     private RecordingPlan GuidedRecordingPlan(TuneInput input)
     {
         var driver = CurrentGuidedDriver(); var j = _workflow.Journey(input, driver.Id);
-        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions, j.Focus, _workflow.Preferences().ShowDetailedHelp, _workflow.Preferences().FfbProvider);
+        return new(driver.Id, driver.Name, j.Recommendation.Length > 0 ? j.BaselineId : "", j.Recommendation, j.SetupPath, j.Conditions, j.Focus, _workflow.Preferences().ShowDetailedHelp, _workflow.Preferences().FfbProvider) { Test = RunHistoryStore.Clone(j.Test) };
     }
     private void TrackSavedRun(TuneInput input, SavedTelemetrySession saved)
     {
@@ -212,13 +212,14 @@ public partial class MainWindow
             j.CarConfirmed = true; j.GoalSignature = GuidedWorkflowStore.GoalSignature(c.Tune!.DesiredBehavior);
             j.TuneGenerated = j.TuneReady = true; // A recording exists; this is navigation progress, never proof of applied settings.
             j.Conditions = c.Conditions; j.Reviewed = false;
+            j.Test = RunHistoryStore.Clone(c.Test);
             if (c.RecommendationSessionId.Length > 0)
             { j.BaselineId = c.RecommendationSessionId; j.AfterId = saved.Session.Id; j.Recommendation = string.Join("\n", c.TestedRecommendations); }
             else { j.BaselineId = saved.Session.Id; j.AfterId = j.Recommendation = ""; }
         }, c.Focus);
         RefreshGuidedWorkflow();
     }
-    private void HandleRecommendation(TuneInput input, SavedTelemetrySession run, string recommendation)
+    private void HandleRecommendation(TuneInput input, SavedTelemetrySession run, string recommendation, RecommendationTest? test = null)
     {
         RequireGuidedContext(input);
         var c = run.Session.Context;
@@ -233,6 +234,7 @@ public partial class MainWindow
         {
             j.CarConfirmed = j.TuneGenerated = j.TuneReady = true; j.GoalSignature = GuidedWorkflowStore.GoalSignature(c.Tune.DesiredBehavior);
             j.BaselineId = run.Session.Id; j.AfterId = ""; j.Recommendation = recommendation; j.Conditions = c.Conditions; j.Reviewed = false;
+            j.Test = RunHistoryStore.Clone(test);
         });
         RefreshGuidedWorkflow(); ShowDashboardSection(GuidedWorkflowCard);
     }

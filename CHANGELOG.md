@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.35 — Telemetry Intelligence 2.0: verified setup tests
+
+- Record exact focused car tests with a stable ID, baseline/tune identity, numeric-setting fingerprint, goal, intended measurement and expected before/after values. Carry the plan through save/stage, guided recording, companion preparation and immutable run history.
+- Match actual captured changes against that plan. Wrong controls, directions, amounts, extra changes and stale plans cannot validate the recommendation. File-only changes never count as setting changes; manual and CSP comparisons both require matching captured field coverage. Credit also requires improvement in the intended measurement, comparable runs and supporting driver feedback.
+- Add an explicit recorder option for driver-defined car tests, kept distinct from ADT recommendations. Older free-text notes and FFB plans remain descriptive; they do not acquire invented exact plans. Record analyzer/comparison versions in new reviews.
+- Exclude known backward travel consistently from clean drift, phase, pedal and AC gain evidence under every angle goal. Preserve angle/recovery inspection and flag unknown direction in older recordings.
+- This is the first completion milestone for Intelligence 2.0, not the full system or automatic learning. The remaining diagnosis, setup-mapping, repeated-test history and driving-validation work is tracked in `docs/TELEMETRY_INTELLIGENCE.md`. Gearing, ECU and numeric setup-generation rules are unchanged. Companion 0.4.0-preview.4 is unchanged.
+
 ## Local v0.9.0-preview.34 — Adjustable limiter support for gearing
 
 - Read standard `ENGINE_LIMITER` percentages and click-based selections from the saved setup and car definition, in both supported packed and unpacked data. Show the resulting setup rev limit and its source instead of blocking every adjustable limiter.

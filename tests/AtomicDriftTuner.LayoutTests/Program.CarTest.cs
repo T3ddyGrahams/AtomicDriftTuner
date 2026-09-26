@@ -21,7 +21,7 @@ internal static partial class Program
         var stages = new List<PitSetupPlan>(); var prepared = new List<(string Text, string? Path)>();
         var window = new CarSetupTestWindow(f.Input, f.Run, f.Report) {
             StageHandler = (a, label) => { stages.Add(new PitSetupPlanService().Create(a, f.Input.Car.SourceFolderName!, label)); return "Staged for review."; },
-            TestPrepared = (description, path) => prepared.Add((description, path)) };
+            TestPrepared = (test, path) => prepared.Add((test.Description, path)) };
         try
         {
             Check(!Button(window, "SaveTestButton").IsEnabled && !Button(window, "StageTestButton").IsEnabled, "Actions enabled before verified baseline");
@@ -76,7 +76,7 @@ internal static partial class Program
             Check(((CheckBox)assistant.FindName("AdvancedTelemetryToggle")).IsChecked != true && ((Border)assistant.FindName("CarTestCard")).Visibility == Visibility.Visible && Button(assistant, "ReviewCarTestButton").IsEnabled, "Normal review hidden behind Advanced");
             Check(Button(assistant, "NextActionButton").Content.ToString() == "Review one car setup change", "Primary action remains generic plan");
             var history = new List<string>(); var savedPaths = new List<string>();
-            assistant.RecommendationTestRequested += (run, description) => { Check(ReferenceEquals(run, parentFixture.Run), "Wrong baseline tracked"); history.Add(description); };
+            assistant.StructuredTestRequested += (run, test) => { Check(ReferenceEquals(run, parentFixture.Run) && RecommendationTestService.Valid(test) && test.Changes.Count == 2, "Wrong or incomplete baseline test tracked"); history.Add(test.Description); };
             assistant.GuidedSetupSaved += (run, path) => savedPaths.Add(path);
             assistant.StagePitSetupHandler = (a, label) => { new PitSetupPlanService().Create(a, parentFixture.Input.Car.SourceFolderName!, label); return "Staged."; };
             Call(assistant, "NextAction_Click", assistant, new RoutedEventArgs());

@@ -118,6 +118,8 @@ public partial class TuningAssistantWindow : Window
     {
         if (_bindingHistory || ReviewHistoryBox.SelectedItem is not RunReview review) return;
         ReviewHistoryText.Text = $"{review.DisplayName}\n{review.Conclusion}\nRun: {review.SessionId}\nBaseline: {review.BaselineSessionId}\n{review.Comparison.Summary}\nDriver notes: {review.Notes}\n" +
+            (string.IsNullOrEmpty(review.Comparison.ComparisonVersion) ? "Historical review: analysis version was not recorded; this is not a newly verified test.\n" :
+                $"Review rules: {review.Comparison.ComparisonVersion}; analyzers {review.Comparison.BeforeAnalyzerVersion} → {review.Comparison.AfterAnalyzerVersion}.\n{review.Comparison.TestMatchSummary}\n") +
             string.Join("\n", review.Comparison.Limitations) + "\nNext action: " + review.NextAction + " (settings are not applied or reverted automatically).";
     }
     private void ShowComparedTunes_Click(object sender, RoutedEventArgs e)

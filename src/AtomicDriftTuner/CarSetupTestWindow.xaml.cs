@@ -13,7 +13,7 @@ public partial class CarSetupTestWindow : Window
     private readonly TuningAssistantReport _report;
     private readonly AssistantCarTestService _service = new();
     public Func<CarSetupAnalysis, string, string>? StageHandler { get; init; }
-    public Action<string, string?>? TestPrepared { get; init; }
+    public Action<RecommendationTest, string?>? TestPrepared { get; init; }
     private AssistantCarTestService.Choice? Selected => ChoiceBox.SelectedItem as AssistantCarTestService.Choice;
 
     public CarSetupTestWindow(TuneInput input, SavedTelemetrySession run, TuningAssistantReport report)
@@ -105,7 +105,7 @@ public partial class CarSetupTestWindow : Window
         try
         {
             if (TestPrepared is null) throw new InvalidOperationException("Open the assistant from the dashboard to link this test to run history.");
-            TestPrepared(choice.TestDescription, path);
+            TestPrepared(RunHistoryStore.Clone(choice.Test), path);
         }
         catch (Exception ex) { TestStatusText.Text += " The file/staged plan is ready, but test tracking was not saved: " + ex.Message; }
     }

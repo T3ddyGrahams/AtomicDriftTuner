@@ -80,6 +80,7 @@ public sealed class GuidedWorkflowStore
         j.FfbProvider = Preferences().FfbProvider;
         j.GoalSignature = j.GeneratedSignature = ""; j.TuneGenerated = j.TuneReady = j.Reviewed = false;
         j.BaselineId = j.AfterId = j.Recommendation = "";
+        j.Test = null;
     }, focus);
     private static bool ValidPreferences(GuidedPreferences p) => p.Schema == "adt/guided-preferences/1" &&
         Enum.IsDefined(p.Focus) && Enum.IsDefined(p.FfbProvider) && p.MozaSdkFolder is not null &&

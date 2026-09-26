@@ -284,6 +284,8 @@ internal static class IntelligenceChecks
         {
             var dir = Path.Combine(root, "review-history"); var store = new RunHistoryStore(dir); var driver = store.GetOrCreateDriver("Tester");
             var input = Input(); var (a, b) = Pair(); Set(a, "transition", 1.6); Set(b, "transition", .55);
+            b.Session.Context!.Test = RecommendationTestService.Create(a, "Test a quicker transition", "transition",
+                [new("ACSetup.DAMP_REBOUND_LR", 7, 8)]);
             var review = new RunReview { SessionId = b.Session.Id, BaselineSessionId = a.Session.Id, DriverId = driver.Id,
                 ContextKey = RunHistoryStore.ContextKey(input), DriverRating = "Better", Notes = "Easier to catch", Comparison = new RunComparisonEngine().Compare(a, b) };
             store.SaveReview(review); review.Id = Guid.NewGuid().ToString("N"); review.DriverRating = "Worse"; review.Notes = "Less predictable on another lap"; store.SaveReview(review);
@@ -295,7 +297,7 @@ internal static class IntelligenceChecks
     private static void Check(bool value, string message) { if (!value) throw new Exception(message); }
     private static void Set(SavedTelemetrySession s, string key, double value) => s.Analysis.Diagnosis.Metrics.Single(x => x.Key == key).Value = value;
     private static TuneInput Input() => new() { Hardware = BuiltInProfiles.Hardware()[3], Wheel = BuiltInProfiles.Wheels()[0], DriftPack = BuiltInProfiles.DriftPacks()[0], Car = BuiltInProfiles.Cars()[0], Intent = BuiltInProfiles.Intents()[1] };
-    private static (SavedTelemetrySession, SavedTelemetrySession) Pair()
+    internal static (SavedTelemetrySession, SavedTelemetrySession) Pair()
     {
         var first = Session(); var second = RunHistoryStore.Clone(first); second.Id = Guid.NewGuid().ToString("N"); second.StartedUtc = first.StartedUtc.AddMinutes(5);
         second.Context!.RecommendationSessionId = first.Id; second.Context.TestedRecommendations = ["Test a quicker transition"];
@@ -307,7 +309,7 @@ internal static class IntelligenceChecks
         var driver = Guid.NewGuid().ToString("N");
         var s = new TelemetrySession { CarFolder = "fixture-car", CarName = "Fixture Car", DriftPack = "Fixture Pack", Wheelbase = "Fixture Base", SteeringWheel = "Fixture Rim", DriftTarget = "Tandem",
             Context = new RunContext { DriverId = driver, DriverName = "Fixture driver", TrackId = "fixture-track", Conditions = "dry solo", CarIdentityVerified = true, TuneConfirmedInUse = true,
-                Tune = new TuneVersion { DriverId = driver, ContextKey = "fixture-key", DesiredBehavior = new CarBehaviorTarget { TransitionSpeed = 2 }, SetupSha256 = "fixture-hash", Settings = new() { ["ACSetup.DAMP_REBOUND_LR"] = 7 } } } };
+                Tune = new TuneVersion { DriverId = driver, ContextKey = "fixture-key", DesiredBehavior = new CarBehaviorTarget { TransitionSpeed = 2 }, SetupSource = "manual-file", SetupSha256 = "fixture-hash", Settings = new() { ["ACSetup.DAMP_REBOUND_LR"] = 7 } } } };
         double previousSteer = 0;
         for (int i = 0; i < 100 * hz; i++)
         {

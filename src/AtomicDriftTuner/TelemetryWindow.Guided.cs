@@ -24,7 +24,7 @@ public partial class TelemetryWindow
         var baseline = recent.FirstOrDefault(s => s.Session.Id == plan.BaselineId && s.Session.Context?.DriverId == plan.DriverId);
         if (plan.BaselineId.Length > 0 && baseline is null)
             throw new InvalidOperationException("The planned baseline is not in this car/driver's recent history. Select it in Tuning Assistant or start a new baseline; ADT has not substituted another run.");
-        _recordingPlan = plan;
+        _recordingPlan = RunHistoryStore.Clone(plan);
         ApplyButton.Visibility = TuningFocusOptions.IncludesFfb(plan.Focus) ? Visibility.Visible : Visibility.Collapsed;
         RecorderCalibrationCard.Visibility = ApplyButton.Visibility;
         RecorderFocusText.Text = TuningFocusOptions.Label(plan.Focus) + " · " + TuningFocusOptions.Description(plan.Focus);
@@ -41,6 +41,7 @@ public partial class TelemetryWindow
         RecommendationRunBox.ItemsSource = recent; RecommendationRunBox.SelectedItem = baseline;
         ConditionsBox.Text = plan.Conditions;
         TestedChangeBox.Text = plan.Recommendation;
+        DriverDefinedTestCheck.IsChecked = false;
         TuneLabelBox.Text = baseline is null ? "Baseline" : $"Test {DateTime.Now:MMM d HH:mm}";
         if (File.Exists(plan.SetupPath))
         {

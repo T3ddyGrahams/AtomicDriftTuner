@@ -47,6 +47,7 @@ public partial class TelemetryWindow
     internal bool CompanionPlanMatches(RecordingPlan plan) => _recordingPlan is { } current &&
         current.DriverId == plan.DriverId && current.Focus == plan.Focus && current.FfbProvider == plan.FfbProvider && current.BaselineId == plan.BaselineId &&
         current.Recommendation == plan.Recommendation && current.SetupPath == plan.SetupPath &&
+        current.Test?.Id == plan.Test?.Id &&
         string.Equals(DriverBox.Text.Trim(), plan.DriverName.Trim(), StringComparison.OrdinalIgnoreCase) &&
         ((RecommendationRunBox.SelectedItem as SavedTelemetrySession)?.Session.Id ?? "") == plan.BaselineId &&
         TestedChangeBox.Text.Replace("\r\n", "\n").Trim() == plan.Recommendation.Replace("\r\n", "\n").Trim();

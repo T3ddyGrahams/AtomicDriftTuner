@@ -21,6 +21,8 @@ public partial class TuningAssistantWindow
         if (after?.TestedRecommendations.Count > 0)
             context += "\nRecorded test plan: " + string.Join("; ", after.TestedRecommendations) +
                 (after.RecommendationSessionId == previous.Session.Id ? "" : " (not linked to this selected baseline)");
+        if (_report?.Outcome is { } comparison)
+            context += "\nTest verification: " + comparison.TestMatchSummary;
         if (before?.Tune is { } a && after?.Tune is { } b && a.SetupSha256 != b.SetupSha256)
             context += "\nThe setup fingerprint differs. The rows compare captured numeric values; file formatting or uncaptured fields may also differ.";
         RecordedSetupComparison.Show(SetupComparisonPresentation.Recorded(before?.Tune, after?.Tune), context);

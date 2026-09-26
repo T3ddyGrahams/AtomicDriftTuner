@@ -1379,6 +1379,7 @@ public partial class MainWindow : Window
             window.ClearPendingPitSetupHandler = ClearPendingPitSetup;
             window.UseTuningFocus(_workflow.Preferences().Focus);
             window.RecommendationTestRequested += (run, recommendation) => HandleRecommendation(input, run, recommendation);
+            window.StructuredTestRequested += (run, test) => HandleRecommendation(input, run, test.Description, test);
             window.GuidedSetupSaved += (run, path) =>
             {
                 if (run.Session.Context is { } context) _workflow.Update(input, context.DriverId, j => j.SetupPath = path, context.Focus);

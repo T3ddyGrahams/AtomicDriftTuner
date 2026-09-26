@@ -35,6 +35,7 @@ public sealed class GuidedJourney
     public string BaselineId { get; set; } = "";
     public string AfterId { get; set; } = "";
     public string Recommendation { get; set; } = "";
+    public RecommendationTest? Test { get; set; }
     public bool Reviewed { get; set; }
     public string SetupPath { get; set; } = "";
     public string Conditions { get; set; } = "";
@@ -48,4 +49,7 @@ public sealed record GuidedStep(GuidedStage Stage, string Title, string Instruct
 }
 public sealed record IntegrationState(bool SimHubInstalled, bool SimHubRunning, bool BridgeInstalled, bool BridgeConnected, bool AzomDetected, bool SettingsReadable);
 public sealed record RecordingPlan(string DriverId, string DriverName, string BaselineId, string Recommendation, string SetupPath, string Conditions,
-    TuningFocus Focus = TuningFocus.Both, bool ShowDetailedHelp = true, FfbProvider FfbProvider = FfbProvider.SimHubAzom);
+    TuningFocus Focus = TuningFocus.Both, bool ShowDetailedHelp = true, FfbProvider FfbProvider = FfbProvider.SimHubAzom)
+{
+    public RecommendationTest? Test { get; init; }
+}

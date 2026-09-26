@@ -12,6 +12,8 @@ Follow-up, September 23: local preview.27 addresses **A6** while adding a separa
 
 Priority definitions: **P1** should be addressed before relying on the affected generated output or attributing learning to recommendations; **P2** is a demonstrated conditional correctness issue to include in the same corrective phase. These priorities do not assert hardware damage or successful in-game application of an invalid value.
 
+Follow-up, September 26: local preview.35 addresses **A3–A5 and A8**. Focused car tests now carry exact baseline-bound expected values, and comparison checks actual numeric changes, equal capture coverage and the intended metric. Explicit driver-defined tests remain separate; legacy/free-text and unsupported FFB plans do not claim recommendation credit. Backward travel is excluded consistently from clean phase/pedal/gain evidence while retaining angle recovery inspection. All four original failure scenarios were reproduced before the fix, then passed. Analysis versions are saved with new reviews. General A1/A2/A7 and accumulated learning remain open; real driving acceptance remains pending. Preview.34 also expands the A6 correction to supported saved ENGINE_LIMITER percentage modes without claiming live ECU readback.
+
 | ID | Priority | Confirmed issue | Main effect |
 | --- | --- | --- | --- |
 | A1 | P1 | Saved click modes and physical limits are not modeled consistently | A generated setup can export a selection past a defined end stop |

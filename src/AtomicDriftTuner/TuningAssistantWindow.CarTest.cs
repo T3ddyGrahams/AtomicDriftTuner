@@ -6,6 +6,7 @@ namespace AtomicDriftTuner;
 
 public partial class TuningAssistantWindow
 {
+    public event Action<SavedTelemetrySession, RecommendationTest>? StructuredTestRequested;
     private void RenderCarTest()
     {
         CarTestCard.Visibility = TuningFocusOptions.IncludesCar(_focus) ? Visibility.Visible : Visibility.Collapsed;
@@ -38,10 +39,10 @@ public partial class TuningAssistantWindow
             var window = new CarSetupTestWindow(_input, selected, _report!)
             {
                 StageHandler = StagePitSetupHandler,
-                TestPrepared = (description, path) =>
+                TestPrepared = (test, path) =>
                 {
-                    if (RecommendationTestRequested is null) throw new InvalidOperationException("Open the assistant from the dashboard to track this test.");
-                    RecommendationTestRequested.Invoke(selected, description);
+                    if (StructuredTestRequested is null) throw new InvalidOperationException("Open the assistant from the dashboard to track this test.");
+                    StructuredTestRequested.Invoke(selected, test);
                     // A staged test has no saved desktop file yet. Clear the previous prepared
                     // path so it cannot be mistaken for the changed setup in the next recorder.
                     GuidedSetupSaved?.Invoke(selected, path ?? "");

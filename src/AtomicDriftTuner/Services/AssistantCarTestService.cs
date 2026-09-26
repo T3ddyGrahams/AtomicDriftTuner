@@ -15,8 +15,9 @@ public sealed class AssistantCarTestService
         public string Details { get; }
         public string Explanation { get; }
         public string TestDescription { get; }
+        public RecommendationTest Test { get; }
         public override string ToString() => Name;
-        internal Choice(string name, CarSetupAnalysis analysis, AssistantRecommendation recommendation, string expectation)
+        internal Choice(string name, CarSetupAnalysis analysis, AssistantRecommendation recommendation, string expectation, SavedTelemetrySession run)
         {
             Name = name; Analysis = analysis;
             var changed = analysis.Parameters.Where(p => p.Changed).ToArray();
@@ -25,6 +26,8 @@ public sealed class AssistantCarTestService
             Explanation = expectation;
             TestDescription = recommendation.Domain + ": test " + name + ". " +
                 string.Join("; ", changed.Select(p => $"{p.Section} {p.CurrentRaw} → {p.RecommendedRaw}"));
+            Test = RecommendationTestService.Create(run, TestDescription, recommendation.MetricKey,
+                changed.Select(p => new ExpectedSettingChange("ACSetup." + p.Section, p.CurrentValue!.Value, p.RecommendedValue!.Value)));
         }
     }
 
@@ -74,7 +77,7 @@ public sealed class AssistantCarTestService
             }
             try { new PitSetupPlanService().Create(isolated, isolated.CarFolderName, "Reviewed setup test"); }
             catch (InvalidDataException) { continue; }
-            choices.Add(new Choice(name, isolated, recommendation, Expectation(run, report)));
+            choices.Add(new Choice(name, isolated, recommendation, Expectation(run, report), run));
         }
         CarDataSource.EnsureUnchanged(generated.SourceEvidence!);
         if (choices.Count == 0)

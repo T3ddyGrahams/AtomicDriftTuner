@@ -51,6 +51,7 @@ public sealed class RunContext
     public TuneVersion? Tune { get; set; }
     public string RecommendationSessionId { get; set; } = "";
     public List<string> TestedRecommendations { get; set; } = [];
+    public RecommendationTest? Test { get; set; }
 }
 
 public sealed class DriftEvent
@@ -78,7 +79,8 @@ public sealed class RunMetric
 
 public sealed class DriftDiagnosis
 {
-    public string AnalyzerVersion { get; set; } = "drift-diagnosis/3";
+    public string AnalyzerVersion { get; set; } = "drift-diagnosis/4";
+    public double BackwardTravelSeconds { get; set; }
     public PedalDiagnosis Pedals { get; set; } = new();
     public PowertrainDiagnosis Powertrain { get; set; } = new();
     public DriftAngleDiagnosis AngleGoal { get; set; } = new();
@@ -101,6 +103,16 @@ public sealed class DriftDiagnosis
 
 public sealed class RunComparison
 {
+    // Empty defaults preserve the distinction between historical reviews and new analysis.
+    public string ComparisonVersion { get; set; } = "";
+    public string BeforeAnalyzerVersion { get; set; } = "";
+    public string AfterAnalyzerVersion { get; set; } = "";
+    public string TestId { get; set; } = "";
+    public string TestOrigin { get; set; } = "";
+    public string TestMatchSummary { get; set; } = "";
+    public int ActualSettingChanges { get; set; }
+    public bool DriverTestTracked { get; set; }
+    public bool TestGoalImproved { get; set; }
     public bool RecommendationTestTracked { get; set; }
     public string Verdict { get; set; } = "Inconclusive";
     public string Summary { get; set; } = "Select a baseline run.";
@@ -126,7 +138,8 @@ public sealed class RunReview
     public RunComparison Comparison { get; set; } = new();
     public string DisplayName => $"{ReviewedUtc.ToLocalTime():g} • {DriverRating} • {Comparison.Verdict}";
     public string Conclusion => !Comparison.Comparable ? "Inconclusive comparison; driver feedback is retained." :
-        DriverRating == "Better" && Comparison.Verdict == "Closer to goals" && Comparison.RecommendationTestTracked ? "Driver and telemetry support improvement in this recorded recommendation test." :
+        DriverRating == "Better" && Comparison.Verdict == "Closer to goals" && Comparison.RecommendationTestTracked && Comparison.TestGoalImproved ? "Driver and telemetry support improvement in this recorded recommendation test; repeat the test to verify the association." :
+        DriverRating == "Better" && Comparison.Verdict == "Closer to goals" && Comparison.DriverTestTracked ? "Driver and telemetry support improvement in this driver-defined test; this is not validation of an ADT recommendation." :
         DriverRating == "Worse" && Comparison.Verdict == "Closer to goals" || DriverRating == "Better" && Comparison.Verdict == "Farther from goals" ? "Driver feedback and telemetry disagree; improvement is not confirmed." :
         DriverRating == "Tradeoff" || Comparison.Verdict == "Tradeoff" ? "Mixed outcome: review the improvements and tradeoffs before keeping this change." :
         "No confirmed recommendation improvement; retain the observation and compare another run.";

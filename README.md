@@ -1,862 +1,207 @@
 # Atomic Drift Tuner
 
-**Atomic Drift Tuner (ADT)** is an open-source Windows tuning assistant for **Assetto Corsa drifting**, built around hardware-aware wheelbase tuning, per-car setup recommendations, telemetry analysis, and driver-defined behavior targets. FFB workflows support SimHub/AZOM, manual entry, and an experimental MOZA Pit House SDK connection.
+**Atomic Drift Tuner (ADT)** is an open-source Windows tuning assistant for **Assetto Corsa drifting**. Tell ADT how you want your car to behave, record a drive, review one supported setup change, then compare the next run using telemetry and your feedback.
 
-> **Current public beta:** `v0.9.0-preview.30`<br>
-> **Bundled ADT SimHub Bridge:** `v0.9.0-preview.30` (update the bridge with this beta)<br>
-> **Bundled ADT Companion:** `v0.4.0-preview.4`<br>
-> **Status:** Public beta / active development
->
-> **Code signing policy:** [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md)<br>
-> **Signing status:** Preparation only; SignPath signing is not enabled.<br>
-> **Privacy policy:** [PRIVACY.md](PRIVACY.md)
+ADT combines per-car Desired Behavior, supported car physics and setup definitions, recorded driving evidence, FFB recommendations and tune history. You can choose **Car tuning only** or **Car + FFB**. SimHub is optional for car tuning and telemetry recording.
 
-**HUGE UPDATE — preview.30:** Gearing goals for tight corners and sweepers, a shared mph/km/h default for new gearing targets, recorded-speed assistance, deeper Gearing & ECU review, read-only packed/unpacked car data, recording readiness alerts, and fixes for Pit House crashes, telemetry gaps, setup capture and pit staging. This public beta includes the changes since preview.17. Read the [release notes](docs/releases/v0.9.0-preview.30.md), [download the beta](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/tag/v0.9.0-preview.30), or follow the [guided walkthrough](docs/GUIDED_WORKFLOW.md).
+## Download the current beta
 
-ADT is designed to answer a practical drifting question:
+| Component | Current version |
+| --- | --- |
+| ADT desktop | **0.9.0-preview.38** |
+| Bundled ADT Companion | **0.5.0-preview.1** |
+| Bundled ADT SimHub Bridge | **0.9.0-preview.38**; bridge logic unchanged in this update |
 
-> **Given this wheelbase, this steering wheel, this car, this drift pack, and the way I want the car to behave — what should I change?**
+**[Windows installer](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/download/v0.9.0-preview.38/AtomicDriftTuner-0.9.0-preview.38-setup.exe)** · **[Portable ZIP](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/download/v0.9.0-preview.38/AtomicDriftTuner-0.9.0-preview.38-portable.zip)** · **[Release notes and all downloads](https://github.com/T3ddyGrahams/AtomicDriftTuner/releases/tag/v0.9.0-preview.38)**
 
-It is not just a preset list. ADT combines hardware characteristics, car/pack data, driver intent, saved calibration, AC setup information, and recorded telemetry to generate and refine recommendations.
+Both desktop downloads include the companion and optional SimHub bridge. The release page also provides the separate companion ZIP and SHA256 checksums. Extract the portable ZIP fully before running `AtomicDriftTuner.exe`.
 
----
+**Upgrading for track tools? Update ADT Companion to 0.5.0-preview.1 with the AC driving session closed, then start a fresh session.** Use **Remote → Install / Update Companion** or import the included companion ZIP through Content Manager. Older companion versions cannot supply the new position channel.
 
-## 🧪 Beta Testing
+Windows x64 packages are self-contained: no Visual Studio or .NET SDK is needed. This is a public beta; installers are currently unsigned. See the [code signing policy](CODE_SIGNING_POLICY.md).
 
-ADT is currently in public beta, and external testing is a major part of development.
+## HUGE UPDATE — what's new in preview.38
 
-We're looking for feedback across different cars, drift packs, wheelbases, rims, and SimHub/AZOM configurations. You do **not** need to be an expert tuner to help.
+This release includes the work since public preview.33:
 
-➡️ **[Read the ADT Beta Testing Guide](docs/BETA_TESTING.md)**
+- **Quick driver review:** answer Better / Same / Worse / Couldn't judge for questions tied to your saved goals and the setup change you tested. Record new problems, save feedback and get a clearer next step.
+- **Track & sections:** view your recorded route, mark a section, set line/angle/gear goals and compare complete passes. Track tools and feedback are now in the main app.
+- **Exact setup-test verification:** check that the captured change matches the intended controls and values before judging the recommendation.
+- **Diagnosis by driving condition:** examine initiation, transitions, sustained drift, normal cornering and FFB saturation by speed and direction, with available pedal context.
+- **Verified setup limits:** use supported legal values and steps consistently through generation, export and pit staging.
+- **Adjustable rev limits in gearing:** use supported limiter selections from the saved setup when estimating RPM and comparing final drives.
 
-For the current release, use the **[v0.9.0-preview.30 testing checklist](docs/testing/v0.9.0-preview.30-checklist.md)** and **[compatibility tracker](docs/testing/v0.9.0-preview.30-compatibility.md)**. The tracker records the available evidence and pending checks for hardware, cars, software versions, and test cases.
+These are further **Telemetry Intelligence 2.0** milestones. ADT does not yet learn optimal numeric settings automatically from accumulated reviews. Read the [full release notes](docs/releases/v0.9.0-preview.38.md) and [track and feedback guide](docs/TRACK_TOOLS.md).
 
-The guide explains how to:
+## Start here
 
-- establish a useful baseline;
-- configure Desired Behavior;
-- collect representative telemetry;
-- test ADT's AC setup, FFB, and AZOM recommendations;
-- compare before/after behavior;
-- report bugs and unexpected behavior;
-- submit results that can directly help improve ADT.
+### Choose the workflow you need
 
-Testing feedback can be submitted through [GitHub Issues](https://github.com/T3ddyGrahams/AtomicDriftTuner/issues) or discussed in the [ADT Discord](https://discord.gg/XphUD738t).
+| What you want to use | What you need |
+| --- | --- |
+| Car tuning, saved setups and core telemetry | Windows 10/11 x64 and Assetto Corsa. SimHub/AZOM is not required. |
+| In-game recording controls, setup capture, pit actions and track positions | ADT Companion and compatible Custom Shaders Patch (CSP). Recording/setup/pit controls use Remote pairing; position capture does not require pairing. |
+| Live SimHub/AZOM FFB control | SimHub, AZOM and the ADT SimHub Bridge. |
+| MOZA Pit House FFB | Manual entry, or the experimental SDK connection with compatible Pit House and user-supplied MOZA SDK files. See [Pit House setup](docs/PITHOUSE.md). |
+| Logitech G27 FFB | The legacy Logitech Gaming Software / Profiler workflow. ADT stores a manual plan; it does not read or apply Logitech settings. |
+| Phone, tablet or Raspberry Pi controls | A browser on the same private network and ADT Remote running on the PC. SimHub dashboard access is optional. |
 
-Successful tests are valuable too. If ADT makes the car behave closer to what you wanted, we want to know.
+### Your first tuning session
 
----
+1. **Install and select your hardware/car.** Close ADT before updating. Open **Setup & Paths**, confirm the AC installation and Documents paths, and choose **Car tuning only** or **Car + FFB**. If including FFB, select the software you actually use.
+2. **Describe your goal.** Select the correct car and set its **Desired Behavior**. Keep those goals fixed while comparing a baseline and test run.
+3. **Prepare the actual baseline.** Save and load a named setup in AC. In Recorder, capture it through the companion or attach that exact saved setup, then confirm the settings actually in use. Enter your driver and driving conditions.
+4. **Record, stop and save.** Follow the recording evidence banner. Useful time accumulates across shorter sections; missing entry/cornering/angle evidence remains visible. Ready to Review or Ready for Partial Review does not stop the recording automatically.
+5. **Choose one test.** Open **Tuning Assistant → Your next step → Review one car setup change**. Review the current/proposed values, the reason and the possible tradeoff. If evidence or supported setup definitions are missing, ADT explains what is needed.
+6. **Load or explicitly apply the test setup.** Save a separate setup and load it in AC, or stage it and use **ADT Companion → Pit setup → Save & Apply Tune** while stationary in editable pits. **Saving goals, generating recommendations and staging a tune do not change the car live.**
+7. **Record a comparable repeat and review it.** Keep the driver, car, goals and conditions comparable. Open **Before / After**, choose the baseline, inspect the captured changes and answer **Quick driver review**. Click **Save quick review** to retain your answers.
 
-## ADT Remote — iPhone / browser companion
+For a track section, record fresh runs with position data and open **Tuning Assistant → Track & sections**. Use the [track walkthrough](docs/TRACK_TOOLS.md) to mark a reference, compare passes and save section feedback.
 
-`v0.8.0-beta.1` introduced **ADT Remote**, a local-network companion UI served directly by the Windows ADT application.
+If using SimHub/AZOM, fully exit SimHub before **Install / Repair Packaged Bridge**, then restart SimHub and enable the ADT bridge. Other workflows can skip bridge installation. More help: [guided workflow](docs/GUIDED_WORKFLOW.md), [pit setup actions](docs/PIT_SETUP.md) and [beta testing guide](docs/BETA_TESTING.md).
 
-An iPhone or other modern browser on the same private LAN can pair with ADT and use a mobile dashboard without a separate App Store install.
+## What ADT can do
 
-Current remote capabilities include:
+### Desired Behavior and setup recommendations
 
-- live Assetto Corsa speed, slip angle, steering angle, FFB output and drift detection;
-- automatic display of the active AC car and inferred drift pack;
-- current wheelbase, wheel, car, pack and Drift Target context;
-- change the Windows **Drift Target / session intent**;
-- request **Generate Tune** on the authoritative Windows app;
-- review generated AZOM/MOZA and Assetto Corsa FFB recommendations;
-- view self-steer, stability and detail scores plus estimated peak wheel torque;
-- edit and save per-car **Desired Behavior** targets and presets;
-- read selected live AZOM values;
-- optionally request a limited allow-list of numeric AZOM changes;
-- revert the last remote AZOM change from the current ADT run.
+Save per-car targets for front response, rear grip, self-steer response, transitions, angle stability, throttle rotation and initiation, plus an optional sustained body-angle goal. ADT blends overlapping goals and explains compromises.
 
-The phone never talks directly to SimHub, AZOM, MOZA software or the wheelbase. The Windows ADT application remains authoritative.
+The setup tuner starts with your saved `.ini`, shows readable **before → recommended → difference** values and reasons, and preserves a separate original baseline. Supported controls use verified ranges, steps and saved-value mappings. Unsupported or ambiguous controls remain unchanged with an explanation.
 
-Remote AZOM writes are **OFF by default every time the remote server starts**.
+The focused test workflow isolates a supported adjustment and carries its exact intended values into the next recording. Before/after review checks actual captured changes, comparable evidence and the intended measurement. A file change alone, an extra adjustment or a result on an unrelated metric cannot validate that test.
 
-They require a separate Windows-side opt-in and still pass through ADT's existing range validation, single-flight write gate, duplicate/rate protection, exact AZOM commit path and live readback verification.
+### Telemetry Intelligence 2.0 and history
 
-ADT Remote is currently intended for **same-LAN/private-network use only**.
+ADT records AC telemetry locally, including speed, RPM, gear, steering, body slip angle, yaw, throttle/brake/clutch, wheel-slip context and FFB output where available.
 
-Do not port-forward its HTTP port or expose it directly to the public Internet.
+Saved-run review covers initiation, transitions, sustained angle, front-response and axle-slip proxies, steering response, oscillation, pedal use and FFB saturation. **Advanced telemetry → Phase Evidence → Where the pattern happens** adds speed/direction and available input context. Conflicting conditions can lead to a request for another comparable run instead of a whole-car setup change.
 
-See [`docs/REMOTE_IPHONE_TEST.md`](docs/REMOTE_IPHONE_TEST.md) for the architecture, pairing/security model and testing notes.
+**Before / After** shows both run measurements and captured setup differences. **Tune & Run History** retains snapshots and earlier reviews. Quick driver review combines goal-specific answers with the available evidence to suggest keeping and verifying, repeating, reviewing a tradeoff, considering the baseline or reviewing another supported test. An answer does not automatically apply or restore settings.
 
-Use the bundled ADT SimHub Bridge **v0.9.0-preview.30** when updating this release.
+Wheel slip and steering response are proxies, not direct tyre-force or hands-off self-steer measurements. Incomplete evidence remains inconclusive. See [telemetry intelligence](docs/TELEMETRY_INTELLIGENCE.md).
 
----
+### Track tools
 
-## What ADT Can Do
+The normal companion supplies optional read-only world positions alongside native telemetry. **Track & sections** lets you:
 
-### Hardware-aware drift tuning
+- view the route actually recorded;
+- mark a continuous section and save a reference;
+- set an optional body-angle band, preferred forward gear and line offset;
+- compare complete passes using paths, line/angle/gear measurements, speed and pedal context;
+- save feedback tied to the exact section revision and selected passes.
 
-ADT generates a starting tune from:
+Optional AI spline data is map context, not a recommended drift line. An offset is a driver-selected target; ADT does not infer the outside of a corner or usable road width. Body angle and line width are different measurements. Same-run passes describe consistency, and section comparisons do not establish a tuning cause.
 
-- wheelbase torque capability;
-- steering-wheel diameter and inertia;
-- drift pack;
-- specific car;
-- driver intent;
-- saved per-combination calibration.
+Core recording remains available without position data. Old recordings without positions cannot produce a route map. See [track tools and driver feedback](docs/TRACK_TOOLS.md).
 
-The tuning engine currently generates recommendations for:
+### Gearing and ECU review
 
-- AZOM/MOZA Base settings;
-- Assetto Corsa FFB;
-- self-steer / stability / detail balance;
-- wheel-speed and damping behavior;
-- wheel/rim inertia compensation.
+Choose the gear and usual speed range you want for **tight corners** and **long sweepers**, with a saved mph/km/h preference. If you do not know the speeds, choose a suitable recording to fill typical speeds when enough evidence exists in the requested gears.
 
-Calibration is keyed to the exact:
+ADT reads supported gear ratios, final-drive presets, gearbox selections, base engine curves and saved adjustable limiter values. The planner compares available final drives against both goals and explains compromises. A saved gearing setup changes only the final-drive selection; it does not optimize individual gears or gearbox presets.
 
-`wheelbase + steering wheel + drift pack + car`
+**Gearing & ECU** review shows recorded RPM/speed exposure and supported saved-setting meanings. ECU labels and configured curve values are file context, not measured horsepower or verified live script behavior. See [gearing](docs/GEARING.md) and [car data](docs/CAR_PHYSICS.md).
 
-so feedback from one setup does not silently affect another.
+### Installed cars and packed physics
 
-### Supported built-in wheelbase profiles
+ADT can scan installed cars, match the active AC car and suggest a drift-pack profile. Manual selection remains available. Built-in pack profiles are starting baselines, not exact mod physics.
 
-Current built-in profiles include:
+With car-data guidance enabled, ADT can read supported unpacked files and ordinary packed **`data.acd`** archives. Packed content is decoded into a private memory cache; you do not need to unpack supported archives through Content Manager first, and installed car files are not changed.
 
-- MOZA R3
-- MOZA R5
-- MOZA R9
-- MOZA R12 / R12 V2
-- MOZA R16
-- MOZA R21
-- MOZA R25 Ultra
-- Custom direct-drive base
+Readable definitions provide context for suspension, tyres, drivetrain, brakes, gearing and supported ECU selections. Conflicting packed/unpacked sources, protected/corrupt archives and unknown mappings remain explained limitations. Base definitions do not prove what is currently loaded in game. See [car physics, values and sources](docs/CAR_PHYSICS.md).
 
-Custom hardware values can be edited where appropriate.
+### FFB and wheelbase workflows
 
-### Supported built-in steering-wheel profiles
+ADT supports **SimHub/AZOM**, **MOZA Pit House**, **Logitech G27 legacy Profiler** and manual FFB workflows.
 
-- MOZA CS Pro
-- MOZA KS Pro
-- MOZA CS V2P
-- MOZA RS V2
-- MOZA KS
-- MOZA ES / ES Lite / ESX
-- MOZA Vision GS
-- MOZA GS V2P GT
-- MOZA TSW
-- Custom / aftermarket wheel
+- **SimHub/AZOM:** review generated targets against supported live values, then explicitly apply selected changes. The separate bridge uses AZOM's commit/readback path, with write serialization, duplicate protection, verification and a pre-apply snapshot for Revert. Normal ADT sliders do not continuously write to the wheelbase. [Integration details](docs/AZOM_LIVE_INTEGRATION.md).
+- **Pit House:** manual entry is available. The optional experimental SDK connection provides guarded read/apply operations in a separate helper process to contain native failures. Actual SDK/firmware/wheelbase compatibility still needs hardware testing. Vendor DLLs are not bundled. [Pit House instructions](docs/PITHOUSE.md).
+- **G27:** enter the five numeric controls and three switches from legacy Logitech software, save the plan and compare it across runs. Enter and verify settings manually in Logitech and AC. G27 calibration adjusts AC gain only; ADT does not model its physical torque or automatically tune its spring/damper/rotation controls. [G27 walkthrough](docs/GUIDED_WORKFLOW.md#logitech-g27-and-legacy-profiler--local-preview33).
 
-Wheel diameter and estimated inertia are part of the generated tune.
+Built-in wheelbase profiles include MOZA R3, R5, R9, R12 / R12 V2, R16, R21 and R25 Ultra, a custom direct-drive base, and Logitech G27. Rim profiles include the existing MOZA selection, the G27 integrated rim and custom/aftermarket wheels. Direct-drive recommendations use the selected hardware characteristics; the G27 follows its separate manual workflow.
 
----
+Calibration stays associated with the matching wheelbase, wheel, drift pack and car. Built-in pack baselines include VDC, Gravy Garage, Team SWARM, ADL, WDT/WDTS, Deathwish Garage and Custom / Other. A listed profile is not a claim that every hardware/mod version has been validated.
 
-## Drift Pack Support
+### In-game companion, phone and touchscreen
 
-ADT currently includes built-in tuning baselines for:
+**ADT Companion** exposes recording controls, connection status, findings, your next step, setup capture, comparison and explicit pit actions inside AC/CSP. Preview.38 also uses it for track position capture.
 
-- VDC Public 5.0
-- Gravy Garage V2
-- Team SWARM V3.2
-- ADL Elite / Pro-Am
-- WDT / WDTS
-- Deathwish Garage
-- Custom / Other
+**ADT Remote** and the adaptive **`/dash`** view provide browser controls on a phone, tablet, Raspberry Pi or PC. The touchscreen layout adapts to screen size and orientation, supports fullscreen and can be opened through the optional SimHub Control Center entry. The companion and dashboard use the same desktop recording state.
 
-Pack values are **tuning baselines**, not claims of exact mod physics.
+Start Remote on the gaming PC, use the address shown for the other device and pair on the same private network. Default port: **5190**. On a Pi or phone, `127.0.0.1` refers to that device; use the gaming PC's LAN address instead. Keep ADT running. Remote AZOM writes require a separate desktop opt-in and are off by default each time the server starts. Keep Remote on the private LAN; do not expose its HTTP port publicly.
 
-When ADT can read useful data from the installed car, that data takes priority over a generic template.
+See [touchscreen setup](docs/TOUCHSCREEN.md) and [Remote pairing and tests](docs/REMOTE_IPHONE_TEST.md).
 
----
+### Appearance and diagnostics
 
-## Assetto Corsa Car Scanner
+Resize and scroll ADT windows for narrow, portrait and ultrawide displays. Appearance settings customize backgrounds, surfaces, text, accents, inputs, tables, tabs and control colors, with live preview and contrast checks. Theme changes do not alter tuning values.
 
-ADT can scan an Assetto Corsa installation and build car profiles from installed content.
+**System Diagnostics** checks versions, paths and available connections. It can create a local redacted support ZIP; telemetry recordings, tune profiles, AC setup files and per-car goal contents are excluded by default. Support exports are not uploaded automatically.
 
-Where available, it reads:
+## Beta testing and known limits
 
-- `ui/ui_car.json`
-- unpacked `data/car.ini`
-- unpacked `data/tyres.ini`
+Use the **[preview.38 testing checklist and compatibility tracker](docs/testing/v0.9.0-preview.38-checklist.md)**. The release passed **443 regression groups, 259 WPF UI assertions and 565 companion Lua assertions**. Automated results do not establish live driving quality or compatibility with every car, CSP version or wheelbase.
 
-ADT tracks confidence for values such as:
+- ADT uses evidence-based heuristics and supported file mappings; it is not a full vehicle simulation or an optimal-tune solver.
+- Unsupported setup controls, arbitrary CSP/ECU scripts and protected or malformed car data can limit recommendations.
+- Saved setup files and generated FFB plans are not automatically proof of the active in-game or hardware settings.
+- Track capture needs fresh valid positions from a compatible companion/CSP session. Gaps, mismatched identities and ambiguous routes can prevent pass comparisons.
+- G27 settings are manual; Pit House SDK hardware support remains experimental; AZOM changes can affect live integration compatibility.
+- Accumulated learning of optimal per-car/per-driver settings remains future work. See the [roadmap](ROADMAP.md) and [Intelligence 2.0 completion plan](docs/TELEMETRY_INTELLIGENCE.md).
 
-- mass;
-- power;
-- steering lock;
-- caster;
-- tire width;
-- grip assumptions.
+Report reproducible problems or successful tests through [GitHub Issues](https://github.com/T3ddyGrahams/AtomicDriftTuner/issues) or the [ADT Discord](https://discord.gg/XphUD738t). Include ADT/companion/CSP versions, wheel software, car and track/layout, expected behavior, actual behavior and the steps to reproduce. Share logs or recordings only when you choose to, with private paths/tokens removed. More guidance: [beta testing](docs/BETA_TESTING.md).
 
-If a car only has packed `data.acd`, ADT **does not unpack it automatically**.
+## Building from source
 
-The user can review/edit detected values and mark corrected values as verified.
-
----
-
-## Automatic Active Car + Drift Pack Detection
-
-ADT can automatically scan the configured Assetto Corsa installation and track the currently loaded on-track car through AC's read-only shared-memory identity page.
-
-When enabled, ADT:
-
-- scans installed cars at startup and after AC path changes;
-- reads AC's read-only static shared-memory page while a session is active;
-- matches the active AC car to the exact installed `content\cars\<folder>`;
-- prefers exact folder identity and a normalized exact fallback rather than risky fuzzy matching;
-- automatically selects the detected installed car;
-- applies the existing pack-inference rules for VDC, Gravy Garage, Team SWARM, ADL, WDT/WDTS, Deathwish Garage, or **Custom / Other**;
-- updates the Windows selection and ADT Remote context together.
-
-Auto detection does not modify Assetto Corsa.
-
-If pack evidence is insufficient or no known pack signature is found in the car folder / `ui_car.json` metadata, ADT falls back to **Custom / Other** instead of guessing.
-
-Manual pack and car selection remain available.
-
-Both automatic scanning and automatic active-car/pack selection can be disabled from the Windows UI.
-
----
-
-## AC Car Setup Tuner
-
-ADT can load an existing saved Assetto Corsa setup and recommend changes for drifting.
-
-The setup tuner:
-
-- starts from a real saved `.ini` baseline;
-- reads legal `MIN / MAX / STEP` information from unpacked `data/setup.ini` when available;
-- separates tires, alignment, suspension, dampers, differential, brakes, gearing, aero, fuel, electronics, and other recognized groups;
-- shows **Current → Recommended → Delta**;
-- explains why a change is being recommended;
-- applies range/click-aware clamping;
-- writes a **new `Atomic_*.ini` file** instead of overwriting the original setup.
-
-ADT intentionally avoids silently modifying the user's baseline setup.
-
----
-
-## Desired Car Behavior
-
-Per-car **Desired Behavior** lets the driver tell ADT how they want a particular car to act.
-
-Current behavior axes include:
-
-- Front-end bite — calmer ↔ aggressive
-- Rear grip — loose ↔ planted
-- Self-steer speed — slower ↔ faster
-- Transition speed — smooth ↔ quick
-- Angle stability — lively ↔ stable
-- Throttle steering — less ↔ more rotation on throttle
-- Initiation — progressive ↔ sharp
-
-Each axis uses a bounded `-2` to `+2` target.
-
-Presets currently include:
-
-- Neutral
-- Stable & Forgiving
-- Fast Tandem
-- Fast + Stable
-- Aggressive Rotation
-- Custom
-
-### Behavior blending
-
-ADT does not blindly stack every requested behavior change.
-
-When multiple behavior goals affect the same setup parameter, ADT can:
-
-- damp same-direction stacking;
-- detect opposing goals;
-- cancel overlapping conflict;
-- preserve the stronger remaining direction;
-- reduce a behavior contribution when it conflicts with the higher-level session intent;
-- explain the compromise in the setup table.
-
-The final value still goes through the normal setup range/click safety layer.
-
----
-
-## Telemetry Recorder
-
-ADT reads Assetto Corsa shared-memory telemetry locally and can record sessions for analysis.
-
-Current channels include:
-
-- speed;
-- throttle / brake / clutch;
-- gear and RPM;
-- steering angle and steering rate;
-- body slip angle;
-- yaw rate;
-- lateral / longitudinal G;
-- wheel slip;
-- wheel load;
-- final FFB;
-- tire pressure.
-
-The analyzer currently reports items such as:
-
-- detected drift time;
-- average / peak drift angle;
-- steering-rate behavior;
-- yaw-rate behavior;
-- transition count and crossover time;
-- oscillation heuristics;
-- extreme-angle events;
-- FFB clipping/headroom.
-
-Telemetry heuristics are evidence for tuning decisions — they are not treated as perfect measurements of driver intent.
-
----
-
-## Tuning Assistant
-
-The **Tuning Assistant** connects saved telemetry to the rest of ADT.
-
-Flow:
-
-```text
-Desired Behavior
-      +
-Saved Telemetry
-      +
-Wheelbase / Wheel
-      +
-Drift Pack / Car
-      +
-Session Intent
-      ↓
-ADT Assessment
-      ↓
-Preserve what is already working
-      +
-Bounded calibration suggestions
-      +
-Temporary AC setup guidance
-```
-
-The current beta can evaluate telemetry-backed evidence for:
-
-- transition speed;
-- self-steer speed;
-- angle stability;
-- oscillation control;
-- FFB clipping/headroom.
-
-Some behavior axes are deliberately shown as **target-only** when the current telemetry model cannot isolate them reliably enough.
-
-ADT is intended to say when it does not have enough evidence rather than inventing precision.
-
-### Before / After
-
-When multiple matching sessions exist, ADT can compare:
-
-- detected drift percentage;
-- average transition time;
-- oscillation rate;
-- extreme-angle event rate;
-- FFB clipping.
-
-This is intended for repeated tuning runs with similar driving conditions — not as a universal drift score.
-
----
-
-# Live AZOM / SimHub Integration
-
-ADT can compare generated settings with the AZOM plugin running inside SimHub and apply supported changes in real time.
-
-## What ADT Does **Not** Do
-
-ADT does **not**:
-
-- edit an AZOM configuration file;
-- implement the MOZA hardware protocol itself;
-- continuously write settings while you move normal ADT sliders;
-- claim a hardware change succeeded without live readback.
-
-## Architecture
-
-```text
-Atomic Drift Tuner (.NET 8 / WPF)
-            ↓
-local named pipe
-            ↓
-ADT SimHub Bridge (.NET Framework 4.8 / x86)
-            ↓
-running AZOM plugin inside SimHub
-            ↓
-AZOM setting commit
-            ↓
-live AZOM readback
-            ↓
-verified target or failure
-```
-
-The main ADT application intentionally has **no SimHub SDK dependency**.
-
-The bridge is isolated so SimHub/plugin integration issues do not break the normal tuning application.
-
-For implementation details, see:
-
-[`docs/AZOM_LIVE_INTEGRATION.md`](docs/AZOM_LIVE_INTEGRATION.md)
-
----
-
-## AZOM Write Safety
-
-Because ADT's compatibility path can enter AZOM through its internal Base-setting commit path, ADT has its own write guards instead of assuming every public AZOM UI/action guard is in the call chain.
-
-Current safeguards include:
-
-- **explicit Apply / Revert only** for the current UI;
-- one Apply/Revert batch at a time;
-- one direct bridge write at a time;
-- duplicate live-target suppression;
-- minimum spacing between direct compatibility commits;
-- fresh live readback after each requested change;
-- stop the batch at the first unverified setting;
-- pre-apply snapshot for Revert;
-- Last Batch audit/reporting.
-
-ADT also contains a dedicated **500 ms last-value-wins debounce service** for any future write-on-slider UI.
-
-A sequence such as:
-
-```text
-20 → 21 → 22 → 23 → 24 → 25
-```
-
-during the debounce window is designed to produce one eventual target request for `25`, not six writes.
-
-### Important
-
-AZOM integration depends on another actively developed plugin. Internal AZOM changes can break compatibility even when ADT itself has not changed.
-
-Treat live integration as beta functionality and review proposed values before applying them.
-
----
-
-## Full AZOM Settings
-
-ADT models the observed AZOM Base controls in typed groups including:
-
-- Core
-- Gearshift Vibration
-- Wheelbase Effects
-- Game Effects
-- Protection
-- Soft Limit
-- High Speed Damping
-- Miscellaneous
-- FFB Equalizer
-- FFB Output Curve
-
-Preference-style settings are kept separate from performance tuning so switching cars does not unexpectedly change unrelated device preferences.
-
-ADT does not invent undocumented setting ranges/options.
-
----
-
-# Appearance and Accessibility
-
-ADT has an application-wide theme system built with WPF `DynamicResource` brushes.
-
-Users can customize:
-
-- application background/surfaces;
-- panels;
-- input fields;
-- primary / secondary / muted text;
-- accent colors;
-- table rows;
-- table headers;
-- selected table rows;
-- grid lines;
-- tab headers and active tabs;
-- dropdowns;
-- checkbox text;
-- checkbox background/border/check mark.
-
-The Appearance window includes live previews and contrast checks for major text/background pairs.
-
-### Live theme editing
-
-Appearance is modeless. It can remain open beside Full AZOM Settings, the AC Car Setup Tuner, Telemetry Recorder, Tuning Assistant, Diagnostics, and other normal ADT windows.
-
-Theme preview changes only WPF application resources.
-
-It does **not** change:
-
-- AZOM values;
-- tuning inputs;
-- calibration;
-- telemetry;
-- Desired Behavior;
-- AC setup recommendations.
-
----
-
-# Setup, Paths, and Diagnostics
-
-ADT separates machine-specific paths from tuning/profile data.
-
-The first-run wizard can detect or browse to:
-
-- SimHub;
-- Assetto Corsa installation;
-- Assetto Corsa user-data/Documents folder.
-
-Redirected and OneDrive Documents locations are supported.
-
-## System Diagnostics
-
-Diagnostics can check items such as:
-
-- ADT version;
-- Windows / architecture / .NET runtime;
-- SimHub installation;
-- installed and packaged bridge versions;
-- Assetto Corsa installation;
-- installed car count;
-- AC user-data path;
-- AC telemetry availability;
-- live ADT bridge / AZOM readback where available.
-
-## Support Package
-
-ADT can export a local support ZIP containing redacted diagnostics and logs.
-
-It intentionally excludes by default:
-
-- telemetry sessions;
-- saved tune profiles;
-- AC setup files;
-- per-car Desired Behavior contents.
-
-User-profile paths are redacted from the support package.
-
-ADT does **not** automatically upload the support package.
-
----
-
-# 🗺️ Roadmap
-
-ADT is actively evolving during the public beta.
-
-Current development priorities include:
-
-- public-beta stabilization and external validation;
-- broader telemetry-assisted car-behavior diagnosis;
-- stronger front/rear grip and initiation telemetry models;
-- more robust AC setup intelligence;
-- expanded before/after tuning history;
-- additional hardware and car validation;
-- continued AZOM compatibility hardening;
-- improved tuning workflow and usability.
-
-Future plans include:
-
-- deeper telemetry analysis;
-- automatic approved Assetto Corsa setup application;
-- tune history and versioning;
-- profile and tune sharing/comparison;
-- a modernized UI;
-- deeper SimHub integration;
-- ADT Control Center / touchscreen controls;
-- expanded community-validated hardware and car knowledge.
-
-➡️ **[View the full ADT Development Roadmap](ROADMAP.md)**
-
-Automatic live telemetry-to-wheelbase tuning is **not** enabled.
-
-Any future assisted live-tuning path is expected to remain experimental and preserve ADT's safety, validation, user-control, serialization, duplicate-suppression, and readback-verification safeguards.
-
-Have an idea that isn't on the roadmap?
-
-Feature requests and feedback are welcome through [GitHub Issues](https://github.com/T3ddyGrahams/AtomicDriftTuner/issues) and the [ADT Discord](https://discord.gg/XphUD738t).
-
----
-
-# Requirements
-
-## For Normal Beta Users
-
-- Windows 10/11 x64
-- Assetto Corsa
-- SimHub for live bridge functionality
-- AZOM for live MOZA/AZOM integration
-- Supported or custom wheelbase/wheel profile
-
-A self-contained release package does **not** require Visual Studio or the .NET SDK.
-
-## For Source Builds
-
-- Windows
-- Visual Studio 2022 with **Desktop development with .NET**, or the .NET 8 SDK
-- SimHub installed locally if building the bridge
-- AZOM enabled in SimHub if testing live integration
-
----
-
-# Installing a Beta Release
-
-For packaged releases:
-
-1. Download the installer or portable ZIP from the matching GitHub Release.
-2. Start Atomic Drift Tuner.
-3. Complete **Setup & Paths**.
-4. Confirm the SimHub, Assetto Corsa install, and AC user-data paths.
-5. Fully exit SimHub.
-6. Use **Install / Repair Packaged Bridge**.
-7. Restart SimHub.
-8. Enable **Atomic Drift Tuner Bridge** in SimHub.
-9. Select your wheelbase, wheel, pack, car, and intent.
-10. Generate a tune and review it before applying live AZOM changes.
-
-For the complete testing procedure, see:
-
-➡️ **[ADT Beta Testing Guide](docs/BETA_TESTING.md)**
-
-For packaging/install-specific beta notes, see:
-
-[`distribution/README-BETA-TESTERS.md`](distribution/README-BETA-TESTERS.md)
-
----
-
-# Building From Source
-
-Clone the repository, then open:
-
-```text
-AtomicDriftTuner.sln
-```
-
-in Visual Studio 2022.
-
-Or build the main application from PowerShell:
+Use Windows with the .NET 8 SDK, or Visual Studio 2022 with **Desktop development with .NET**. The WPF application is in `AtomicDriftTuner.sln`; the optional SimHub bridge is separate.
 
 ```powershell
-dotnet build AtomicDriftTuner.sln
-dotnet run --project .\src\AtomicDriftTuner\AtomicDriftTuner.csproj
+dotnet build AtomicDriftTuner.sln -c Release
+dotnet run --project .\src\AtomicDriftTuner\AtomicDriftTuner.csproj -c Release
 ```
 
-## Build the SimHub Bridge
-
-The bridge is intentionally separate from the main WPF solution.
-
-From the repository root:
+Build the bridge against your own SimHub installation. Replace `C:\SimHub` with its actual location:
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-
-.\bridge\build-bridge.ps1 -SimHubPath "E:\SimHub"
+.\bridge\build-bridge.ps1 -SimHubPath "C:\SimHub" -Version "0.9.0-preview.38"
 ```
 
-Replace `E:\SimHub` with your actual SimHub installation.
+Fully exit SimHub before using `bridge/install-bridge.ps1`, then restart it. See [bridge integration](docs/AZOM_LIVE_INTEGRATION.md). Third-party proprietary binaries are not part of the repository or release payload.
 
-To install the developer-built bridge, **fully exit SimHub first**, then:
+To build the portable package and an installer when Inno Setup 6 is available, supply an explicit version:
 
 ```powershell
-.\bridge\install-bridge.ps1 -SimHubPath "E:\SimHub"
+.\distribution\build-beta-package.ps1 -SimHubPath "C:\SimHub" -Version "0.9.0-preview.38"
+.\distribution\build-companion.ps1
 ```
 
-Restart SimHub afterward.
+Outputs go to `artifacts/release/`. Use a new version for a new published build; do not replace an existing release's files. Normal users can use the packaged downloads without compiling a bridge or obtaining developer tools.
 
-> Do not commit or redistribute SimHub/AZOM/MOZA third-party DLLs unless their licenses explicitly allow it.
+For test commands and fixtures, see [tests/README.md](tests/README.md). Contributions to telemetry analysis, supported setup mappings, hardware validation, accessibility and documentation are welcome.
 
----
+## Local data and privacy
 
-# Building a Tester Package
-
-The distribution script can produce a self-contained portable release and, when Inno Setup 6 is installed, a Windows installer.
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-
-.\distribution\build-beta-package.ps1 -SimHubPath "E:\SimHub"
-```
-
-Outputs are written under:
+Installed and portable main builds use the current Windows user's **`%LOCALAPPDATA%\AtomicDriftTuner`** folder. Examples include:
 
 ```text
-artifacts\release\
+settings.json
+calibrations.json
+car-behavior-targets.json
+TelemetrySessions/
+RunHistory/
+TrackSections/
+Logs/
 ```
 
-The release builder compiles the bridge against the release builder's own SimHub installation and stages the resulting ADT bridge payload.
+Updating ADT preserves existing main-app data. Separate developer-build data is not automatically migrated over it. Release packages contain no developer settings, recordings or credentials. Recordings, feedback, settings and support exports stay local unless you choose to share them. See the [privacy policy](PRIVACY.md).
 
-Testers should not need Visual Studio, PowerShell, the SimHub SDK, or bridge compilation for normal packaged use.
+## Project information
 
----
+- [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Architecture](docs/ARCHITECTURE.md)
+- [Guided workflow](docs/GUIDED_WORKFLOW.md) · [Track and feedback guide](docs/TRACK_TOOLS.md) · [Release testing checklist](docs/testing/v0.9.0-preview.38-checklist.md)
+- [Code signing policy](CODE_SIGNING_POLICY.md) — SignPath signing is not enabled; current release installers are unsigned.
+- [MIT License](LICENSE)
 
-# Local Data
+Atomic Drift Tuner is an independent community project. It is not affiliated with, sponsored by or endorsed by SimHub, AZOM, MOZA Racing, Logitech, Kunos Simulazioni, Assetto Corsa or the creators of referenced drift packs. Product and mod names identify compatibility. Proprietary third-party binaries must not be committed or redistributed without permission from their rights holders.
 
-ADT stores user-specific data under the user's local application-data folder rather than inside the repository.
-
-Examples include:
-
-```text
-%LOCALAPPDATA%\AtomicDriftTuner\settings.json
-%LOCALAPPDATA%\AtomicDriftTuner\calibrations.json
-%LOCALAPPDATA%\AtomicDriftTuner\car-behavior-targets.json
-%LOCALAPPDATA%\AtomicDriftTuner\TelemetrySessions\
-%LOCALAPPDATA%\AtomicDriftTuner\Logs\
-```
-
-Machine-specific paths are intentionally kept separate from portable tuning/profile information.
-
----
-
-# Known Beta Limitations
-
-- Windows only.
-- Assetto Corsa is the current simulator target.
-- Live wheelbase integration is centered on MOZA + AZOM/SimHub.
-- Telemetry diagnosis uses heuristics and should be compared across representative runs.
-- Some Desired Behavior axes are not yet isolated reliably enough for telemetry-driven automatic corrections.
-- Packed `data.acd` files are not automatically unpacked.
-- AC setup recommendations are strongest when the car exposes usable `setup.ini` range/step data.
-- AZOM updates can change internal compatibility behavior.
-- ADT currently models the supplied six-band EQ layout for automatic writes; additional reported bands are handled conservatively until frequency-safe mapping is known.
-- This is beta software. Review hardware-related changes before applying them.
-
----
-
-# Safety
-
-Direct-drive wheelbases can generate substantial force.
-
-When testing new settings:
-
-- review the proposed values first;
-- start conservatively;
-- keep the emergency-stop/power control accessible where applicable;
-- stop testing if the wheel behaves unexpectedly.
-
-ADT's live write verification confirms that AZOM reported the requested value; it cannot guarantee that a particular force level is appropriate for every driver, rig, wheel, firmware version, or physical setup.
-
----
-
-# Privacy and Transparency
-
-ADT is designed as a local Windows application.
-
-The current source does not contain an automatic telemetry/support-package upload workflow.
-
-Telemetry recordings, settings, calibrations, support exports, and logs remain local unless the user chooses to share them.
-
-One reason for publishing ADT's source is to make hardware-related behavior inspectable by users and other developers.
-
----
-
-# Repository Structure
-
-```text
-AtomicDriftTuner/
-├─ src/
-│  └─ AtomicDriftTuner/              # .NET 8 WPF desktop app
-├─ bridge/
-│  └─ AtomicDriftTuner.SimHubBridge/ # SimHub bridge
-├─ docs/
-│  ├─ ARCHITECTURE.md
-│  ├─ AZOM_LIVE_INTEGRATION.md
-│  ├─ BETA_TESTING.md
-│  └─ REMOTE_IPHONE_TEST.md
-├─ distribution/
-│  ├─ build-beta-package.ps1
-│  ├─ AtomicDriftTuner.iss
-│  └─ README-BETA-TESTERS.md
-├─ AtomicDriftTuner.sln
-├─ CHANGELOG.md
-├─ OPEN_SOURCE_RELEASE_CHECKLIST.md
-├─ ROADMAP.md
-└─ README.md
-```
-
----
-
-# Contributing
-
-ADT is in active beta development.
-
-Useful contributions include:
-
-- testing on different MOZA wheelbases/wheels;
-- testing different AC drift packs/cars;
-- reproducible bug reports;
-- telemetry-analysis improvements;
-- UI/accessibility fixes;
-- safer integration handling;
-- documentation;
-- review of car/setup tuning assumptions.
-
-For structured testing instructions:
-
-➡️ **[Read the ADT Beta Testing Guide](docs/BETA_TESTING.md)**
-
-For a bug report, please include:
-
-- ADT version;
-- bridge version;
-- wheelbase and steering wheel;
-- drift pack and car;
-- expected behavior;
-- actual behavior;
-- steps to reproduce;
-- System Diagnostics support ZIP when relevant.
-
-Please avoid posting personal paths, private telemetry, or third-party proprietary files publicly.
-
----
-
-# Development Principles
-
-ADT follows a few rules intentionally:
-
-1. **Do not silently overwrite user AC setups.**
-2. **Do not invent undocumented AZOM ranges/options.**
-3. **Do not claim a live hardware setting changed until readback verifies it.**
-4. **Keep SimHub/AZOM integration isolated from the core tuning application.**
-5. **Keep hardware/wheel calibration separate by exact setup combination.**
-6. **Keep per-car Desired Behavior separate from hardware calibration.**
-7. **Prefer small, explainable telemetry corrections over uncontrolled automatic tuning.**
-8. **Preserve settings that telemetry indicates are already working.**
-9. **Keep machine paths out of portable tune/profile data.**
-10. **Make UI theming/accessibility independent from tuning and hardware logic.**
-
-More detail is available in:
-
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-
----
-
-# Third-Party Projects and Trademarks
-
-Atomic Drift Tuner is an independent community project.
-
-Unless explicitly stated otherwise by the respective rights holders, Atomic Drift Tuner is **not affiliated with, sponsored by, or endorsed by**:
-
-- SimHub
-- AZOM
-- MOZA Racing
-- Kunos Simulazioni
-- Assetto Corsa
-- the creators of third-party drift packs referenced by the application
-
-Product, plugin, game, and mod names are used for compatibility/identification purposes.
-
-The public repository should not include third-party proprietary binaries unless redistribution is explicitly permitted by their licenses.
-
----
-
-# License
-
-Atomic Drift Tuner is released under the **MIT License**.
-
-See [`LICENSE`](LICENSE).
-
----
-
-# Changelog
-
-See [`CHANGELOG.md`](CHANGELOG.md) for detailed beta revision notes.
-
----
-
-If you are testing Atomic Drift Tuner, thank you for helping validate ADT across more hardware, cars, and drift styles.
-
-The most useful feedback is specific and reproducible and explains **what you expected the car or wheel to do versus what actually happened**.
-
-➡️ **[Start with the ADT Beta Testing Guide](docs/BETA_TESTING.md)**
+Review proposed wheelbase settings before applying them and start conservatively. Keep the rig's emergency-stop or power control accessible where applicable. Readback confirms a reported setting, not that a force level is appropriate for every driver or rig.

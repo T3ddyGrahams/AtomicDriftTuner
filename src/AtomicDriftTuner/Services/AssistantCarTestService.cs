@@ -140,14 +140,16 @@ public sealed class AssistantCarTestService
                 : "Aim: smoother changes of drift direction. Check whether the car settles more easily. Watch for slower response."
         };
     }
-    public static string FindingSummary(SavedTelemetrySession run, TuningAssistantReport report) => report.NextStep.Recommendation?.MetricKey switch
+    public static string FindingSummary(SavedTelemetrySession run, TuningAssistantReport report) =>
+        (string.IsNullOrWhiteSpace(report.NextStep.Recommendation?.DrivingContext) ? "" : report.NextStep.Recommendation.DrivingContext + " ") +
+        (report.NextStep.Recommendation?.MetricKey switch
     {
         "rear-slip-share" => "ADT recorded enough rear wheel-slip evidence to review a small test toward your rear-grip goal. Wheel slip by itself does not prove a grip problem.",
         "front-slip-share" => "Front wheel slip dominated the drift samples. Review steering technique as well as a small front-response test; the setup may not be the cause.",
         "initiation" => "The time taken to start the drift differed from ADT's provisional reference for your goal. A small response adjustment is worth testing alongside your technique.",
         "transition" => "The time taken to change drift direction differed from ADT's provisional reference for your goal. A small response adjustment is worth testing on the same line.",
         _ => report.NextStep.Noticed
-    };
+    });
     private static string Label(string section) => section.ToUpperInvariant().Replace("PRESSURE_", "Tyre pressure ").Replace("CAMBER_", "Camber ")
         .Replace("TOE_OUT_", "Toe ").Replace("SPRING_RATE_", "Spring ").Replace("DAMP_REBOUND_", "Rebound damping ")
         .Replace("ARB_REAR", "Rear anti-roll bar").Replace("LF", "front left").Replace("RF", "front right").Replace("LR", "rear left").Replace("RR", "rear right");

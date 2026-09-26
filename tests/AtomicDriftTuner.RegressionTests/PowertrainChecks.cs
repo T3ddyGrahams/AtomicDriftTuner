@@ -227,7 +227,9 @@ internal static class PowertrainChecks
             var s = Session(); var raw = JsonSerializer.Serialize(s);
             var full = new DriftDiagnosisEngine().Analyze(s); var without = new DriftDiagnosisEngine().Analyze(s, includePowertrain: false);
             Check(full.Diagnosis.Powertrain.Gears.Count == 1 && without.Diagnosis.Powertrain.Gears.Count == 0, "Live analysis did not skip gearing work");
-            full.Diagnosis.Powertrain = new(); Check(JsonSerializer.Serialize(full) == JsonSerializer.Serialize(without), "Gearing affected existing diagnosis or calibration");
+            Check(without.Diagnosis.DrivingContext.Observations.Count == 0, "Live analysis did not skip condition work");
+            full.Diagnosis.Powertrain = new(); full.Diagnosis.DrivingContext = new();
+            Check(JsonSerializer.Serialize(full) == JsonSerializer.Serialize(without), "Detailed analysis affected existing diagnosis or calibration");
             Check(raw == JsonSerializer.Serialize(s), "Analysis mutated a recording");
             s.Context!.Tune!.Powertrain = null; s.Context.Tune.GearingTarget = null; s.Context.Tune.DecodedSetup.Clear();
             var legacy = Analyze(s); Check(legacy.Gears.Count == 1 && legacy.MapPoints.Count == 0 && legacy.Limitations.Contains("retrospectively"), "Old run gained new definitions or lost raw RPM");

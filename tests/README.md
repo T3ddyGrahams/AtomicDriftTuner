@@ -1,5 +1,11 @@
 # ADT regression checks
 
+## Driving-condition diagnosis (local preview.37)
+
+`dotnet run --project tests/AtomicDriftTuner.RegressionTests -- --driving-context` checks phase partitioning, speed/direction coverage, repeated short sections, 25/100 Hz time weighting, invalid/backward/missing signals, gap-safe variation, conflicting/sparse conditions, pedal differences, saved-goal provenance, mph presentation, legacy/poor-quality holds, read-only reanalysis and bounded table size at 50,000 frames. These checks are also in the full regression suite.
+
+`dotnet run --project tests/AtomicDriftTuner.LayoutTests -- . artifacts/driving-context-layout --intelligence-v2` adds the real report handler, speed-preference fallback, normal next-step explanation, optional advanced table, selection/clearing, customizable colours and narrow/portrait/wide scrolling to existing exact-test, comparison, focused-test, angle, recovery and companion workflow checks. `--driving-context` runs only the new UI checks. Synthetic evidence and isolated fixtures do not replace live driving acceptance; no hardware/game writes are issued.
+
 ## Legal setup values (local preview.36)
 
 `dotnet run --project tests/AtomicDriftTuner.RegressionTests -- --setup-legality` runs the 13 setup legality groups, including packed/unpacked mode-0/1/2 round trips, equivalent requests, invalid/off-grid baselines, bounds, coarse/fractional steps, unknown/custom/global modes, unavailable base facts, precision and stale definitions. All are also part of the full suite (402 passing groups at this milestone).

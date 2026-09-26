@@ -59,12 +59,18 @@ internal static partial class Program
             Progress("PASS startup isolation: no application windows; production resources loaded");
             if (args.Contains("--intelligence-v2"))
             {
+                CheckDrivingContext(output);
                 CheckIntelligenceV2(output);
                 CheckSetupComparison(output);
                 CheckCarTest(output);
                 CheckAngleSummary(output);
                 CheckRecordingRecovery(output);
                 CheckCompanionWorkflow(output);
+                return 0;
+            }
+            if (args.Contains("--driving-context"))
+            {
+                CheckDrivingContext(output);
                 return 0;
             }
             if (args.Contains("--g27"))

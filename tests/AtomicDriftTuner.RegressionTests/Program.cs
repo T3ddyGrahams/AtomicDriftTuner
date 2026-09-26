@@ -101,6 +101,12 @@ if (args is ["--render-remote", var renderDirectory])
 var failures = 0;
 var root = Path.Combine(Path.GetTempPath(), "adt-regression-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
+if (args.Contains("--driving-context"))
+{
+    DrivingContextChecks.Run(Run, root);
+    Console.WriteLine($"Failures: {failures}. Isolated fixtures: {root}");
+    return failures == 0 ? 0 : 1;
+}
 if (args.Contains("--setup-legality"))
 {
     SetupLegalityChecks.Run(Run, root);
@@ -363,6 +369,7 @@ Run("AZOM source guard rejects stale values and accepts target no-op", () =>
         PackedIdentityChecks.Run(Run, root);
         IntelligenceChecks.Run(Run, root);
         IntelligenceV2Checks.Run(Run, root);
+        DrivingContextChecks.Run(Run, root);
         AssistantCarTestChecks.Run(Run, root);
         SetupComparisonChecks.Run(Run, root);
         PedalChecks.Run(Run, root);

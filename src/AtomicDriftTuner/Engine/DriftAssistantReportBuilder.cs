@@ -5,7 +5,7 @@ namespace AtomicDriftTuner.Engine;
 
 public sealed class DriftAssistantReportBuilder
 {
-    public TuningAssistantReport Build(TuneInput input, CarBehaviorTarget behavior, SavedTelemetrySession selected, SavedTelemetrySession? previous)
+    public TuningAssistantReport Build(TuneInput input, CarBehaviorTarget behavior, SavedTelemetrySession selected, SavedTelemetrySession? previous, bool displayMph = false)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(behavior); ArgumentNullException.ThrowIfNull(selected);
         var recorded = RunHistoryStore.ValidContext(selected.Session.Context) ? selected.Session.Context!.Tune!.DesiredBehavior : null;
@@ -68,6 +68,7 @@ public sealed class DriftAssistantReportBuilder
                 Change = guidance, Why = $"Goal: {desired}. Observed: {m.DisplayValue}. {m.Evidence}", Confidence = m.Confidence });
         }
         PedalAssistantGuidance.Add(a.Diagnosis.Pedals, goal, r);
+        DrivingContextGuidance.Add(a.Diagnosis, goal, r, displayMph);
         // Do not speed up an unstable run or turn proxy evidence into automatic wheelbase writes.
         if (a.SpinEvents > 0 || a.OscillationEvents > 0)
         {

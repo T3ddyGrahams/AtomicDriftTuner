@@ -119,7 +119,7 @@ public sealed class DriftDiagnosisEngine
                     if (flips >= 4 && !cluster)
                     {
                         d.Events.Add(new DriftEvent { Phase = "Steering oscillation proxy", StartSeconds = clusterStart, EndSeconds = s.TimeSeconds,
-                            SpeedKmh = s.SpeedKmh, Evidence = "Four rapid steering-rate reversals outside entry/transition windows. Driver corrections can produce the same pattern." });
+                            SpeedKmh = s.SpeedKmh, Direction = s.SlipAngleDeg < 0 ? "Left" : "Right", Evidence = "Four rapid steering-rate reversals outside entry/transition windows. Driver corrections can produce the same pattern." });
                         cluster = true;
                     }
                     lastFlip = s.TimeSeconds; lastFlipAngle = s.SteeringAngleDeg;
@@ -188,6 +188,7 @@ public sealed class DriftDiagnosisEngine
             d.QualityNotes.Add(session.Context.SetupCaptureIssue + " Record a fresh run with a fixed setup before testing a recommendation.");
         if (d.TimelineReset) d.QualityNotes.Add("Recording time or packet sequence restarted. Later frames were ignored; record a fresh uninterrupted run.");
         d.Pedals = PedalDiagnosisEngine.Analyze(blocks, d.Events, driftLimit);
+        if (includePowertrain) d.DrivingContext = DrivingContextDiagnosisEngine.Analyze(frames, drift, steady, front, d.Events);
         if (includePowertrain) d.Powertrain = PowertrainDiagnosisEngine.Analyze(blocks, d.Events, driftLimit, session, r);
         if (d.AngleGoal.Enabled) d.QualityNotes.Add(d.AngleGoal.Summary);
         r.Findings.Add(d.Pedals.Summary);
@@ -249,6 +250,7 @@ public sealed class DriftDiagnosisEngine
                 {
                     if (reached - entryStart >= .05 && reached - entryStart <= 4)
                         events.Add(new DriftEvent { Phase = "Initiation", StartSeconds = entryStart, EndSeconds = reached, SpeedKmh = s.SpeedKmh,
+                            Direction = sign < 0 ? "Left" : "Right",
                             Evidence = Math.Abs(s.Clutch - entryFirst!.Clutch) > .4 ? "Clutch-input change accompanied angle build-up; technique not confirmed." :
                                 s.Brake > .4 || entryFirst!.Brake > .4 ? "Brake input accompanied angle build-up; no separate handbrake signal is available." :
                                 s.Throttle - entryFirst!.Throttle > .2 ? "Throttle rise accompanied angle build-up." : "Angle build-up without a distinct recorded pedal trigger." });
@@ -272,6 +274,7 @@ public sealed class DriftDiagnosisEngine
                 {
                     if (oppositeSince - transitionStart >= .05 && oppositeSince - transitionStart <= 4)
                         events.Add(new DriftEvent { Phase = "Transition", StartSeconds = transitionStart, EndSeconds = oppositeSince, SpeedKmh = s.SpeedKmh,
+                            Direction = stableSign < 0 ? "Left to right" : "Right to left",
                             Evidence = stableSign < 0 ? "Left-to-right sustained direction change." : "Right-to-left sustained direction change." });
                     stableSign = sign; transitionStart = oppositeSince = -1;
                 }

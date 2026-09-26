@@ -260,6 +260,7 @@ public sealed class AssistantBehaviorAssessment
 public sealed class AssistantRecommendation
 {
     public string MetricKey { get; set; } = "";
+    public string DrivingContext { get; set; } = "";
     public RecommendationArea Area { get; set; } = RecommendationArea.General;
     private string _domain =
         string.Empty;
@@ -429,6 +430,8 @@ public sealed class AssistantComparisonRow
 
 public sealed class TuningAssistantReport
 {
+    public List<AssistantBehaviorAssessment> ContextAssessments { get; set; } = [];
+    public string DrivingContextSummary { get; set; } = "No condition-specific evidence in this analysis.";
     public AssistantNextStep NextStep { get; set; } = new();
     public RunComparison Outcome { get; set; } = new();
     private string _overallAssessment =

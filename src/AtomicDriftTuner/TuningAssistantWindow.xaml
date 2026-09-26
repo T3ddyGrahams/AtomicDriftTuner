@@ -327,10 +327,27 @@
             <TabItem Header="Phase Evidence" Visibility="{Binding IsChecked, ElementName=AdvancedTelemetryToggle, Converter={StaticResource AdvancedVisibility}}">
                 <StackPanel Margin="12">
                     <TextBlock Foreground="{DynamicResource FieldLabelBrush}" x:Name="QualityText" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Text="Where the pattern happens" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DrivingContextSummaryText" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,6,0,8"/>
+                    <DataGrid x:Name="DrivingContextGrid" AutomationProperties.Name="Diagnosis by phase speed and direction" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              SelectionMode="Single" SelectionUnit="FullRow" MinColumnWidth="90" MinHeight="180" MaxHeight="330"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Measurement / condition" Binding="{Binding Behavior}" ElementStyle="{StaticResource AssistantTableText}" MinWidth="250" Width="310"/>
+                            <DataGridTextColumn Header="Observed" Binding="{Binding Observed}" ElementStyle="{StaticResource AssistantTableText}" Width="170"/>
+                            <DataGridTextColumn Header="Saved goal" Binding="{Binding Desired}" ElementStyle="{StaticResource AssistantTableText}" Width="210"/>
+                            <DataGridTextColumn Header="Interpretation" Binding="{Binding Status}" ElementStyle="{StaticResource AssistantTableText}" Width="200"/>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="DrivingContextSelectedText" Text="{Binding SelectedItem.Behavior, ElementName=DrivingContextGrid}" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" TextWrapping="Wrap" Margin="0,8,0,4"/>
+                    <TextBlock x:Name="DrivingContextEvidenceText" Text="{Binding SelectedItem.Evidence, ElementName=DrivingContextGrid, TargetNullValue='Select a condition to read its evidence and limitations.'}" Foreground="{DynamicResource FieldLabelBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Text="Individual phase events" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" Margin="0,8,0,6"/>
                     <DataGrid x:Name="PhaseGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="180" MaxHeight="420"
                               ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Phase" Binding="{Binding Phase}" Width="180"/>
+                            <DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="140"/>
                             <DataGridTextColumn Header="Start (s)" Binding="{Binding StartSeconds, StringFormat=F2}" Width="100"/>
                             <DataGridTextColumn Header="Duration (s)" Binding="{Binding DurationSeconds, StringFormat=F2}" Width="110"/>
                             <DataGridTextColumn Header="Speed (km/h)" Binding="{Binding SpeedKmh, StringFormat=F1}" Width="120"/>

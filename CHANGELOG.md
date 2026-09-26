@@ -2,6 +2,14 @@
 
 This changelog tracks public Atomic Drift Tuner (ADT) releases and explicitly marked local previews. Preview.30 includes the work from local previews .18–.30 in a public beta update; the entries below preserve that development history.
 
+## Local v0.9.0-preview.37 — Telemetry Intelligence 2.0: diagnosis by driving condition
+
+- Separate initiation, transitions, sustained drift, low-angle cornering and FFB saturation by speed and direction. Show each condition's duration/event count, known throttle/brake/clutch context and relationship to the run's saved Desired Behavior. Repeated short sections accumulate; no single ten-second drift is required.
+- Hold a whole-car handling recommendation when supported conditions conflict, the intended direction lacks matching evidence, or substantially different pedal use makes the cause uncertain. Ask for the same section, similar speed and inputs before tuning. Missing channels remain unknown; wheel slip and steering remain proxies.
+- Carry the supported condition into the normal next-step/focused-test explanation. Add a scrollable, themed **Where the pattern happens** table in **Advanced telemetry → Phase Evidence**, with selectable full explanations. Condition labels follow the saved mph/km/h preference.
+- Preserve whole-run measurements, FFB calibration, gearing/ECU calculations, exact-test verification and before/after scoring. Context analysis runs when reviewing saved data, outside the lightweight live-readiness path. Record analyzer `drift-diagnosis/5` and context schema `driving-context/1`; older files and saved reviews are not rewritten.
+- This completes the implemented scope of the deeper phase/speed milestone, with live driving acceptance still pending. Accumulated matched car/driver learning is the next milestone. Companion 0.4.0-preview.4 is unchanged.
+
 ## Local v0.9.0-preview.36 — Telemetry Intelligence 2.0: legal setup adjustments
 
 - Close setup audit A1/A2/A7 for supported controls: generation, export and pit staging share verified saved-value limits and steps. Standard scalar controls support explicit actual, normalized-click and offset-click formats; camber retains its separate verified mapping.

@@ -86,10 +86,10 @@ internal static class AssistantNextStepBuilder
         if (recommendation is not null)
         {
             next.Recommendation = recommendation;
-            next.Noticed = recommendation.Priority == "Repeat inputs" ? recommendation.Change.Split(". ")[0] + "." :
+            next.Noticed = !string.IsNullOrWhiteSpace(recommendation.DrivingContext) ? recommendation.DrivingContext : recommendation.Priority == "Repeat inputs" ? recommendation.Change.Split(". ")[0] + "." :
                 $"A possible improvement is worth testing in {recommendation.Domain.ToLowerInvariant()}.";
             next.Instruction = recommendation.Change;
-            next.Confidence = "Worth testing; improvement is not confirmed";
+            next.Confidence = recommendation.Priority == "Repeat inputs" ? "Repeat with this setup before tuning" : "Worth testing; improvement is not confirmed";
             next.Why = recommendation.Why;
             if (RunHistoryStore.ValidContext(selected.Session.Context))
             { next.Action = "Plan"; next.ActionLabel = "Plan this test"; }

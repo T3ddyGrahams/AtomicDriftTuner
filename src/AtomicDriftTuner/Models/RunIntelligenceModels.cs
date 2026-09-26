@@ -57,6 +57,7 @@ public sealed class RunContext
 public sealed class DriftEvent
 {
     public string Phase { get; set; } = "";
+    public string Direction { get; set; } = "";
     public double StartSeconds { get; set; }
     public double EndSeconds { get; set; }
     public double DurationSeconds => Math.Max(0, EndSeconds - StartSeconds);
@@ -79,7 +80,8 @@ public sealed class RunMetric
 
 public sealed class DriftDiagnosis
 {
-    public string AnalyzerVersion { get; set; } = "drift-diagnosis/4";
+    public string AnalyzerVersion { get; set; } = "drift-diagnosis/5";
+    public DrivingContextDiagnosis DrivingContext { get; set; } = new();
     public double BackwardTravelSeconds { get; set; }
     public PedalDiagnosis Pedals { get; set; } = new();
     public PowertrainDiagnosis Powertrain { get; set; } = new();

@@ -328,12 +328,17 @@ public partial class TuningAssistantWindow : Window
                 FindPreviousSession(
                     selected);
 
+            bool displayMph = false; string unitIssue = "";
+            try { displayMph = _speedUnits.Load() ?? false; }
+            catch (Exception ex) { unitIssue = " Displaying km/h because the saved unit preference could not load: " + ex.Message; }
             var report =
                 _assistant.Build(
                     _input,
                     _behavior,
                     selected,
-                    previous);
+                    previous,
+                    displayMph);
+            report.DrivingContextSummary += unitIssue;
 
             _report =
                 report;
@@ -450,6 +455,7 @@ public partial class TuningAssistantWindow : Window
             report.Comparison;
 
         PhaseGrid.ItemsSource = selected.Analysis.Diagnosis.Events;
+        RenderDrivingContext(report);
         var pedals = selected.Analysis.Diagnosis.Pedals;
         PedalGrid.ItemsSource = pedals.Events;
         PedalGrid.SelectedIndex = pedals.Events.Count > 0 ? 0 : -1;
@@ -567,6 +573,7 @@ public partial class TuningAssistantWindow : Window
             null;
 
         PhaseGrid.ItemsSource = null;
+        RenderDrivingContext(null);
         PedalGrid.ItemsSource = null;
         PedalContextGrid.ItemsSource = null;
         PedalSummaryText.Text = "Select a saved run to inspect pedal inputs and the surrounding response.";

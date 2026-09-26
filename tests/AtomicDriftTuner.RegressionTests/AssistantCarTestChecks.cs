@@ -90,6 +90,10 @@ internal static class AssistantCarTestChecks
                     new DriverIdentity { Id = c.DriverId, Name = c.DriverName }, "Mapped controls", goal, null, f.Baseline,
                     focus: c.Focus, gearingTargets: new GearingTargetStore(Path.Combine(f.DirectoryPath, "gearing")));
                 var metric = f.Run.Analysis.Diagnosis.Metrics.Single(); metric.Key = key; metric.Value = key.Contains("share") ? 75 : 2;
+                // This mapping test deliberately substitutes the metric, so the original
+                // rear-slip condition evidence no longer describes this synthetic finding.
+                // Exercise the legacy aggregate path; DrivingContextChecks covers real phases.
+                f.Run.Analysis.Diagnosis.DrivingContext = new();
                 var report = new DriftAssistantReportBuilder().Build(f.Input, goal, f.Run, null);
                 Check(report.NextStep.Action == "Plan" && report.NextStep.Recommendation?.Area == RecommendationArea.CarSetup,
                     key + " fixture has no car test: " + report.NextStep.Noticed + " / " + report.NextStep.Instruction + " / spin=" + f.Run.Analysis.SpinEvents);

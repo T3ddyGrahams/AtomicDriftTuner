@@ -123,14 +123,14 @@ internal static class IntelligenceV2Checks
             var store = new TelemetrySessionStore();
             typeof(TelemetrySessionStore).GetField("<RootDirectory>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(store, Path.Combine(root, "v2-sessions"));
             var saved = store.Save(b.Session, b.Analysis); var loaded = store.TryLoad(saved.JsonPath)!;
-            Check(loaded.Session.Context!.Test!.Id == b.Session.Context!.Test!.Id && loaded.Analysis.Diagnosis.AnalyzerVersion == "drift-diagnosis/4", "Reload lost test or used obsolete analyzer.");
+            Check(loaded.Session.Context!.Test!.Id == b.Session.Context!.Test!.Id && loaded.Analysis.Diagnosis.AnalyzerVersion == "drift-diagnosis/5", "Reload lost test or used obsolete analyzer.");
             var history = new RunHistoryStore(Path.Combine(root, "v2-reviews"));
             var review = new RunReview { SessionId = b.Session.Id, BaselineSessionId = a.Session.Id, DriverId = b.Session.Context.DriverId,
                 ContextKey = RunHistoryStore.ContextKey(input), DriverRating = "Better", Comparison = new RunComparisonEngine().Compare(a, b) };
             history.SaveReview(review);
             var reloaded = history.ListReviews(input, review.DriverId).Single();
             Check(reloaded.Comparison.ComparisonVersion == "run-comparison/2" && reloaded.Comparison.TestId == b.Session.Context.Test.Id &&
-                reloaded.Comparison.BeforeAnalyzerVersion == "drift-diagnosis/4", "Saved review lost its provenance.");
+                reloaded.Comparison.BeforeAnalyzerVersion == "drift-diagnosis/5", "Saved review lost its provenance.");
             var workflow = new GuidedWorkflowStore(Path.Combine(root, "v2-guide"));
             workflow.Update(input, review.DriverId, j => j.Test = b.Session.Context.Test);
             Check(workflow.Journey(input, review.DriverId).Test!.Id == b.Session.Context.Test.Id, "Journey lost plan on reopen.");

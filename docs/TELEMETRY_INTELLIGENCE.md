@@ -2,15 +2,31 @@
 
 ## Intelligence 2.0 completion plan — September 26
 
-Local **previews .35 and .36** implement the first two milestones below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.
+Local **previews .35–.37** implement the first three milestones below. Public preview.33 remains the released beta. This is ongoing work; ADT does not yet learn optimal settings from accumulated reviews or verify physical tyre forces/hands-off steering.
 
 | Milestone | State | Completion requirement |
 | --- | --- | --- |
 | Reliable test attribution and direction handling | Implemented in preview.35; driving acceptance pending | Exact planned versus actual controls, preserved history, matched coverage, goal-specific evidence, and consistent backward-travel exclusions. |
 | Car-supported legal adjustments | Implemented for supported mappings in preview.36; driving acceptance pending | Audit A1/A2/A7: shared verified value/step mapping, direction-preserving quantization and definition guards, with truthful holds for unknown mappings, invalid baselines, end stops and no-ops. See [scope and tests](audits/setup-values-preview36.md). |
-| Deeper phase and speed diagnosis | Next | Separate repeatable initiation/transition/sustained behavior by speed and direction; tie it to saved Desired Behavior and pedal context, with evidence counts, uncertainty and conflicting signals visible. Do not relabel slip proxies as measured tyre grip or driver steering as proven self-steer. |
+| Deeper phase and speed diagnosis | Implemented in preview.37; driving acceptance pending | Separate initiation/transition/sustained behavior by speed and direction; tie it to saved Desired Behavior and pedal context, with evidence counts, uncertainty and conflicting signals visible. Slip and steering remain proxies. See the condition review below. |
 | Repeated car/driver test history | Pending | Accumulate only matched, comparable experiments with analysis provenance; retain regressions, tradeoffs and driver disagreements, avoid counting repeated reviews of one run as independent tests, and report insufficient evidence explicitly. |
 | Controlled recommendations and acceptance | Pending | Use supported adjustments and repeatable car/driver evidence for one reviewable test at a time. Validate with multiple cars, tracks, input styles and wheelbases; preserve manual confirmation and rollback. |
+
+### Review where a pattern happens — local preview.37
+
+1. Save a run with the intended car/driver and Desired Behavior. Include the approach to entries, both transition directions and several clean sections. These can be short sections on a short track.
+2. Read **Your next step**. A supported car finding now names its measured speed/direction condition. If conditions conflict or inputs differ substantially, keep the setup and repeat the same section at similar speed and with similar pedal use before tuning.
+3. For the explanation, enable **Show advanced telemetry and recommendations → Phase Evidence → Where the pattern happens**. Select a row to read its full evidence. The table scrolls horizontally; the explanation wraps underneath. The existing appearance colours apply.
+4. Timing needs three complete entries/transitions in that condition. Continuous observations need ten **accumulated** clean seconds per speed/direction condition. Sparse conditions remain visible with LOW confidence; a whole-run total cannot supply their missing evidence. Overall unreliable or insufficient runs remain inspection-only.
+5. If ADT offers a supported focused test, review the exact change, apply it in the pits and repeat the named section. A whole-car adjustment can affect other conditions, so check both directions and review the comparison before keeping it.
+
+Canonical speed bands are below 50, 50 to below 90, and 90+ km/h. The shared saved speed preference controls condition labels; mph boundaries (~31 and ~56) are rounded display equivalents, not altered calculations. Complete timing events that cross bands remain visible but cannot establish a speed-specific setup recommendation. Left/right uses the existing body-slip sign convention; low-angle response rows use yaw direction. These labels do not identify track corners or prove identical lines.
+
+The condition table covers entry/transition timing, transition steering response, sustained-angle variation, front/rear wheel-slip share, powered rotation, steering-oscillation rate, low-angle front response and drift FFB saturation. Means use elapsed time rather than frame counts. Variation never crosses a gap, phase exclusion, speed band or direction boundary. Oscillation clusters are assigned at detection, and may begin in a different speed band. Timing and continuous thresholds, speed bands and pedal tolerances are provisional engineering heuristics requiring driving validation.
+
+Mean throttle, brake and raw clutch signal are shown only with at least 90% known pedal coverage. For timing and axle-slip findings, differences over 20 percentage points throttle/clutch or 15 points brake between supported conditions request a matched repeat. Similar means do not prove the same pedal timing or technique. Missing longitudinal travel remains unknown and known backward motion stays excluded. Tyre state, corner geometry, line, steering ratio and driver input can explain differences; none of these observations proves tyre force or hands-off self-steer.
+
+This pass changes diagnosis presentation and when a handling test is justified. It preserves existing aggregate metrics, live recording-readiness checks, gain calibration, gearing/ECU calculations and comparison scoring. Raw saved sessions are reanalyzed on reopening with `drift-diagnosis/5` and `driving-context/1`; original files and historical review verdicts remain unchanged. It does not yet compare condition buckets across multiple experiments or automatically learn a tune.
 
 ### Try the verified setup-test workflow
 
@@ -26,7 +42,7 @@ Editing a prepared description or choosing a different baseline removes its exac
 
 Known backward motion is now excluded from clean drift, initiation/transition windows, pedal context and gain calibration independently of the angle goal. Windows do not bridge the excluded interval. Angle attempts retain their backward/recovery evidence. Legacy recordings lacking direction remain readable with an explicit unknown-direction note.
 
-New reviews store `run-comparison/2`, both `drift-diagnosis/4` versions and the matched test ID/origin. Older saved files are not rewritten; their stored verdicts and driver feedback remain historical, with an unversioned-review label. Reopening raw recordings uses the current analyzer. Numeric setup, gearing and ECU generation rules are unchanged by this milestone.
+New reviews store `run-comparison/2`, both analyzer versions (currently `drift-diagnosis/5`) and the matched test ID/origin. Older saved files are not rewritten; their stored verdicts and driver feedback remain historical, with an unversioned-review label where needed. Reopening raw recordings uses the current analyzer. Numeric setup, gearing and ECU generation rules are unchanged by the exact-test attribution milestone.
 
 ### Earlier intelligence milestones
 
